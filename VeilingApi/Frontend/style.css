@@ -1,0 +1,67 @@
+/* -------- general layout -------- */
+body {
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  background: linear-gradient(135deg, #cce3ff, #e2edff);
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.container {
+  background: white;
+  padding: 40px 60px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+h1 {
+  color: #1e63c3;
+  margin-bottom: 24px;
+}
+
+/* -------- form elements -------- */
+form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+input, select, button {
+  font-size: 15px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #cbd3e1;
+  outline: none;
+  transition: all .2s ease;
+}
+
+input:focus, select:focus {
+  border-color: #1e63c3;
+  box-shadow: 0 0 0 2px rgba(30,99,195,0.15);
+}
+
+button {
+  background-color: #1e63c3;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+button:hover {
+  background-color: #17519f;
+}
+
+#msg {
+  text-align: center;
+  font-size: 14px;
+  color: #444;
+  margin-top: 10px;
+}

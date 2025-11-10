@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <title>Registreren</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="card">
+    <h1>Account aanmaken</h1>
+    <form id="registerForm" novalidate>
+      <input id="username" placeholder="Naam" required />
+      <input id="email" type="email" placeholder="Email" required />
+      <div class="row">
+        <input id="password" type="password" placeholder="Wachtwoord" required />
+        <button type="button" id="togglePw" class="toggle" aria-label="Toon/verberg wachtwoord">👁️</button>
+      </div>
+      <div id="caps" class="warn" aria-live="polite"></div>
+
+      <select id="rol" required>
+        <option value="Klant">Klant</option>
+        <option value="Aanvoerder">Aanvoerder</option>
+        <option value="Veilingmeester">Veilingmeester</option>
+      </select>
+
+      <button type="submit">Registreren</button>
+      <div id="msg" aria-live="polite"></div>
+      <div class="muted">Heb je al een account? <a href="LoginScreen.html">Inloggen</a></div>
+    </form>
+  </div>
+
+  <script>
+    const API = "http://localhost:5146/api/auth";
+
+    // Prefill last email (nice UX)
+    window.addEventListener("DOMContentLoaded", () => {
+      const last = localStorage.getItem("lastEmail");
+      if (last) document.getElementById("email").value = last;
+    });
+
+    // Show/hide password
+    document.getElementById("togglePw").addEventListener("click", () => {
+      const pw = document.getElementById("password");
+      pw.type = pw.type === "password" ? "text" : "password";
+    });
+
+    // CapsLock warning
+    document.getElementById("password").addEventListener("keyup", (e) => {
+      const caps = document.getElementById("caps");
+      if (e.getModifierState && e.getModifierState("CapsLock")) {
+        caps.textContent = "⚠️ Caps Lock staat aan";
+      } else {
+        caps.textContent = "";
+      }
+    });
+
+    // Register
+    document.getElementById("registerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const body = {
+        naam: document.getElementById("username").value.trim(),
+        email: document.getElementById("email").value.trim(),
+        password: document.getElementById("password").value,
+        rol: document.getElementById("rol").value
+      };
+      const msg = document.getElementById("msg");
+      msg.textContent = "Bezig met registreren…";
+
+      try {
+        const res = await fetch(`${API}/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+
+        const text = await res.text();
+        if (!res.ok) {
+          msg.textContent = `❌ ${res.status} ${res.statusText} — ${text || "Kan niet registreren"}`;
+          return;
+        }
+
+        // success: remember email and go to login
+        localStorage.setItem("lastEmail", body.email);
+        msg.textContent = "✅ Registratie gelukt! Je wordt doorgestuurd…";
+        setTimeout(() => location.href = "LoginScreen.html", 1000);
+      } catch (err) {
+        msg.textContent = `❌ Netwerkfout: ${err}`;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <title>Inloggen</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="card">
+    <h1>Inloggen</h1>
+    <form id="loginForm" novalidate>
+      <input id="email" type="email" placeholder="Email" required />
+      <div class="row">
+        <input id="password" type="password" placeholder="Wachtwoord" required />
+        <button type="button" id="togglePw" class="toggle" aria-label="Toon/verberg wachtwoord">👁️</button>
+      </div>
+      <div id="caps" class="warn" aria-live="polite"></div>
+      <button type="submit">Login</button>
+      <div id="msg" aria-live="polite"></div>
+      <div class="muted">Nog geen account? <a href="RegisterScreen.html">Registreren</a></div>
+    </form>
+  </div>
+
+  <script>
+    const API = "http://localhost:5146/api/auth";
+
+    // Prefill last email
+    window.addEventListener("DOMContentLoaded", () => {
+      const last = localStorage.getItem("lastEmail");
+      if (last) document.getElementById("email").value = last;
+    });
+
+    // Show/hide password
+    document.getElementById("togglePw").addEventListener("click", () => {
+      const pw = document.getElementById("password");
+      pw.type = pw.type === "password" ? "text" : "password";
+    });
+
+    // CapsLock warning
+    document.getElementById("password").addEventListener("keyup", (e) => {
+      const caps = document.getElementById("caps");
+      if (e.getModifierState && e.getModifierState("CapsLock")) {
+        caps.textContent = "⚠️ Caps Lock staat aan";
+      } else {
+        caps.textContent = "";
+      }
+    });
+
+    // Login
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const msg = document.getElementById("msg");
+      msg.textContent = "Bezig met inloggen…";
+
+      try {
+        const res = await fetch(`${API}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include", // receive auth cookie
+          body: JSON.stringify({ email, password })
+        });
+
+        const text = await res.text(); // show server message if any
+        if (!res.ok) {
+          msg.textContent = `❌ ${res.status} ${res.statusText} — ${text || "Onjuiste inloggegevens"}`;
+          return;
+        }
+
+        // success: remember email and route by role
+        localStorage.setItem("lastEmail", email);
+        msg.textContent = "✅ Ingelogd!";
+
+        // Parse minimal response if your API returns JSON { ok, role, naam }
+        let data = {};
+        try { data = JSON.parse(text); } catch {}
+
+        setTimeout(() => {
+          if (data.role === "Veilingmeester") location.href = "admin.html";
+          else if (data.role === "Aanvoerder") location.href = "aanvoerder.html";
+          else location.href = "klant.html";
+        }, 700);
+      } catch (err) {
+        msg.textContent = `❌ Netwerkfout: ${err}`;
+      }
+    });
+  </script>
+</body>
+</html>
