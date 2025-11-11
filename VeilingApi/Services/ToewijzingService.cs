@@ -9,32 +9,79 @@ public class ToewijzingService : IToewijzingService
     private readonly AppDbContext _db;
     public ToewijzingService(AppDbContext db) => _db = db;
 
-    public Task<List<Toewijzing>> GetAllAsync()
-        => _db.Toewijzingen.AsNoTracking().ToListAsync();
-
-    public Task<Toewijzing?> GetByIdAsync(int id)
-        => _db.Toewijzingen.FindAsync(id).AsTask();
-
-    public async Task<Toewijzing> CreateAsync(Toewijzing t)
+    public async Task<List<ToewijzingDto>> GetAllAsync()
     {
-        _db.Toewijzingen.Add(t);
-        await _db.SaveChangesAsync();   // unique 1:1 met VeilingProduct wordt hier afgedwongen
-        return t;
+        return await _db.Toewijzingen
+            .Include(t => t.Koper)
+            .Include(t => t.VeilingProduct)
+            .Select(t => new ToewijzingDto
+            {
+                ToewijzingId = t.ToewijzingId,
+                KoperId = t.KoperId,
+                KoperNaam = t.Koper!.Naam,
+                VeilingProductId = t.VeilingProductId,
+                EindPrijs = t.EindPrijs,
+                Datum = t.Datum
+            })
+            .ToListAsync();
     }
 
-    public async Task<bool> UpdateAsync(int id, Toewijzing t)
+    public async Task<ToewijzingDto?> GetByIdAsync(int id)
     {
-        if (id != t.ToewijzingId) return false;
-        _db.Entry(t).State = EntityState.Modified;
+        return await _db.Toewijzingen
+            .Include(t => t.Koper)
+            .Where(t => t.ToewijzingId == id)
+            .Select(t => new ToewijzingDto
+            {
+                ToewijzingId = t.ToewijzingId,
+                KoperId = t.KoperId,
+                KoperNaam = t.Koper!.Naam,
+                VeilingProductId = t.VeilingProductId,
+                EindPrijs = t.EindPrijs,
+                Datum = t.Datum
+            })
+            .FirstOrDefaultAsync();
+    }
+
+    public async Task<ToewijzingDto> CreateAsync(CreateToewijzingDto dto)
+    {
+        var buyerExists = await _db.Gebruikers.AnyAsync(g => g.GebruikerId == dto.KoperId);
+        if (!buyerExists) throw new InvalidOperationException("Koper bestaat niet.");
+
+        var productExists = await _db.VeilingProducts.AnyAsync(vp => vp.VeilingProductId == dto.VeilingProductId);
+        if (!productExists) throw new InvalidOperationException("Veilingproduct bestaat niet.");
+
+        var t = new Toewijzing
+        {
+            KoperId = dto.KoperId,
+            VeilingProductId = dto.VeilingProductId,
+            EindPrijs = dto.EindPrijs,
+            Datum = dto.Datum
+        };
+
+        _db.Toewijzingen.Add(t);
         await _db.SaveChangesAsync();
-        return true;
+
+        var created = await _db.Toewijzingen.Include(x => x.Koper)
+            .FirstAsync(x => x.ToewijzingId == t.ToewijzingId);
+
+        return new ToewijzingDto
+        {
+            ToewijzingId = created.ToewijzingId,
+            KoperId = created.KoperId,
+            KoperNaam = created.Koper!.Naam,
+            VeilingProductId = created.VeilingProductId,
+            EindPrijs = created.EindPrijs,
+            Datum = created.Datum
+        };
     }
 
     public async Task<bool> DeleteAsync(int id)
     {
-        var x = await _db.Toewijzingen.FindAsync(id);
-        if (x is null) return false;
-        _db.Toewijzingen.Remove(x);
+        var t = await _db.Toewijzingen.FindAsync(id);
+        if (t == null) return false;
+
+        _db.Toewijzingen.Remove(t);
         await _db.SaveChangesAsync();
         return true;
     }

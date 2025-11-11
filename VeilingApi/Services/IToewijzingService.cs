@@ -4,9 +4,8 @@ namespace VeilingApi.Services;
 
 public interface IToewijzingService
 {
-    Task<List<Toewijzing>> GetAllAsync();
-    Task<Toewijzing?> GetByIdAsync(int id);
-    Task<Toewijzing> CreateAsync(Toewijzing t);  // kan unique (1:1) errors geven
-    Task<bool> UpdateAsync(int id, Toewijzing t);
+    Task<List<ToewijzingDto>> GetAllAsync();
+    Task<ToewijzingDto?> GetByIdAsync(int id);
+    Task<ToewijzingDto> CreateAsync(CreateToewijzingDto dto);
     Task<bool> DeleteAsync(int id);
 }

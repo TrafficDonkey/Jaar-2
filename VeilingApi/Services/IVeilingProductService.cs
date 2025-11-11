@@ -4,9 +4,9 @@ namespace VeilingApi.Services;
 
 public interface IVeilingProductService
 {
-    Task<List<VeilingProduct>> GetAllAsync();
-    Task<VeilingProduct?> GetByIdAsync(int id);
-    Task<VeilingProduct> CreateAsync(VeilingProduct vp);   // kan FK/unique fouten geven
-    Task<bool> UpdateAsync(int id, VeilingProduct vp);     // idem
+    Task<List<VeilingProductDto>> GetAllAsync();
+    Task<VeilingProductDto?> GetByIdAsync(int id);
+    Task<VeilingProductDto> CreateAsync(CreateVeilingProductDto dto);
+    Task<bool> UpdateAsync(UpdateVeilingProductDto dto);
     Task<bool> DeleteAsync(int id);
 }

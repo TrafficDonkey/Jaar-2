@@ -1,37 +1,27 @@
 import React, { useEffect, useState } from "react";
-import "./RegisterStyle.css";
 import { Link, useNavigate } from "react-router-dom";
+import "./RegisterStyle.css";
 
 const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
 
-function RegisterScreen() {
+export default function RegisterScreen() {
   const [naam, setNaam] = useState("");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
-  const [role, setRole] = useState("Veilingmeester"); // default matches your checked radio
+  const [role, setRole] = useState("Klant");
   const [showPw, setShowPw] = useState(false);
   const [caps, setCaps] = useState(false);
   const [msg, setMsg] = useState("");
   const nav = useNavigate();
 
-  // Prefill email from previous session
   useEffect(() => {
     const last = localStorage.getItem("lastEmail");
     if (last) setEmail(last);
   }, []);
 
-  // Map radio value → API role
-  function mapRole(v) {
-    if (v === "veilingmeester") return "Veilingmeester";
-    if (v === "aanvoerder") return "Aanvoerder";
-    return "Klant"; // "gebruiker"
-  }
-
-  async function onSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    setMsg("Bezig met registreren…");
-
-    const apiRole = mapRole(role);
+    setMsg("Registreren…");
     try {
       const res = await fetch(`${API}/auth/register`, {
         method: "POST",
@@ -40,135 +30,118 @@ function RegisterScreen() {
           naam: naam.trim(),
           email: email.trim(),
           password: pw,
-          rol: apiRole
+          rol: role
         })
       });
-
       const text = await res.text();
       if (!res.ok) {
         setMsg(`❌ ${res.status} ${res.statusText} — ${text || "Kan niet registreren"}`);
         return;
       }
-
       localStorage.setItem("lastEmail", email.trim());
-      setMsg("✅ Registratie gelukt! Doorsturen naar login…");
-      setTimeout(() => nav("/login", { replace: true }), 900);
+      setMsg("✅ Gelukt! Doorsturen naar login…");
+      setTimeout(() => nav("/login", { replace: true }), 800);
     } catch (err) {
-      setMsg(`❌ Netwerkfout: ${err?.message ?? err}`);
+      setMsg(`❌ Netwerkfout: ${err.message ?? err}`);
     }
   }
 
   return (
-    <div className="page-container">
-      <div className="roof"></div>
-      <div className="bottom"></div>
-      <hr className="top-hr" />
-      <hr className="bottom-hr" />
+    <div className="page-shell reg-shell">
+      <a href="#main" className="skip-link">Ga naar hoofdinhoud</a>
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">🌿</span>
+          <span className="brand-name">FloraFlow</span>
+        </div>
+        <Link to="/login" className="topbar-link">Inloggen</Link>
+      </header>
 
-      <div className="login-container">
-        <form className="form-container" onSubmit={onSubmit}>
+      <main id="main" className="reg-main">
+        <section className="auth-panel" aria-labelledby="reg-title">
+            <h1 id="reg-title">Account aanmaken</h1>
+            <p className="panel-subtitle">Kies je rol en vul je gegevens in.</p>
 
-          {/* Role Selection */}
-          <div className="role-selection">
-            <label className="role-option">
-              <input
-                type="radio"
-                name="role"
-                value="veilingmeester"
-                defaultChecked
-                onChange={e => setRole(e.target.value)}
-              />
-              <span>Veilingmeester</span>
-            </label>
-
-            <label className="role-option">
-              <input
-                type="radio"
-                name="role"
-                value="aanvoerder"
-                onChange={e => setRole(e.target.value)}
-              />
-              <span>Aanvoerder</span>
-            </label>
-
-            <label className="role-option">
-              <input
-                type="radio"
-                name="role"
-                value="gebruiker"
-                onChange={e => setRole(e.target.value)}
-              />
-              <span>Gebruiker</span>
-            </label>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="username">Username:</label>
-            <input
-              id="username"
-              placeholder="Enter your username"
-              required
-              value={naam}
-              onChange={e => setNaam(e.target.value)}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">Email:</label>
-            <input
-              type="email"
-              id="email"
-              placeholder="Enter your email"
-              required
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="form-group" style={{ position: "relative" }}>
-            <label htmlFor="password">Password:</label>
-            <input
-              type={showPw ? "text" : "password"}
-              id="password"
-              placeholder="Enter your password"
-              required
-              value={pw}
-              onChange={e => setPw(e.target.value)}
-              onKeyUp={e => setCaps(e.getModifierState && e.getModifierState("CapsLock"))}
-            />
-            <button
-              type="button"
-              className="rounded-btn"
-              style={{ position: "absolute", right: 0, top: 28 }}
-              onClick={() => setShowPw(s => !s)}
-            >
-              👁️
-            </button>
-            {caps && (
-              <div style={{ color: "#c15a00", fontSize: 12, marginTop: 6 }}>
-                ⚠️ Caps Lock staat aan
+            <form onSubmit={handleSubmit} className="auth-form" noValidate>
+              <div className="field">
+                <label htmlFor="naam">Naam</label>
+                <input id="naam" value={naam} onChange={e => setNaam(e.target.value)} required />
               </div>
-            )}
-          </div>
+              <div className="field">
+                <label htmlFor="reg-email">E-mailadres</label>
+                <input
+                  id="reg-email"
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                />
+              </div>
 
-          <div className="button-container">
-            <button className="rounded-btn buttonSettings1" type="submit">
-              Register
-            </button>
-            <Link to="/login">
-              <button className="rounded-btn buttonSettings1" type="button">
-                Go to login
-              </button>
-            </Link>
-          </div>
+              <div className="field password-field">
+                <label htmlFor="reg-password">Wachtwoord</label>
+                <input
+                  id="reg-password"
+                  type={showPw ? "text" : "password"}
+                  value={pw}
+                  onChange={e => setPw(e.target.value)}
+                  onKeyUp={e => setCaps(e.getModifierState && e.getModifierState("CapsLock"))}
+                  required
+                />
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  onClick={() => setShowPw(s => !s)}
+                >
+                  {showPw ? "Verberg" : "Toon"}
+                </button>
+                {caps && <p className="caps-hint">⚠️ Caps Lock staat aan</p>}
+              </div>
 
-          <div style={{ color: "white", fontSize: 14, marginTop: 6, textAlign: "center" }}>
-            {msg}
-          </div>
-        </form>
-      </div>
+              <fieldset className="field">
+                <legend>Rol</legend>
+                <p className="role-hint">Je rol bepaalt welke schermen je ziet.</p>
+                <label className="role-line">
+                  <input
+                    type="radio"
+                    name="rol"
+                    value="Klant"
+                    checked={role === "Klant"}
+                    onChange={e => setRole(e.target.value)}
+                  />
+                  <span>Klant</span>
+                </label>
+                <label className="role-line">
+                  <input
+                    type="radio"
+                    name="rol"
+                    value="Aanvoerder"
+                    checked={role === "Aanvoerder"}
+                    onChange={e => setRole(e.target.value)}
+                  />
+                  <span>Aanvoerder</span>
+                </label>
+                <label className="role-line">
+                  <input
+                    type="radio"
+                    name="rol"
+                    value="Veilingmeester"
+                    checked={role === "Veilingmeester"}
+                    onChange={e => setRole(e.target.value)}
+                  />
+                  <span>Veilingmeester</span>
+                </label>
+              </fieldset>
+
+              <button type="submit" className="primary-btn">Account maken</button>
+              <p className="form-msg" aria-live="polite">{msg}</p>
+            </form>
+        </section>
+      </main>
+
+      <footer className="footer">
+        <p>© {new Date().getFullYear()} FloraFlow — demo</p>
+      </footer>
     </div>
   );
 }
-
-export default RegisterScreen;

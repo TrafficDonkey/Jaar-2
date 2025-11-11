@@ -1,112 +1,183 @@
-import React from "react";
-import {Link} from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import "./HomePageStyle.css";
 
-function HomePage() {
-    return (
-        <div className="homepage">
-            <header className="header">
-                <div className="brand">
-                    <div className="avatar">😊</div>
-                    <div>
-                        <div className="subtext">earchannel</div>
-                        <div className="logo">PlantBid</div>
-                    </div>
+const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
+
+export default function HomePage() {
+  const [veilingen, setVeilingen] = useState([]);
+  const [kavels, setKavels] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [vRes, kRes] = await Promise.all([
+          apiFetch("/Veilingen"),
+          apiFetch("/VeilingProducts")
+        ]);
+
+        if (!vRes.ok || !kRes.ok) {
+          console.error("Backend gaf foutcode:", vRes.status, kRes.status);
+          return;
+        }
+
+        const vData = await vRes.json();
+        const kData = await kRes.json();
+
+        setVeilingen(vData);
+        setKavels(kData);
+      } catch (err) {
+        console.error("Fout bij ophalen dashboard-data", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  if (loading) return <p>Loading…</p>;
+
+  return (
+    <div className="page-shell dash-shell">
+      {/* ... topbar blijft zoals we hadden ... */}
+
+      <main id="main" className="dash-main">
+        {/* header laten we zo */}
+        <section className="page-header" aria-label="Welkom">
+          <div>
+            <h1>Welkom terug 👋</h1>
+            <p className="lead">Je veilingoverzicht en eerstvolgende kavels staan hieronder.</p>
+          </div>
+          <div>
+            <Link to="/settings" className="secondary-btn">Profiel bijwerken</Link>
+          </div>
+        </section>
+
+        {/* stats kun je zo laten, of vullen met veilingen.length */}
+        <section className="dash-grid" aria-label="Kerncijfers">
+          <article className="stat-card">
+            <p className="stat-label">Aantal veilingen</p>
+            <p className="stat-value">{veilingen.length}</p>
+            <p className="stat-hint">Totaal geregistreerde veilingen.</p>
+          </article>
+
+          <article className="stat-card">
+            <p className="stat-label">Aantal kavels</p>
+            <p className="stat-value">{kavels.length}</p>
+            <p className="stat-hint">Producten gekoppeld aan veilingen.</p>
+          </article>
+
+          <article className="stat-card">
+            <p className="stat-label">Status</p>
+            <p className="stat-value">OK</p>
+            <p className="stat-hint">Data uit backend (EF Core).</p>
+          </article>
+        </section>
+
+        {/* lijst met kavels */}
+        <section className="panel" aria-label="Eerstvolgende veilingen">
+          <div className="panel-head">
+            <h2>Eerstvolgende kavels</h2>
+            <p className="panel-sub">
+              {loading ? "Laden..." : `Totaal ${kavels.length} kavels`}
+            </p>
+          </div>
+          <ul className="auction-list">
+            {kavels.map(k => (
+              <li key={k.veilingProductId ?? k.id} className="auction-item">
+                <div className="auction-title">
+                  {k.aanmelding?.productBeschrijving ?? "Onbekend product"}
                 </div>
+                <div className="auction-meta">
+                  <span>{k.veiling?.startTijd?.slice(0, 10) ?? "n.n.b."}</span>
+                  <span className="badge">
+                    Veiling #{k.veilingId}
+                  </span>
+                  <button className="ghost-btn-sm" type="button">
+                    Bekijken
+                  </button>
+                </div>
+              </li>
+            ))}
+            {!loading && kavels.length === 0 && (
+              <li className="auction-item">Er zijn nog geen kavels.</li>
+            )}
+          </ul>
+        </section>
 
-                <nav className="nav">
-                    <Link to="/">Home</Link>
-                    <Link to="/veilingen">Mijn veilingen</Link>
-                    <Link to="/gebruiker">Gebruiker</Link>
-                    <Link to="/settings">Settings</Link>
-                    <Link to="/contact">Contact</Link>
-                </nav>
-            </header>
-
-            <main className="wrapper">
-                <section className="left">
-                    <img
-                        className="product-img"
-                        src="https://images.unsplash.com/photo-1455587734955-081b22074882?q=80&w=1200&auto=format&fit=crop"
-                        alt="Hyacint Midnight Mystic"
-                    />
-                    <div className="chip">Huidige bod €100.000</div>
-                    <div className="cta">
-                        <button className="btn">Koop nu</button>
-                    </div>
-                </section>
-
-                <section className="center">
-                    <h2>Naam: Hyacinth 'Midnight Mystic'</h2>
-                    <dl className="kv">
-                        <dt>Bloei periode</dt>
-                        <dd>Voorjaar</dd>
-                        <dt>Hoeveelheid</dt>
-                        <dd>1</dd>
-                        <dt>Startprijs</dt>
-                        <dd>€150.000</dd>
-                        <dt>Aanvoerder</dt>
-                        <dd>GreenGrow BV</dd>
-                    </dl>
-                </section>
-
-                <aside className="right">
-                    <div className="price-legend">
-                        <div>€150.000</div>
-                        <div>€100.000</div>
-                    </div>
-                    <div className="graph">
-                        <div className="price-line"></div>
-                        <div className="arrow"></div>
-                    </div>
-                    <div className="timer">
-                        <small>resterende tijd :</small>
-                        <strong>2d, 14h, 24min</strong>
-                    </div>
-                </aside>
-
-                <section className="section">
-                    <h3>Overige producten</h3>
-                    <div className="cards">
-                        {[
-                            {
-                                img: "https://images.unsplash.com/photo-1619258059605-e949f84f1bf8?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1169",
-                                name: "Snowdrops",
-                                price: "€1.850",
-                            },
-                            {
-                                img: "https://images.unsplash.com/photo-1683303142347-3c41b18271a5?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170",
-                                name: "Hepaticas",
-                                price: "€450",
-                            },
-                            {
-                                img: "https://plus.unsplash.com/premium_photo-1756487224788-65e626badfb4?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&q=80&w=1170",
-                                name: "Cloud-pruned trees",
-                                price: "€4.500",
-                            },
-                        ].map((item, i) => (
-                            <article key={i} className="card">
-                                <img src={item.img} alt={item.name} />
-                                <div className="card-body">
-                                    <h4>{item.name}</h4>
-                                    <div className="price">{item.price}</div>
-                                </div>
-                                <div className="card-actions">
-                                    <button className="btn-ghost">Bekijk</button>
-                                    <div className="bookmark">🔖</div>
-                                </div>
-                            </article>
-                        ))}
-                        <div className="see-more">
-                            <a className="btn-ghost" href="#">
-                                zie meer →
-                            </a>
-                        </div>
-                    </div>
-                </section>
-            </main>
-        </div>
-    );
+        {/* klein formulier om een aanmelding te maken */}
+        <section className="panel" aria-label="Nieuw product aanmelden">
+          <h2>Product aanmelden</h2>
+          <AanmeldForm />
+        </section>
+      </main>
+    </div>
+  );
 }
 
-export default HomePage;
+/** klein formulier onderaan dashboard */
+function AanmeldForm() {
+  const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
+  const [beschrijving, setBeschrijving] = React.useState("");
+  const [hoeveelheid, setHoeveelheid] = React.useState(10);
+  const [msg, setMsg] = React.useState("");
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setMsg("Versturen…");
+    try {
+      // let op: aanvoerderId moet echt bestaan in jouw DB
+      const res = await fetch(`${API}/Aanmeldingen`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fotoUrl: "",
+          productBeschrijving: beschrijving,
+          hoeveelheid: Number(hoeveelheid),
+          minimumPrijs: 1.0,
+          gewensteKlokLocatie: "Naaldwijk",
+          gewensteVeilDatum: new Date().toISOString(),
+          aanvoerderId: 1
+        })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        setMsg("❌ Fout: " + text);
+      } else {
+        setMsg("✅ Aangemeld!");
+        setBeschrijving("");
+        setHoeveelheid(10);
+      }
+    } catch (err) {
+      setMsg("❌ Netwerkfout: " + err);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="aanmeld-form">
+      <label>
+        Product
+        <input
+          value={beschrijving}
+          onChange={e => setBeschrijving(e.target.value)}
+          required
+        />
+      </label>
+      <label>
+        Hoeveelheid
+        <input
+          type="number"
+          min="1"
+          value={hoeveelheid}
+          onChange={e => setHoeveelheid(e.target.value)}
+          required
+        />
+      </label>
+      <button type="submit" className="primary-btn">
+        Aanmelden
+      </button>
+      <p aria-live="polite">{msg}</p>
+    </form>
+  );
+}

@@ -4,9 +4,9 @@ namespace VeilingApi.Services;
 
 public interface IAanvoerderService
 {
-    Task<List<Aanvoerder>> GetAllAsync();
-    Task<Aanvoerder?> GetByIdAsync(int id);
-    Task<Aanvoerder> CreateAsync(Aanvoerder a);
-    Task<bool> UpdateAsync(int id, Aanvoerder a);
+    Task<List<AanvoerderDto>> GetAllAsync();
+    Task<AanvoerderDto?> GetByIdAsync(int id);
+    Task<AanvoerderDto> CreateAsync(CreateAanvoerderDto dto);
+    Task<bool> UpdateAsync(UpdateAanvoerderDto dto);
     Task<bool> DeleteAsync(int id);
 }

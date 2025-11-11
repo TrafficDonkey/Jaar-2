@@ -13,5 +13,5 @@ public class Toewijzing
     [JsonIgnore][ValidateNever]
     public Gebruiker? Koper { get; set; } 
     public decimal EindPrijs { get; set; }
-    public DateOnly Datum { get; set; }
+    public DateTime Datum { get; set; }
 }

@@ -4,9 +4,9 @@ namespace VeilingApi.Services;
 
 public interface IVeilingService
 {
-    Task<List<Veiling>> GetAllAsync();
-    Task<Veiling?> GetByIdAsync(int id);
-    Task<Veiling> CreateAsync(Veiling v);
-    Task<bool> UpdateAsync(int id, Veiling v);
+    Task<List<VeilingDto>> GetAllAsync();
+    Task<VeilingDto?> GetByIdAsync(int id);
+    Task<VeilingDto> CreateAsync(CreateVeilingDto dto);
+    Task<bool> UpdateAsync(UpdateVeilingDto dto);
     Task<bool> DeleteAsync(int id);
 }

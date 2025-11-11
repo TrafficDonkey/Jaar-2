@@ -4,7 +4,7 @@ import "./LoginStyle.css";
 
 const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
 
-function LoginScreen() {
+export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -12,111 +12,131 @@ function LoginScreen() {
   const [msg, setMsg] = useState("");
   const nav = useNavigate();
 
+  // prefill email
   useEffect(() => {
     const last = localStorage.getItem("lastEmail");
     if (last) setEmail(last);
   }, []);
 
-  async function handleLogin(e) {
-    e.preventDefault();
-    setMsg("Bezig met inloggen…");
+  async function handleSubmit(e) {
+  e.preventDefault();
+  setMsg("Inloggen…");
 
-    try {
-      const res = await fetch(`${API}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", // receive/set auth cookie
-        body: JSON.stringify({ email: email.trim(), password: pw })
-      });
+  try {
+    const res = await fetch(`${API}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ email: email.trim(), password: pw })
+    });
 
-      const text = await res.text();
-      if (!res.ok) {
-        setMsg(`❌ ${res.status} ${res.statusText} — ${text || "Onjuiste inloggegevens"}`);
-        return;
-      }
+    const text = await res.text();
 
-      localStorage.setItem("lastEmail", email.trim());
-      setMsg("✅ Ingelogd!");
-
-      // If API returns { ok, role, naam }, route by role
-      let data = {};
-      try { data = JSON.parse(text); } catch {}
-      setTimeout(() => {
-        if (data.role === "Veilingmeester") nav("/homepage", { replace: true });
-        else if (data.role === "Aanvoerder") nav("/homepage", { replace: true });
-        else nav("/homepage", { replace: true });
-      }, 600);
-    } catch (err) {
-      setMsg(`❌ Netwerkfout: ${err?.message ?? err}`);
+    if (!res.ok) {
+      setMsg(`❌ ${res.status} ${res.statusText} — ${text || "Onjuiste inloggegevens"}`);
+      return;
     }
+
+    localStorage.setItem("lastEmail", email.trim());
+
+    let data = {};
+    try {
+      data = JSON.parse(text);
+    } catch {}
+
+    // 🟩 1️⃣ Save the token
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+    }
+
+    // Optional: save role if backend includes it
+    if (data.role) {
+      localStorage.setItem("role", data.role);
+    }
+
+    setMsg("✅ Ingelogd!");
+    setTimeout(() => {
+      if (data.role === "Veilingmeester") nav("/homepage", { replace: true });
+      else if (data.role === "Aanvoerder") nav("/homepage", { replace: true });
+      else nav("/homepage", { replace: true });
+    }, 500);
+  } catch (err) {
+    setMsg(`❌ Netwerkfout: ${err.message ?? err}`);
   }
+}
+
 
   return (
-    <div className="page-container">
-      <div className="roof"></div>
-      <div className="bottom"></div>
-      <hr className="top-hr" />
-      <hr className="bottom-hr" />
+    <div className="page-shell login-shell">
+      <a href="#main" className="skip-link">Ga naar hoofdinhoud</a>
+      <header className="topbar" aria-label="Hoofdnavigatie">
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">🌿</span>
+          <span className="brand-name">FloraFlow</span>
+        </div>
+        <Link to="/register" className="topbar-link">Account aanmaken</Link>
+      </header>
 
-      <div className="login-container">
-        <form className="form-container" onSubmit={handleLogin}>
-          <div className="form-group">
-            <label htmlFor="email">Email:</label>
-            <input
-              type="email"
-              id="email"
-              placeholder="Enter your email"
-              required
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-            />
-          </div>
+      <main id="main" className="login-main" aria-labelledby="login-title">
+        <section className="auth-panel" aria-describedby="login-sub">
+          <h1 id="login-title">Inloggen</h1>
+          <p id="login-sub" className="panel-subtitle">
+            Meld je aan om kavels te veilen of te kopen.
+          </p>
 
-          <div className="form-group" style={{ position: "relative" }}>
-            <label htmlFor="password">Password:</label>
-            <input
-              type={showPw ? "text" : "password"}
-              id="password"
-              placeholder="Enter your password"
-              required
-              value={pw}
-              onChange={e => setPw(e.target.value)}
-              onKeyUp={e => setCaps(e.getModifierState && e.getModifierState("CapsLock"))}
-            />
-            <button
-              type="button"
-              className="rounded-btn"
-              style={{ position: "absolute", right: 0, top: 28 }}
-              onClick={() => setShowPw(s => !s)}
-            >
-              👁️
-            </button>
-            {caps && (
-              <div style={{ color: "orange", fontSize: 12, marginTop: 6 }}>
-                ⚠️ Caps Lock staat aan
-              </div>
-            )}
-          </div>
+          <form onSubmit={handleSubmit} className="auth-form" noValidate>
+            <div className="field">
+              <label htmlFor="email">E-mailadres</label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
+              />
+            </div>
 
-          <div className="button-container">
-            <Link to="/register">
-              <button type="button" className="rounded-btn buttonSettings1">
-                Go to register
+            <div className="field password-field">
+              <label htmlFor="password">Wachtwoord</label>
+              <input
+                id="password"
+                type={showPw ? "text" : "password"}
+                autoComplete="current-password"
+                value={pw}
+                onChange={e => setPw(e.target.value)}
+                onKeyUp={e =>
+                  setCaps(e.getModifierState && e.getModifierState("CapsLock"))
+                }
+                required
+              />
+              <button
+                type="button"
+                className="ghost-btn"
+                onClick={() => setShowPw(s => !s)}
+                aria-pressed={showPw}
+              >
+                {showPw ? "Verberg" : "Toon"}
               </button>
-            </Link>
+              {caps && <p className="caps-hint">⚠️ Caps Lock staat aan</p>}
+            </div>
 
-            <button type="submit" className="rounded-btn buttonSettings1">
-              Login
+            <button type="submit" className="primary-btn">
+              Inloggen
             </button>
-          </div>
 
-          <div style={{ color: "white", fontSize: 14, marginTop: 6, textAlign: "center" }}>
-            {msg}
-          </div>
-        </form>
-      </div>
+            <p className="form-msg" aria-live="polite">{msg}</p>
+          </form>
+
+          <p className="alt-link">
+            Nog geen account? <Link to="/register">Registreer</Link>
+          </p>
+        </section>
+      </main>
+
+      <footer className="footer">
+        <p>© {new Date().getFullYear()} FloraFlow — demo</p>
+      </footer>
     </div>
   );
 }
-
-export default LoginScreen;

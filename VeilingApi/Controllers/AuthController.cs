@@ -1,90 +1,48 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using Microsoft.EntityFrameworkCore;
-using VeilingApi.Data;
 using VeilingApi.Models;
 using VeilingApi.Services;
+using Microsoft.AspNetCore.Authorization;
+
+namespace VeilingApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
-    private readonly AppDbContext _db;
-    private readonly IConfiguration _cfg;
-    private readonly PasswordService _pwd = new();
+    private readonly IAuthService _svc;
 
-    public AuthController(AppDbContext db, IConfiguration cfg)
+    public AuthController(IAuthService svc)
     {
-        _db = db; _cfg = cfg;
+        _svc = svc;
     }
 
-   [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterDto dto)
-        {
-            var email = dto.Email.Trim().ToLowerInvariant();
+    [HttpPost("register")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Register([FromBody] RegisterDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-            if (await _db.Gebruikers.AnyAsync(u => u.Email.ToLower() == email))
-                return Conflict(new { message = "Email already in use" });
+        var result = await _svc.RegisterAsync(dto);
 
-            var user = new Gebruiker
-            {
-                Naam = dto.Naam.Trim(),
-                Email = email,
-                WachtwoordHash = _pwd.Hash(dto.Password),
-                Rol = dto.Rol
-            };
+        if (!result.Success)
+            return BadRequest(new { message = result.ErrorMessage });
 
-            _db.Gebruikers.Add(user);
-            await _db.SaveChangesAsync();
-            return Created($"/api/gebruiker/{user.GebruikerId}",
-                new { user.GebruikerId, user.Naam, user.Email, user.Rol });
-}
+        return Ok(new { message = "Registratie succesvol", gebruiker = result.Gebruiker });
+    }
 
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        var email = dto.Email.Trim().ToLowerInvariant();
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-        var user = await _db.Gebruikers
-            .FirstOrDefaultAsync(u => u.Email.ToLower() == email);
+        var token = await _svc.LoginAsync(dto.Email, dto.Wachtwoord);
 
-        if (user is null || !_pwd.Verify(user.WachtwoordHash, dto.Password))
-            return Unauthorized();
+        if (token == null)
+            return Unauthorized(new { message = "Onjuiste inloggegevens" });
 
-        var jwt = _cfg.GetSection("Jwt");
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]!));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var claims = new[]
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, user.GebruikerId.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Rol)
-        };
-
-        var token = new JwtSecurityToken(
-            issuer: jwt["Issuer"],
-            audience: jwt["Audience"],
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(int.Parse(jwt["AccessTokenMinutes"]!)),
-            signingCredentials: creds);
-
-        var tokenStr = new JwtSecurityTokenHandler().WriteToken(token);
-
-        Response.Cookies.Append("access_token", tokenStr, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.None,
-            Expires = DateTimeOffset.UtcNow.AddMinutes(int.Parse(jwt["AccessTokenMinutes"]!))
-        });
-
-        return Ok(new { ok = true, role = user.Rol, naam = user.Naam });
+        return Ok(new { token });
     }
 }
-
-public record RegisterDto(string Naam, string Email, string Password, string Rol);
-public record LoginDto(string Email, string Password);

@@ -11,7 +11,7 @@ public class Aanmelding
     public int Hoeveelheid { get; set; }
     public decimal MinimumPrijs { get; set; }
     public string GewensteKlokLocatie { get; set; } = null!;
-    public DateOnly GewensteVeilDatum { get; set; }
+    public DateTime GewensteVeilDatum { get; set; }
 
     public int AanvoerderId { get; set; }
 

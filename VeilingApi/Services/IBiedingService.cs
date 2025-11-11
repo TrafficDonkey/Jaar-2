@@ -4,9 +4,8 @@ namespace VeilingApi.Services;
 
 public interface IBiedingService
 {
-    Task<List<Bieding>> GetAllAsync();
-    Task<Bieding?> GetByIdAsync(int id);
-    Task<Bieding> CreateAsync(Bieding b);
-    Task<bool> UpdateAsync(int id, Bieding b);
+    Task<List<BiedingDto>> GetAllAsync();
+    Task<BiedingDto?> GetByIdAsync(int id);
+    Task<BiedingDto> CreateAsync(CreateBiedingDto dto);
     Task<bool> DeleteAsync(int id);
 }

@@ -19,13 +19,15 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
 // Service-laag
-builder.Services.AddScoped<IAanmeldingService, AanmeldingService>();
-builder.Services.AddScoped<IAanvoerderService, AanvoerderService>();
 builder.Services.AddScoped<IGebruikerService, GebruikerService>();
+builder.Services.AddScoped<IAanvoerderService, AanvoerderService>();
+builder.Services.AddScoped<IAanmeldingService, AanmeldingService>();
 builder.Services.AddScoped<IVeilingService, VeilingService>();
 builder.Services.AddScoped<IVeilingProductService, VeilingProductService>();
 builder.Services.AddScoped<IBiedingService, BiedingService>();
 builder.Services.AddScoped<IToewijzingService, ToewijzingService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+
 
 // CORS (set your frontend origins here)
 builder.Services.AddCors(opt =>
