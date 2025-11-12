@@ -1,12 +1,18 @@
+// Dto.cs
+// Bevat alle Data Transfer Objects (DTO's) voor requests en responses.
+// DTO's valideren input en bepalen welke velden via de API worden uitgewisseld.
+
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace VeilingApi.Models;
 
-// ====== GEBRUIKER ======
+// ────────────────────────────── GEBRUIKER ──────────────────────────────
+// Weergave- en mutatie-DTO's voor gebruikersbeheer.
+
 public class GebruikerDto
 {
-    public int GebruikerId { get; set; }
+    public int GebruikerId { get; set; }                 // Publieke weergave van gebruiker
     public string Naam { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Rol { get; set; } = string.Empty;
@@ -23,7 +29,7 @@ public class CreateGebruikerDto
     [Required]
     public string Rol { get; set; } = "Klant";
 
-    // in jouw project komt dit uit register
+    // Wordt normaliter tijdens registratie gezet
     [Required]
     public string WachtwoordHash { get; set; } = string.Empty;
 }
@@ -44,12 +50,14 @@ public class UpdateGebruikerDto
 }
 
 
-// ====== AANVOERDER ======
+// ────────────────────────────── AANVOERDER ──────────────────────────────
+// DTO's voor het beheren van aanvoerders (leveranciers/aanmelders).
+
 public class AanvoerderDto
 {
     public int AanvoerderId { get; set; }
     public string Naam { get; set; } = string.Empty;
-    public int AantalAanmeldingen { get; set; }
+    public int AantalAanmeldingen { get; set; }          // Afgeleid veld voor weergave
 }
 
 public class CreateAanvoerderDto
@@ -68,7 +76,9 @@ public class UpdateAanvoerderDto
 }
 
 
-// ====== AANMELDING ======
+// ────────────────────────────── AANMELDING ──────────────────────────────
+// DTO's voor het registreren en tonen van aanmeldingen.
+
 public class AanmeldingDto
 {
     public int AanmeldingId { get; set; }
@@ -79,7 +89,7 @@ public class AanmeldingDto
     public string GewensteKlokLocatie { get; set; } = string.Empty;
     public DateTime GewensteVeilDatum { get; set; }
     public int AanvoerderId { get; set; }
-    public string AanvoerderNaam { get; set; } = string.Empty;
+    public string AanvoerderNaam { get; set; } = string.Empty; // Handig voor lijsten/overzichten
 }
 
 public class CreateAanmeldingDto
@@ -112,14 +122,16 @@ public class UpdateAanmeldingDto : CreateAanmeldingDto
 }
 
 
-// ====== VEILING ======
+// ────────────────────────────── VEILING ──────────────────────────────
+// DTO's voor het plannen en beheren van veilingen.
+
 public class VeilingDto
 {
     public int VeilingId { get; set; }
     public DateTime StartTijd { get; set; }
     public DateTime EindTijd { get; set; }
     public string Status { get; set; } = string.Empty;
-    public int AantalKavels { get; set; }
+    public int AantalKavels { get; set; }                 // Afgeleid veld voor weergave
 }
 
 public class CreateVeilingDto
@@ -134,7 +146,7 @@ public class CreateVeilingDto
     public string Status { get; set; } = "Gepland";
 
     [Required]
-    public int GestartDoorId { get; set; }
+    public int GestartDoorId { get; set; }                // FK naar gebruiker
 }
 
 public class UpdateVeilingDto : CreateVeilingDto
@@ -144,7 +156,9 @@ public class UpdateVeilingDto : CreateVeilingDto
 }
 
 
-// ====== VEILINGPRODUCT ======
+// ────────────────────────────── VEILINGPRODUCT ──────────────────────────────
+// DTO's voor kavels/producten binnen een veiling.
+
 public class VeilingProductDto
 {
     public int VeilingProductId { get; set; }
@@ -152,7 +166,7 @@ public class VeilingProductDto
     public DateTime VeilingStart { get; set; }
     public int AanmeldingId { get; set; }
     public string ProductBeschrijving { get; set; } = string.Empty;
-    public int VolgordeVeiling { get; set; }
+    public int VolgordeVeiling { get; set; }               // Positie binnen de veiling
 }
 
 public class CreateVeilingProductDto
@@ -174,7 +188,9 @@ public class UpdateVeilingProductDto : CreateVeilingProductDto
 }
 
 
-// ====== BIEDING ======
+// ────────────────────────────── BIEDING ──────────────────────────────
+// DTO's voor het plaatsen en tonen van biedingen.
+
 public class BiedingDto
 {
     public int BiedingId { get; set; }
@@ -198,7 +214,9 @@ public class CreateBiedingDto
 }
 
 
-// ====== TOEWIJZING ======
+// ────────────────────────────── TOEWIJZING ──────────────────────────────
+// DTO's voor het vastleggen van de winnende toewijzing/koop.
+
 public class ToewijzingDto
 {
     public int ToewijzingId { get; set; }
@@ -223,6 +241,10 @@ public class CreateToewijzingDto
     [Required]
     public DateTime Datum { get; set; }
 }
+
+
+// ────────────────────────────── AUTH ──────────────────────────────
+// DTO's voor registratie en inloggen.
 
 public class RegisterDto
 {

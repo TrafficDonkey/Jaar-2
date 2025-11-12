@@ -1,3 +1,6 @@
+// AuthService.cs
+// Service voor registratie en inloggen, inclusief wachtwoord-hashing (BCrypt) en JWT-token generatie.
+
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -15,12 +18,15 @@ public class AuthService : IAuthService
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
 
+    // Constructor: injecteert databasecontext en configuratie
     public AuthService(AppDbContext db, IConfiguration config)
     {
         _db = db;
         _config = config;
     }
 
+    // ────────────────────────────── REGISTER ──────────────────────────────
+    // Registreer een nieuwe gebruiker; valideer uniek e-mailadres en hash het wachtwoord
     public async Task<(bool Success, string? ErrorMessage, Gebruiker? Gebruiker)> RegisterAsync(RegisterDto dto)
     {
         var exists = await _db.Gebruikers.AnyAsync(u => u.Email == dto.Email);
@@ -41,6 +47,8 @@ public class AuthService : IAuthService
         return (true, null, gebruiker);
     }
 
+    // ────────────────────────────── LOGIN ──────────────────────────────
+    // Log in met e-mail en wachtwoord; valideer hash en maak een JWT-token aan
     public async Task<string?> LoginAsync(string email, string wachtwoord)
     {
         var gebruiker = await _db.Gebruikers.FirstOrDefaultAsync(u => u.Email == email);
@@ -49,20 +57,22 @@ public class AuthService : IAuthService
 
         var stored = gebruiker.WachtwoordHash ?? string.Empty;
 
+        // Detecteer of wachtwoord in BCrypt-formaat is opgeslagen
         bool isBcrypt = stored.StartsWith("$2a$") || stored.StartsWith("$2b$") || stored.StartsWith("$2y$");
 
         bool ok;
 
         if (isBcrypt)
         {
-            // normale, nieuwe users
+            // Verifieer ingevoerd wachtwoord tegen de BCrypt-hash
             ok = BCrypt.Net.BCrypt.Verify(wachtwoord, stored);
         }
         else
         {
-            // legacy: er staat plain text in de database
+            // Legacy: wachtwoord stond als plain text in de database
             ok = stored == wachtwoord;
-            // optioneel: meteen upgraden naar bcrypt
+
+            // Optioneel: upgrade direct naar BCrypt-hash wanneer validatie slaagt
             if (ok)
             {
                 gebruiker.WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(wachtwoord);
@@ -73,7 +83,7 @@ public class AuthService : IAuthService
         if (!ok)
             return null;
 
-        // vanaf hier hetzelfde als eerder: token maken
+        // Maak een JWT-token met claims op basis van de ingelogde gebruiker
         var key = _config["Jwt:Key"];
         if (string.IsNullOrWhiteSpace(key))
             throw new InvalidOperationException("Jwt:Key is not configured.");

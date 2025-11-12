@@ -1,8 +1,14 @@
+// HomePage.jsx
+// Dashboardoverzicht na inloggen.
+// Haalt veilingen en kavels op, toont statistieken en de eerstvolgende kavels (op basis van veilingstart / gewenste veildatum).
+
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import "./HomePageStyle.css";
 import apiFetch from "../api";
 
+// ────────────────────────────── helpers ──────────────────────────────
+// Formatteer ISO-datum naar NL-weergave (datum + tijd)
 const fmtDate = (iso) => {
   if (!iso) return "-";
   const d = new Date(iso);
@@ -13,13 +19,17 @@ const fmtDate = (iso) => {
 };
 
 export default function HomePage() {
+  // ────────────────────────────── staat ──────────────────────────────
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [veilingen, setVeilingen] = useState([]);
   const [kavels, setKavels] = useState([]);
 
+  // Huidige rol (alleen voor weergavebadge)
   const role = localStorage.getItem("role") || "Gebruiker";
 
+  // ────────────────────────────── data laden ──────────────────────────────
+  // Laad veilingen en kavels parallel; voorkom setState na unmount met 'cancelled' vlag
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -43,9 +53,9 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, []);
 
-  // eerstvolgende kavels (op starttijd veiling)
+  // ────────────────────────────── afgeleide data ──────────────────────────────
+  // Bepaal eerstvolgende 5 kavels op datum (veiling.startTijd of aanmelding.gewensteVeilDatum)
   const upcoming = useMemo(() => {
-    // probeer een datum uit VeilingProduct -> Veiling?.startTijd of Aanmelding?.gewensteVeilDatum
     const list = [...kavels].map(k => {
       const vd = k?.veiling?.startTijd || k?.aanmelding?.gewensteVeilDatum;
       return { ...k, _when: vd ? new Date(vd) : null };
@@ -57,8 +67,10 @@ export default function HomePage() {
 
   const today = new Intl.DateTimeFormat("nl-NL", { dateStyle: "full" }).format(new Date());
 
+  // ────────────────────────────── weergave ──────────────────────────────
   return (
     <div className="hp-shell">
+      {/* hero / introductie */}
       <header className="hp-hero" aria-labelledby="hp-title">
         <div className="hp-hero__left">
           <h1 id="hp-title" className="hp-hero__title">
@@ -74,6 +86,7 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* snelle acties (placeholder / later rol-specifiek) */}
         <nav className="hp-quick" aria-label="Snel naar">
           {/* Quick actions – nu generiek; later per-rol activeren */}
           <button className="qa-btn" disabled title="Komt binnenkort">
@@ -86,14 +99,14 @@ export default function HomePage() {
         </nav>
       </header>
 
-      {/* status / fouten */}
+      {/* status / foutmelding */}
       {err && (
         <div className="hp-alert" role="alert">
           ❌ {err}
         </div>
       )}
 
-      {/* statistieken */}
+      {/* statistiekenblok */}
       <section className="hp-grid" aria-label="Overzicht">
         <article className="stat-card" aria-live="polite">
           <h2 className="stat-card__label">Aantal veilingen</h2>
@@ -114,7 +127,7 @@ export default function HomePage() {
         </article>
       </section>
 
-      {/* eerstvolgende kavels */}
+      {/* eerstvolgende kavels lijst */}
       <section className="hp-panel" aria-labelledby="upcoming-title">
         <div className="hp-panel__head">
           <h2 id="upcoming-title" className="hp-panel__title">Eerstvolgende kavels</h2>
@@ -152,7 +165,7 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* placeholder “laatste activiteit” – klaar voor rol-specifieke blokken */}
+      {/* placeholder voor toekomstige rol-specifieke activiteit */}
       <section className="hp-panel" aria-labelledby="activity-title">
         <div className="hp-panel__head">
           <h2 id="activity-title" className="hp-panel__title">Laatste activiteit</h2>

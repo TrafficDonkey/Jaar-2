@@ -1,3 +1,8 @@
+/* index.css */
+/* Globale stijlen en themavariabelen voor de volledige applicatie.
+   Bevat zowel lichte als donkere modus, typografie, layout en UI-utilities. */
+
+/* ────────────────────────────── KLEUR- EN STIJLVARIABELEN ────────────────────────────── */
 :root {
   --color-bg: #f3f5f7;
   --color-surface: #ffffff;
@@ -13,9 +18,10 @@
   --shadow-md: 0 14px 30px rgba(12, 60, 90, 0.12);
 }
 
+/* Donkere modus – gebruikt alternatieve kleuren en schaduwen */
 :root.dark {
-  --color-bg: #0b1220;           /* achtergrond donker */
-  --color-surface: #111827;      /* panel */
+  --color-bg: #0b1220;           /* Achtergrond donker */
+  --color-surface: #111827;      /* Panelen / kaarten */
   --color-primary: #e2e8f0;
   --color-primary-dark: #cbd5f5;
   --color-accent: #f97316;
@@ -26,6 +32,7 @@
   --shadow-md: 0 14px 30px rgba(0, 0, 0, 0.3);
 }
 
+/* ────────────────────────────── BASISINSTELLINGEN ────────────────────────────── */
 *,
 *::before,
 *::after {
@@ -53,6 +60,8 @@ textarea {
   font: inherit;
 }
 
+/* ────────────────────────────── TOEGANKELIJKHEID ────────────────────────────── */
+/* Link om direct naar hoofdinhoud te springen (voor screenreaders) */
 .skip-link {
   position: absolute;
   top: -100%;
@@ -67,6 +76,7 @@ textarea {
   top: 0;
 }
 
+/* Verberg visueel maar behoud toegankelijkheid voor screenreaders */
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -79,7 +89,7 @@ textarea {
   border: 0;
 }
 
-/* generic utility */
+/* ────────────────────────────── LAYOUT-UTILITIES ────────────────────────────── */
 .page-shell {
   min-height: 100vh;
   display: flex;
@@ -89,10 +99,7 @@ main {
   flex: 1;
 }
 
-/* ---------------------------------- */
-/* 👇 nieuwe layout-stijlen          */
-/* ---------------------------------- */
-
+/* ────────────────────────────── APP-SHELL EN NAVIGATIE ────────────────────────────── */
 .app-shell {
   min-height: 100vh;
   display: flex;
@@ -100,6 +107,7 @@ main {
   background: var(--color-bg);
 }
 
+/* ─────────── TOPBAR ─────────── */
 .topbar {
   height: 56px;
   background: var(--color-primary);
@@ -111,6 +119,7 @@ main {
   box-shadow: var(--shadow-sm);
 }
 
+/* Merk- / logo-sectie linksboven */
 .topbar__brand {
   display: flex;
   align-items: center;
@@ -131,6 +140,7 @@ main {
   font-weight: 600;
 }
 
+/* Navigatielinks in de topbar */
 .topbar__nav {
   display: flex;
   gap: 1rem;
@@ -143,13 +153,13 @@ main {
   border-radius: 9999px;
   font-weight: 500;
 }
-
 .topbar__link.active,
 .topbar__link:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
 }
 
+/* Actieknoppen rechts (bijv. darkmode of logout) */
 .topbar__actions {
   display: flex;
   gap: 0.5rem;
@@ -175,6 +185,7 @@ main {
   cursor: pointer;
 }
 
+/* ─────────── INHOUD ─────────── */
 .main-content {
   padding: 1.5rem;
   max-width: 1200px;
@@ -182,7 +193,7 @@ main {
   width: 100%;
 }
 
-/* cards etc die je op dashboard kan gebruiken */
+/* ─────────── KAARTEN / DASHBOARD-ELEMENTEN ─────────── */
 .card {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
@@ -190,17 +201,15 @@ main {
   border: 1px solid rgba(208, 215, 223, 0.2);
 }
 
-/* dark mode tweaks – we volgen jouw :root.dark */
+/* ────────────────────────────── DONKERE MODUS ────────────────────────────── */
 :root.dark .topbar {
   background: #0a111a;
 }
-
 :root.dark .app-shell,
 :root.dark .main-content {
   background: var(--color-bg);
   color: var(--color-text);
 }
-
 :root.dark .card {
   background: var(--color-surface);
   border-color: rgba(255, 255, 255, 0.03);

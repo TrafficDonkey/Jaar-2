@@ -1,3 +1,7 @@
+// VeilingService.cs
+// Service voor CRUD-operaties op Veiling-entiteiten.
+// Behandelt het ophalen, aanmaken, bijwerken en verwijderen van veilingen via EF Core.
+
 using Microsoft.EntityFrameworkCore;
 using VeilingApi.Data;
 using VeilingApi.Models;
@@ -7,8 +11,12 @@ namespace VeilingApi.Services;
 public class VeilingService : IVeilingService
 {
     private readonly AppDbContext _db;
+
+    // Constructor: injecteert de databasecontext
     public VeilingService(AppDbContext db) => _db = db;
 
+    // ────────────────────────────── READ: alle veilingen ──────────────────────────────
+    // Haal alle veilingen op, inclusief gekoppelde kavels
     public async Task<List<VeilingDto>> GetAllAsync()
     {
         return await _db.Veilingen
@@ -24,6 +32,8 @@ public class VeilingService : IVeilingService
             .ToListAsync();
     }
 
+    // ────────────────────────────── READ: detail ──────────────────────────────
+    // Haal één specifieke veiling op via ID inclusief gekoppelde kavels
     public async Task<VeilingDto?> GetByIdAsync(int id)
     {
         return await _db.Veilingen
@@ -35,11 +45,13 @@ public class VeilingService : IVeilingService
                 StartTijd = v.StartTijd,
                 EindTijd = v.EindTijd,
                 Status = v.Status,
-               AantalKavels = v.Kavels != null ? v.Kavels.Count : 0
+                AantalKavels = v.Kavels != null ? v.Kavels.Count : 0
             })
             .FirstOrDefaultAsync();
     }
 
+    // ────────────────────────────── CREATE ──────────────────────────────
+    // Maak een nieuwe veiling aan met start- en eindtijd, status en gebruiker die start
     public async Task<VeilingDto> CreateAsync(CreateVeilingDto dto)
     {
         var v = new Veiling
@@ -63,6 +75,8 @@ public class VeilingService : IVeilingService
         };
     }
 
+    // ────────────────────────────── UPDATE ──────────────────────────────
+    // Werk de gegevens van een bestaande veiling bij
     public async Task<bool> UpdateAsync(UpdateVeilingDto dto)
     {
         var v = await _db.Veilingen.FindAsync(dto.VeilingId);
@@ -77,6 +91,8 @@ public class VeilingService : IVeilingService
         return true;
     }
 
+    // ────────────────────────────── DELETE ──────────────────────────────
+    // Verwijder een veiling via ID; retourneer false als deze niet bestaat
     public async Task<bool> DeleteAsync(int id)
     {
         var v = await _db.Veilingen.FindAsync(id);

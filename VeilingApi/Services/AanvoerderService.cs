@@ -1,3 +1,7 @@
+// AanvoerderService.cs
+// Service voor CRUD-operaties op Aanvoerder en mapping naar DTO's via EF Core.
+// Verantwoordelijk voor ophalen, aanmaken, bijwerken en verwijderen van aanvoerders.
+
 using Microsoft.EntityFrameworkCore;
 using VeilingApi.Data;
 using VeilingApi.Models;
@@ -7,8 +11,12 @@ namespace VeilingApi.Services;
 public class AanvoerderService : IAanvoerderService
 {
     private readonly AppDbContext _db;
+
+    // Constructor: injecteert de databasecontext
     public AanvoerderService(AppDbContext db) => _db = db;
 
+    // ────────────────────────────── READ: alle aanvoerders ──────────────────────────────
+    // Haal alle aanvoerders op en bereken het aantal aanmeldingen per aanvoerder
     public async Task<List<AanvoerderDto>> GetAllAsync()
     {
         return await _db.Aanvoerders
@@ -21,6 +29,8 @@ public class AanvoerderService : IAanvoerderService
             .ToListAsync();
     }
 
+    // ────────────────────────────── READ: detail ──────────────────────────────
+    // Haal één aanvoerder op via ID
     public async Task<AanvoerderDto?> GetByIdAsync(int id)
     {
         return await _db.Aanvoerders
@@ -34,6 +44,8 @@ public class AanvoerderService : IAanvoerderService
             .FirstOrDefaultAsync();
     }
 
+    // ────────────────────────────── CREATE ──────────────────────────────
+    // Maak een nieuwe aanvoerder aan en retourneer de DTO
     public async Task<AanvoerderDto> CreateAsync(CreateAanvoerderDto dto)
     {
         var a = new Aanvoerder { Naam = dto.Naam };
@@ -48,6 +60,8 @@ public class AanvoerderService : IAanvoerderService
         };
     }
 
+    // ────────────────────────────── UPDATE ──────────────────────────────
+    // Werk een bestaande aanvoerder bij; retourneer false als deze niet bestaat
     public async Task<bool> UpdateAsync(UpdateAanvoerderDto dto)
     {
         var a = await _db.Aanvoerders.FindAsync(dto.AanvoerderId);
@@ -58,6 +72,8 @@ public class AanvoerderService : IAanvoerderService
         return true;
     }
 
+    // ────────────────────────────── DELETE ──────────────────────────────
+    // Verwijder een aanvoerder; retourneer false als niet gevonden
     public async Task<bool> DeleteAsync(int id)
     {
         var a = await _db.Aanvoerders.FindAsync(id);

@@ -1,9 +1,6 @@
-/// <summary>
-/// Startpunt en configuratie van de VeilingApi-backend.
-/// Deze klasse stelt de ASP.NET Core-applicatie in, registreert services,
-/// configureert Entity Framework Core, stelt JWT-authenticatie en CORS in,
-/// en definieert de middleware-pipeline.
-/// </summary>
+// Program.cs
+// Startpunt van de VeilingApi-backend.
+// Stelt services, database, authenticatie en middleware in voor de ASP.NET Core-applicatie.
 
 using Microsoft.EntityFrameworkCore;
 using VeilingApi.Data;
@@ -14,21 +11,18 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-/// <summary>
-/// Registratie van alle benodigde services: controllers, Swagger,
-/// database-context, bedrijfslogica-services, CORS en JWT-authenticatie.
-/// </summary>
+// ────────────────────────────── Services ──────────────────────────────
 
-// Controllers en Swagger-documentatie
+// Controllers en Swagger voor API-documentatie
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Databaseconfiguratie met SQL Server via connection string uit appsettings.json
+// Databaseconfiguratie (SQL Server) via connection string in appsettings.json
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
-// Registratie van de servicelaag voor dependency injection
+// Registratie van servicelaag voor dependency injection
 builder.Services.AddScoped<IGebruikerService, GebruikerService>();
 builder.Services.AddScoped<IAanvoerderService, AanvoerderService>();
 builder.Services.AddScoped<IAanmeldingService, AanmeldingService>();
@@ -38,7 +32,7 @@ builder.Services.AddScoped<IBiedingService, BiedingService>();
 builder.Services.AddScoped<IToewijzingService, ToewijzingService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// CORS-beleid om verbindingen vanaf de frontend toe te staan
+// CORS-beleid: sta frontend toe vanaf localhost
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("web", p => p
@@ -48,10 +42,7 @@ builder.Services.AddCors(opt =>
         .AllowCredentials());
 });
 
-/// <summary>
-/// Configuratie van JWT-authenticatie met instellingen uit appsettings.json
-/// (key, issuer en audience).
-/// </summary>
+// JWT-authenticatie configuratie
 var jwt = builder.Configuration.GetSection("Jwt");
 var signingKey = new SymmetricSecurityKey(
     Encoding.UTF8.GetBytes(jwt["Key"] ?? throw new InvalidOperationException("Jwt:Key ontbreekt"))
@@ -69,10 +60,10 @@ builder.Services
             ValidIssuer = jwt["Issuer"],
             ValidAudience = jwt["Audience"],
             IssuerSigningKey = signingKey,
-            ClockSkew = TimeSpan.Zero // Geen tijdsafwijking bij token-verval
+            ClockSkew = TimeSpan.Zero // Geen vertraging bij token-verval
         };
 
-        // Haal token op uit HttpOnly cookie ("access_token") als er geen header-token is
+        // Haal token op uit HttpOnly cookie ("access_token") als header-token ontbreekt
         opts.Events = new JwtBearerEvents
         {
             OnMessageReceived = ctx =>
@@ -87,45 +78,42 @@ builder.Services
         };
     });
 
-// Activeer autorisatie
+// Autorisatie toevoegen
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-/// <summary>
-/// Configuratie van de middleware-pipeline: bepaalt de volgorde waarin
-/// verzoeken worden afgehandeld (Swagger, HTTPS, CORS, authenticatie, routing).
-/// </summary>
+// ────────────────────────────── Pipeline ──────────────────────────────
+
+// Activeer Swagger alleen in ontwikkelmodus
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// Controleer of de database bestaat en voer migraties automatisch uit
+// Controleer database en voer migraties automatisch uit
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     Console.WriteLine("DB-verbinding: " + db.Database.GetDbConnection().ConnectionString);
-    db.Database.Migrate(); // Past eventuele openstaande migraties toe
+    db.Database.Migrate();
 }
 
-// Forceer HTTPS-omleiding voor veiligheid
+// Forceer HTTPS-omleiding
 app.UseHttpsRedirection();
 
 // Pas CORS toe vóór authenticatie en routing
 app.UseCors("web");
 
-// Authenticatie en autorisatie in juiste volgorde toepassen
+// Pas authenticatie en autorisatie toe in juiste volgorde
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Koppel alle controller-routes
+// Koppel alle controllers aan hun routes
 app.MapControllers();
 
-/// <summary>
-/// Redirect de root-URL ("/") automatisch naar Swagger voor eenvoudige API-toegang.
-/// </summary>
+// Redirect root ("/") naar Swagger
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
 // Start de applicatie

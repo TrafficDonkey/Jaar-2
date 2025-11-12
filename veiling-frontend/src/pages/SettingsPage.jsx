@@ -1,3 +1,7 @@
+// SettingsPage.jsx
+// Instellingenpagina voor profiel-, locatie- en weergave-instellingen.
+// Beheert o.a. naam, e-mail, voorkeurslocatie en (persistente) donkere modus via localStorage.
+
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "./SettingsPageStyle.css";
@@ -5,13 +9,15 @@ import "./SettingsPageStyle.css";
 const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
 
 export default function SettingsPage() {
+  // ────────────────────────────── state ──────────────────────────────
   const [naam, setNaam] = useState("Abel Demo");
   const [email, setEmail] = useState("abel@example.com");
   const [loc, setLoc] = useState("Naaldwijk");
   const [msg, setMsg] = useState("");
   const [darkMode, setDarkMode] = useState(false);
 
-  // on mount: load dark mode from localStorage
+  // ────────────────────────────── init donkere modus ──────────────────────────────
+  // Lees dark mode-voorkeur uit localStorage bij het laden en pas <html>.dark toe
   useEffect(() => {
     const saved = localStorage.getItem("darkMode");
     if (saved === "true") {
@@ -20,6 +26,7 @@ export default function SettingsPage() {
     }
   }, []);
 
+  // Pas donkere modus toe en sla voorkeur op
   function applyDarkMode(next) {
     if (next) {
       document.documentElement.classList.add("dark");
@@ -30,13 +37,16 @@ export default function SettingsPage() {
     }
   }
 
+  // ────────────────────────────── opslaan ──────────────────────────────
+  // Demo-opslag: toont bevestiging; hier zou een PATCH naar backend kunnen komen
   async function handleSave(e) {
     e.preventDefault();
-    // here you could call PATCH to your backend
+    // hier kun je PATCH naar je backend doen
     setMsg("Instellingen opgeslagen.");
     setTimeout(() => setMsg(""), 3000);
   }
 
+  // ────────────────────────────── weergave ──────────────────────────────
   return (
     <div className="page-shell settings-shell">
       <a href="#main" className="skip-link">Ga naar hoofdinhoud</a>
@@ -46,6 +56,7 @@ export default function SettingsPage() {
           <h1 id="settings-title">Instellingen</h1>
           <p className="panel-subtitle">Beheer je profiel, locatie en weergave.</p>
 
+          {/* Instellingenformulier */}
           <form onSubmit={handleSave} className="settings-form" noValidate>
             <div className="field">
               <label htmlFor="naam">Naam</label>
@@ -78,7 +89,7 @@ export default function SettingsPage() {
               </select>
             </div>
 
-            {/* Dark mode toggle */}
+            {/* Donkere modus toggle met visuele slider */}
             <div className="field toggle-field">
               <span>Donkere modus</span>
               <label className="switch">
@@ -100,6 +111,7 @@ export default function SettingsPage() {
             <p className="form-msg" aria-live="polite">{msg}</p>
           </form>
 
+          {/* Geavanceerd blok (placeholder) */}
           <section className="danger-zone" aria-label="Geavanceerde instellingen">
             <h2>Geavanceerd</h2>
             <p>Log uit op dit apparaat.</p>

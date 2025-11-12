@@ -1,23 +1,35 @@
+/* App.css */
+/* Basisopmaak voor de root-container en voorbeeldcomponenten.
+   Dit bestand bevat standaardstijlen die zijn meegeleverd bij de Vite + React template. */
+
+/* ────────────────────────────── ROOT-CONTAINER ────────────────────────────── */
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  max-width: 1280px;        /* Beperk de breedte van de app */
+  margin: 0 auto;           /* Centreer horizontaal */
+  padding: 2rem;            /* Ruimte rondom de inhoud */
+  text-align: center;       /* Centreer tekst en inline-elementen */
 }
 
+/* ────────────────────────────── LOGO ────────────────────────────── */
 .logo {
   height: 6em;
   padding: 1.5em;
   will-change: filter;
-  transition: filter 300ms;
+  transition: filter 300ms; /* Gladde overgang bij hover-effecten */
 }
+
+/* Blauw schaduweffect bij hover */
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
+/* Speciaal effect voor React-logo */
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
+/* ────────────────────────────── ANIMATIE ────────────────────────────── */
+/* Langzame rotatie van het React-logo (standaard animatie van Vite-template) */
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);
@@ -27,16 +39,18 @@
   }
 }
 
+/* Activeer de rotatie enkel als ‘reduced motion’ niet is ingeschakeld */
 @media (prefers-reduced-motion: no-preference) {
   a:nth-of-type(2) .logo {
     animation: logo-spin infinite 20s linear;
   }
 }
 
+/* ────────────────────────────── KAART & TEKST ────────────────────────────── */
 .card {
-  padding: 2em;
+  padding: 2em; /* Basispadding voor kaartcomponenten */
 }
 
 .read-the-docs {
-  color: #888;
+  color: #888; /* Lichte grijstint voor secundaire tekst */
 }

@@ -1,3 +1,7 @@
+// VeilingProductService.cs
+// Service voor CRUD-operaties op VeilingProduct (kavels binnen veilingen).
+// Behandelt koppelingen tussen veilingen en aanmeldingen, inclusief DTO-mapping.
+
 using Microsoft.EntityFrameworkCore;
 using VeilingApi.Data;
 using VeilingApi.Models;
@@ -7,8 +11,12 @@ namespace VeilingApi.Services;
 public class VeilingProductService : IVeilingProductService
 {
     private readonly AppDbContext _db;
+
+    // Constructor: injecteert de databasecontext
     public VeilingProductService(AppDbContext db) => _db = db;
 
+    // ────────────────────────────── READ: alle veilingproducten ──────────────────────────────
+    // Haal alle veilingproducten op, inclusief gekoppelde veiling- en aanmeldingsinformatie
     public async Task<List<VeilingProductDto>> GetAllAsync()
     {
         return await _db.VeilingProducts
@@ -26,6 +34,8 @@ public class VeilingProductService : IVeilingProductService
             .ToListAsync();
     }
 
+    // ────────────────────────────── READ: detail ──────────────────────────────
+    // Haal één veilingproduct op via ID, inclusief bijbehorende veiling en aanmelding
     public async Task<VeilingProductDto?> GetByIdAsync(int id)
     {
         return await _db.VeilingProducts
@@ -44,9 +54,11 @@ public class VeilingProductService : IVeilingProductService
             .FirstOrDefaultAsync();
     }
 
+    // ────────────────────────────── CREATE ──────────────────────────────
+    // Maak een nieuw veilingproduct aan en koppel het aan een veiling en aanmelding
     public async Task<VeilingProductDto> CreateAsync(CreateVeilingProductDto dto)
     {
-        // je kunt hier nog checken of veiling en aanmelding bestaan
+        // (optioneel) controleer of veiling en aanmelding bestaan
         var vp = new VeilingProduct
         {
             VeilingId = dto.VeilingId,
@@ -57,6 +69,7 @@ public class VeilingProductService : IVeilingProductService
         _db.VeilingProducts.Add(vp);
         await _db.SaveChangesAsync();
 
+        // Haal de aangemaakte entiteit opnieuw op met de gekoppelde gegevens
         var created = await _db.VeilingProducts
             .Include(x => x.Veiling)
             .Include(x => x.Aanmelding)
@@ -73,6 +86,8 @@ public class VeilingProductService : IVeilingProductService
         };
     }
 
+    // ────────────────────────────── UPDATE ──────────────────────────────
+    // Werk de koppeling of volgorde van een veilingproduct bij
     public async Task<bool> UpdateAsync(UpdateVeilingProductDto dto)
     {
         var vp = await _db.VeilingProducts.FindAsync(dto.VeilingProductId);
@@ -86,6 +101,8 @@ public class VeilingProductService : IVeilingProductService
         return true;
     }
 
+    // ────────────────────────────── DELETE ──────────────────────────────
+    // Verwijder een veilingproduct via ID; retourneert false als het niet bestaat
     public async Task<bool> DeleteAsync(int id)
     {
         var vp = await _db.VeilingProducts.FindAsync(id);

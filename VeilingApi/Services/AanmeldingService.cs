@@ -1,3 +1,7 @@
+// AanmeldingService.cs
+// Service voor CRUD-operaties op Aanmelding en mapping naar DTO's via EF Core.
+// Bevat validatie (bestaan van aanvoerder) en eenvoudige projecties voor API-antwoorden.
+
 using Microsoft.EntityFrameworkCore;
 using VeilingApi.Data;
 using VeilingApi.Models;
@@ -7,8 +11,12 @@ namespace VeilingApi.Services;
 public class AanmeldingService : IAanmeldingService
 {
     private readonly AppDbContext _db;
+
+    // Constructor: injecteert de databasecontext
     public AanmeldingService(AppDbContext db) => _db = db;
 
+    // ────────────────────────────── READ: alle aanmeldingen ──────────────────────────────
+    // Haal alle aanmeldingen op inclusief aanvoerdernaam en projecteer naar DTO
     public async Task<List<AanmeldingDto>> GetAllAsync()
     {
         return await _db.Aanmeldingen
@@ -28,6 +36,8 @@ public class AanmeldingService : IAanmeldingService
             .ToListAsync();
     }
 
+    // ────────────────────────────── READ: detail ──────────────────────────────
+    // Haal één aanmelding op via ID en projecteer naar DTO (incl. aanvoerdernaam)
     public async Task<AanmeldingDto?> GetByIdAsync(int id)
     {
         return await _db.Aanmeldingen
@@ -48,6 +58,8 @@ public class AanmeldingService : IAanmeldingService
             .FirstOrDefaultAsync();
     }
 
+    // ────────────────────────────── CREATE ──────────────────────────────
+    // Maak een nieuwe aanmelding aan (valideer aanvoerder) en retourneer DTO
     public async Task<AanmeldingDto> CreateAsync(CreateAanmeldingDto dto)
     {
         var aanvoerderExists = await _db.Aanvoerders.AnyAsync(a => a.AanvoerderId == dto.AanvoerderId);
@@ -68,7 +80,7 @@ public class AanmeldingService : IAanmeldingService
         _db.Aanmeldingen.Add(a);
         await _db.SaveChangesAsync();
 
-        // opnieuw ophalen with include
+        // Haal het nieuw aangemaakte record opnieuw op inclusief aanvoerder voor de DTO
         var created = await _db.Aanmeldingen.Include(x => x.Aanvoerder)
             .FirstAsync(x => x.AanmeldingId == a.AanmeldingId);
 
@@ -86,6 +98,8 @@ public class AanmeldingService : IAanmeldingService
         };
     }
 
+    // ────────────────────────────── UPDATE ──────────────────────────────
+    // Werk een bestaande aanmelding bij op basis van DTO; retourneer false als niet gevonden
     public async Task<bool> UpdateAsync(UpdateAanmeldingDto dto)
     {
         var a = await _db.Aanmeldingen.FindAsync(dto.AanmeldingId);
@@ -103,6 +117,8 @@ public class AanmeldingService : IAanmeldingService
         return true;
     }
 
+    // ────────────────────────────── DELETE ──────────────────────────────
+    // Verwijder een aanmelding; retourneer false als niet gevonden
     public async Task<bool> DeleteAsync(int id)
     {
         var a = await _db.Aanmeldingen.FindAsync(id);

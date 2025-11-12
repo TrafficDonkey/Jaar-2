@@ -1,3 +1,7 @@
+// RegisterScreen.jsx
+// Registratiescherm voor nieuwe gebruikers.
+// Verstuurt een registratieverzoek naar de backend en leidt daarna door naar het login-scherm.
+
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./RegisterStyle.css";
@@ -5,6 +9,7 @@ import "./RegisterStyle.css";
 const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
 
 export default function RegisterScreen() {
+  // ────────────────────────────── state ──────────────────────────────
   const [naam, setNaam] = useState("");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
@@ -14,11 +19,14 @@ export default function RegisterScreen() {
   const [msg, setMsg] = useState("");
   const nav = useNavigate();
 
+  // Prefill e-mail uit localStorage (laatste gebruikte e-mailadres)
   useEffect(() => {
     const last = localStorage.getItem("lastEmail");
     if (last) setEmail(last);
   }, []);
 
+  // ────────────────────────────── submit ──────────────────────────────
+  // Verwerk registratie: POST /auth/register en stuur door naar login bij succes
   async function handleSubmit(e) {
     e.preventDefault();
     setMsg("Registreren…");
@@ -46,6 +54,7 @@ export default function RegisterScreen() {
     }
   }
 
+  // ────────────────────────────── weergave ──────────────────────────────
   return (
     <div className="page-shell reg-shell">
       <a href="#main" className="skip-link">Ga naar hoofdinhoud</a>
@@ -62,11 +71,13 @@ export default function RegisterScreen() {
             <h1 id="reg-title">Account aanmaken</h1>
             <p className="panel-subtitle">Kies je rol en vul je gegevens in.</p>
 
+            {/* Registratieformulier */}
             <form onSubmit={handleSubmit} className="auth-form" noValidate>
               <div className="field">
                 <label htmlFor="naam">Naam</label>
                 <input id="naam" value={naam} onChange={e => setNaam(e.target.value)} required />
               </div>
+
               <div className="field">
                 <label htmlFor="reg-email">E-mailadres</label>
                 <input
@@ -98,9 +109,11 @@ export default function RegisterScreen() {
                 {caps && <p className="caps-hint">⚠️ Caps Lock staat aan</p>}
               </div>
 
+              {/* Rolkeuze (bepaalt toegankelijke schermen) */}
               <fieldset className="field">
                 <legend>Rol</legend>
                 <p className="role-hint">Je rol bepaalt welke schermen je ziet.</p>
+
                 <label className="role-line">
                   <input
                     type="radio"
@@ -111,6 +124,7 @@ export default function RegisterScreen() {
                   />
                   <span>Klant</span>
                 </label>
+
                 <label className="role-line">
                   <input
                     type="radio"
@@ -121,6 +135,7 @@ export default function RegisterScreen() {
                   />
                   <span>Aanvoerder</span>
                 </label>
+
                 <label className="role-line">
                   <input
                     type="radio"

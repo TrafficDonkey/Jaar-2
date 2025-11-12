@@ -1,4 +1,7 @@
 // App.jsx
+// Hoofdrouting van de React-applicatie.
+// Bepaalt welke pagina's openbaar zijn (login/registratie) en welke beschermd zijn via ProtectedRoute.
+
 import { Routes, Route, Navigate } from "react-router-dom";
 import LoginScreen from "./pages/LoginScreen";
 import RegisterScreen from "./pages/RegisterScreen";
@@ -10,14 +13,17 @@ import SettingsPage from "./pages/SettingsPage";
 export default function App() {
   return (
     <Routes>
-      {/* Always redirect root to /login */}
+      {/* ────────────────────────────── ROOT ────────────────────────────── */}
+      {/* Redirect de hoofdpagina automatisch naar /login */}
       <Route path="/" element={<Navigate to="/login" replace />} />
 
-      {/* Public */}
+      {/* ────────────────────────────── OPENBARE PAGINA'S ────────────────────────────── */}
+      {/* Login- en registratieschermen zijn publiek toegankelijk */}
       <Route path="/login" element={<LoginScreen />} />
       <Route path="/register" element={<RegisterScreen />} />
 
-      {/* Protected app area */}
+      {/* ────────────────────────────── BESCHERMDE PAGINA'S ────────────────────────────── */}
+      {/* Alle routes binnen /app vereisen authenticatie via ProtectedRoute */}
       <Route
         path="/app"
         element={
@@ -26,11 +32,15 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<HomePage />} />                 {/* /app */}
-        <Route path="instellingen" element={<SettingsPage />} />{/* /app/instellingen */}
+        {/* Standaard startpagina binnen de app */}
+        <Route index element={<HomePage />} /> {/* /app */}
+
+        {/* Instellingenpagina binnen de app */}
+        <Route path="instellingen" element={<SettingsPage />} /> {/* /app/instellingen */}
       </Route>
 
-      {/* Fallback */}
+      {/* ────────────────────────────── FOUT/ONGELDIGE ROUTE ────────────────────────────── */}
+      {/* Onbekende routes leiden terug naar login */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

@@ -1,3 +1,9 @@
+/* HomePageStyle.css */
+/* Stijlen voor het dashboard (HomePage): hero, statistieken, panelen en kavel-lijsten. */
+/* Geen functionele wijzigingen, alleen beschrijvende comments. */
+
+/* ────────────────────────────── VARIABELEN ────────────────────────────── */
+/* Afgeleid van globale themavariabelen met fallback-waarden */
 :root {
   --hp-surface: var(--color-surface, #fff);
   --hp-text: var(--color-text, #102a43);
@@ -11,11 +17,14 @@
   --hp-sh-md: var(--shadow-md, 0 14px 30px rgba(12,60,90,.12));
 }
 
+/* ────────────────────────────── SHELL ────────────────────────────── */
 .hp-shell {
   padding: clamp(16px, 2vw, 24px);
   color: var(--hp-text);
 }
 
+/* ────────────────────────────── HERO ────────────────────────────── */
+/* Introblok met titel, datum, rolbadge en snelle acties */
 .hp-hero {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -39,6 +48,7 @@
   margin-top: 8px;
 }
 
+/* Rolbadge rechts onder de subtitel */
 .role-badge {
   display: inline-block;
   font-size: .85rem;
@@ -48,6 +58,7 @@
   border: 1px solid var(--hp-border);
 }
 
+/* ────────────────────────────── SNELLE ACTIES ────────────────────────────── */
 .hp-quick {
   display: flex;
   align-items: center;
@@ -70,6 +81,7 @@
   cursor: not-allowed;
 }
 
+/* ────────────────────────────── ALERT / FOUT ────────────────────────────── */
 .hp-alert {
   margin: 16px 0;
   padding: 12px 14px;
@@ -78,6 +90,7 @@
   background: #fff1f1;
 }
 
+/* ────────────────────────────── STATISTIEKEN ────────────────────────────── */
 .hp-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
@@ -92,6 +105,7 @@
   box-shadow: var(--hp-sh-sm);
   border: 1px solid var(--hp-border);
 }
+/* Stack kaarten onder elkaar op small screens */
 @media (max-width: 900px) {
   .stat-card { grid-column: span 12; }
 }
@@ -100,6 +114,7 @@
 .stat-card__hint  { margin: 6px 0 0; color: var(--hp-muted); font-size: .9rem; }
 .stat-card--ok .stat-card__value { color: #16a34a; }
 
+/* ────────────────────────────── PANELEN ────────────────────────────── */
 .hp-panel {
   background: var(--hp-surface);
   border-radius: var(--hp-r-lg);
@@ -118,6 +133,7 @@
 .hp-panel__title { margin: 0; font-size: 1.1rem; }
 .hp-panel__meta { color: var(--hp-muted); font-size: .9rem; }
 
+/* ────────────────────────────── SKELETON LOADER ────────────────────────────── */
 .hp-skeleton {
   height: 60px;
   border-radius: 12px;
@@ -127,8 +143,10 @@
 }
 @keyframes sh { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
 
+/* Lege-staat tekst */
 .hp-empty { color: var(--hp-muted); margin: 8px 0 0; }
 
+/* ────────────────────────────── KAVELLIJST ────────────────────────────── */
 .kavel-list {
   list-style: none;
   margin: 0;

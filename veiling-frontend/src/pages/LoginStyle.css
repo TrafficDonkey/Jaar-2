@@ -1,7 +1,13 @@
+/* LoginStyle.css */
+/* Stijlen voor het inlogscherm: topbar, formulier, knoppen en feedback. */
+/* Alleen beschrijvende comments toegevoegd; geen functionele wijzigingen. */
+
+/* ────────────────────────────── ACHTERGROND ────────────────────────────── */
 .login-shell {
   background: radial-gradient(circle at top, #ffffff 0%, #f3f5f7 60%, #e5ebf0 100%);
 }
 
+/* ────────────────────────────── TOPBAR ────────────────────────────── */
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -9,6 +15,7 @@
   padding: 1rem 1.5rem;
 }
 
+/* Merk/naam linksboven */
 .brand {
   display: flex;
   align-items: center;
@@ -32,12 +39,14 @@
   font-weight: 500;
 }
 
+/* ────────────────────────────── LAYOUT ────────────────────────────── */
 .login-main {
   display: flex;
   justify-content: center;
   padding: 3rem 1rem 2rem;
 }
 
+/* Paneel met het inlogformulier */
 .auth-panel {
   background: var(--color-surface);
   border: 1px solid rgba(12, 60, 90, 0.04);
@@ -47,24 +56,24 @@
   width: 100%;
   padding: 2.4rem 2rem 2.2rem;
 }
-
 .auth-panel h1 {
   margin-top: 0;
   margin-bottom: 0.4rem;
 }
-
 .panel-subtitle {
   margin-top: 0;
   margin-bottom: 1.6rem;
   color: var(--color-muted);
 }
 
+/* ────────────────────────────── FORMULIER ────────────────────────────── */
 .auth-form {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
+/* Formuliervelden */
 .field {
   display: flex;
   flex-direction: column;
@@ -81,6 +90,7 @@
   outline-offset: 2px;
 }
 
+/* Wachtwoordveld met ‘toon/verberg’-knop */
 .password-field {
   position: relative;
 }
@@ -94,6 +104,8 @@
   font-size: 0.7rem;
 }
 
+/* ────────────────────────────── KNOPPEN ────────────────────────────── */
+/* Primaire actieknop */
 .primary-btn {
   border: none;
   background: var(--color-primary);
@@ -111,6 +123,7 @@
   outline-offset: 2px;
 }
 
+/* Secundaire kleine ‘ghost’-knop (bv. wachtwoord tonen) */
 .ghost-btn {
   background: #edf3f7;
   border: 1px solid rgba(12, 60, 90, 0.1);
@@ -121,8 +134,9 @@
   color: var(--color-primary);
 }
 
+/* ────────────────────────────── FEEDBACK & FOOTER ────────────────────────────── */
 .form-msg {
-  min-height: 1.25rem;
+  min-height: 1.25rem; /* Reserveer ruimte voor status-/foutmeldingen */
 }
 
 .alt-link {
