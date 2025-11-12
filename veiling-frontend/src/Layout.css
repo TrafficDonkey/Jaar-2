@@ -1,0 +1,11 @@
+/* src/Layout.css */
+.app-shell { min-height: 100vh; display:flex; flex-direction:column; }
+.topbar { position:sticky; top:0; z-index:10; background:#0c3c5a; color:#fff; padding:.75rem 1rem; display:flex; align-items:center; gap:1rem; }
+.topbar__brand { display:flex; align-items:center; gap:.5rem; }
+.logo-circle{ width:36px; height:36px; border-radius:999px; background:#f26b1d; display:grid; place-items:center; }
+.topbar__nav { display:flex; gap:.5rem; margin-left:.5rem; }
+.topbar__link { color:#cfe8ff; padding:.4rem .75rem; border-radius:.5rem; text-decoration:none; }
+.topbar__link.active{ background:rgba(255,255,255,.14); color:#fff; }
+.topbar__actions{ margin-left:auto; display:flex; gap:.5rem; }
+.logout-btn,.ghost-btn{ border:1px solid rgba(255,255,255,.3); background:transparent; color:#fff; border-radius:.5rem; padding:.4rem .75rem; cursor:pointer; }
+.main-content{ max-width:1100px; margin:1.25rem auto; padding:0 1rem; width:100%; }

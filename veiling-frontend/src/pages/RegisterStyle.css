@@ -1,0 +1,52 @@
+.reg-shell {
+  background: radial-gradient(circle at top, #ffffff 0%, #f3f5f7 50%, #dfe6ec 100%);
+}
+
+.reg-main {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 1rem 2rem;
+}
+
+.auth-panel {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(12, 60, 90, .03);
+  max-width: 32rem;
+  width: 100%;
+  padding: 2.4rem 2rem;
+}
+
+.role-line {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+.role-hint {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  margin-bottom: 0.35rem;
+}
+
+.auth-alt {
+  margin-top: .875rem;
+  font-size: .95rem;
+  color: var(--color-muted, #6b7a89);
+}
+
+.link-btn {
+  color: var(--color-accent, #f26b1d);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 2px solid currentColor;
+  padding-bottom: 2px;
+}
+
+.link-btn:focus-visible {
+  outline: 3px solid #1a73e8;
+  outline-offset: 2px;
+  border-bottom-color: transparent;
+}
+

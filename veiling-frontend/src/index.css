@@ -14,9 +14,9 @@
 }
 
 :root.dark {
-  --color-bg: #0b1220;           /* slate-900-ish */
-  --color-surface: #111827;      /* dark panel */
-  --color-primary: #e2e8f0;      /* light text */
+  --color-bg: #0b1220;           /* achtergrond donker */
+  --color-surface: #111827;      /* panel */
+  --color-primary: #e2e8f0;
   --color-primary-dark: #cbd5f5;
   --color-accent: #f97316;
   --color-text: #ecf3ff;
@@ -43,6 +43,7 @@ body {
 
 a {
   color: inherit;
+  text-decoration: none;
 }
 
 button,
@@ -86,4 +87,121 @@ textarea {
 }
 main {
   flex: 1;
+}
+
+/* ---------------------------------- */
+/* 👇 nieuwe layout-stijlen          */
+/* ---------------------------------- */
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+.topbar {
+  height: 56px;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  background: var(--color-accent);
+  display: grid;
+  place-items: center;
+  font-size: 0.9rem;
+}
+
+.brand-text {
+  font-weight: 600;
+}
+
+.topbar__nav {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+}
+
+.topbar__link {
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.35rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: 500;
+}
+
+.topbar__link.active,
+.topbar__link:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.topbar__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ghost-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  border-radius: 9999px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.logout-btn {
+  background: var(--color-accent);
+  border: none;
+  color: #fff;
+  padding: 0.35rem 0.9rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.main-content {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* cards etc die je op dashboard kan gebruiken */
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(208, 215, 223, 0.2);
+}
+
+/* dark mode tweaks – we volgen jouw :root.dark */
+:root.dark .topbar {
+  background: #0a111a;
+}
+
+:root.dark .app-shell,
+:root.dark .main-content {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+:root.dark .card {
+  background: var(--color-surface);
+  border-color: rgba(255, 255, 255, 0.03);
 }
