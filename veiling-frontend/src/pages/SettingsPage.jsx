@@ -17,24 +17,19 @@ export default function SettingsPage() {
   const [darkMode, setDarkMode] = useState(false);
 
   // ────────────────────────────── init donkere modus ──────────────────────────────
-  // Lees dark mode-voorkeur uit localStorage bij het laden en pas <html>.dark toe
+  // init: lees "theme" (niet "darkMode")
   useEffect(() => {
-    const saved = localStorage.getItem("darkMode");
-    if (saved === "true") {
-      setDarkMode(true);
-      document.documentElement.classList.add("dark");
-    }
+    const saved = localStorage.getItem("theme"); // "dark" | "light" | null
+    const isDark = saved ? saved === "dark" : false;
+    setDarkMode(isDark);
+    document.documentElement.classList.toggle("dark", isDark);
+    document.title = "Instellingen";
   }, []);
 
-  // Pas donkere modus toe en sla voorkeur op
+  // helper: pas dark toe + sla "theme" op
   function applyDarkMode(next) {
-    if (next) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("darkMode", "true");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("darkMode", "false");
-    }
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem("theme", next ? "dark" : "light");
   }
 
   // ────────────────────────────── opslaan ──────────────────────────────

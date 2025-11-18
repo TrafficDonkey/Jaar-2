@@ -24,7 +24,6 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 
 // Registratie van servicelaag voor dependency injection
 builder.Services.AddScoped<IGebruikerService, GebruikerService>();
-builder.Services.AddScoped<IAanvoerderService, AanvoerderService>();
 builder.Services.AddScoped<IAanmeldingService, AanmeldingService>();
 builder.Services.AddScoped<IVeilingService, VeilingService>();
 builder.Services.AddScoped<IVeilingProductService, VeilingProductService>();

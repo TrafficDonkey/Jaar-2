@@ -1,6 +1,5 @@
 // IAanmeldingService.cs
-// Interface die de servicecontracten definieert voor AanmeldingService.
-// Beschrijft alle CRUD-operaties voor aanmeldingen.
+// Interface met alle operaties rond Aanmeldingen.
 
 using VeilingApi.Models;
 
@@ -8,18 +7,21 @@ namespace VeilingApi.Services;
 
 public interface IAanmeldingService
 {
-    // Haal alle aanmeldingen op (inclusief gerelateerde gegevens)
+    // Alle aanmeldingen (beheer / rapportage)
     Task<List<AanmeldingDto>> GetAllAsync();
 
-    // Haal één aanmelding op via ID
+    // Detailweergave
     Task<AanmeldingDto?> GetByIdAsync(int id);
 
-    // Maak een nieuwe aanmelding aan
+    // Aanmeldingen per gebruiker (aanvoerder)
+    Task<List<AanmeldingDto>> GetByGebruikerAsync(int gebruikerId);
+
+    // Nieuwe aanmelding
     Task<AanmeldingDto> CreateAsync(CreateAanmeldingDto dto);
 
-    // Werk een bestaande aanmelding bij
+    // Wijzig bestaande aanmelding
     Task<bool> UpdateAsync(UpdateAanmeldingDto dto);
 
-    // Verwijder een aanmelding via ID
+    // Verwijder aanmelding
     Task<bool> DeleteAsync(int id);
 }

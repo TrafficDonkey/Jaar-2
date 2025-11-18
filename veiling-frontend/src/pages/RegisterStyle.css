@@ -47,12 +47,14 @@
 
 /* Link-stijl voor secundaire actie (naar login) */
 .link-btn {
-  color: var(--color-accent, #f26b1d);
+  /* donkerder oranje voor betere contrast ratio op wit */
+  color: var(--color-accent, #b34700);
   font-weight: 600;
   text-decoration: none;
   border-bottom: 2px solid currentColor;
   padding-bottom: 2px;
 }
+
 
 /* Toegankelijkheidsfocus op de link-knop */
 .link-btn:focus-visible {

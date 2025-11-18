@@ -23,6 +23,7 @@ export default function RegisterScreen() {
   useEffect(() => {
     const last = localStorage.getItem("lastEmail");
     if (last) setEmail(last);
+    document.title = "Register";
   }, []);
 
   // ────────────────────────────── submit ──────────────────────────────

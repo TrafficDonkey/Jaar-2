@@ -12,7 +12,7 @@ namespace VeilingApi.Models;
 
 public class GebruikerDto
 {
-    public int GebruikerId { get; set; }                 // Publieke weergave van gebruiker
+    public int GebruikerId { get; set; }
     public string Naam { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Rol { get; set; } = string.Empty;
@@ -29,7 +29,6 @@ public class CreateGebruikerDto
     [Required]
     public string Rol { get; set; } = "Klant";
 
-    // Wordt normaliter tijdens registratie gezet
     [Required]
     public string WachtwoordHash { get; set; } = string.Empty;
 }
@@ -49,36 +48,10 @@ public class UpdateGebruikerDto
     public string Rol { get; set; } = string.Empty;
 }
 
-
-// ────────────────────────────── AANVOERDER ──────────────────────────────
-// DTO's voor het beheren van aanvoerders (leveranciers/aanmelders).
-
-public class AanvoerderDto
-{
-    public int AanvoerderId { get; set; }
-    public string Naam { get; set; } = string.Empty;
-    public int AantalAanmeldingen { get; set; }          // Afgeleid veld voor weergave
-}
-
-public class CreateAanvoerderDto
-{
-    [Required, StringLength(120)]
-    public string Naam { get; set; } = string.Empty;
-}
-
-public class UpdateAanvoerderDto
-{
-    [Required]
-    public int AanvoerderId { get; set; }
-
-    [Required, StringLength(120)]
-    public string Naam { get; set; } = string.Empty;
-}
-
-
 // ────────────────────────────── AANMELDING ──────────────────────────────
 // DTO's voor het registreren en tonen van aanmeldingen.
 
+// ====== AANMELDING ======
 public class AanmeldingDto
 {
     public int AanmeldingId { get; set; }
@@ -88,8 +61,10 @@ public class AanmeldingDto
     public decimal MinimumPrijs { get; set; }
     public string GewensteKlokLocatie { get; set; } = string.Empty;
     public DateTime GewensteVeilDatum { get; set; }
-    public int AanvoerderId { get; set; }
-    public string AanvoerderNaam { get; set; } = string.Empty; // Handig voor lijsten/overzichten
+
+    // Gebruiker (aanvoerder)
+    public int GebruikerId { get; set; }
+    public string GebruikerNaam { get; set; } = string.Empty;
 }
 
 public class CreateAanmeldingDto
@@ -111,8 +86,9 @@ public class CreateAanmeldingDto
     [Required]
     public DateTime GewensteVeilDatum { get; set; }
 
+    // GebruikerId i.p.v. AanvoerderId
     [Required]
-    public int AanvoerderId { get; set; }
+    public int GebruikerId { get; set; }
 }
 
 public class UpdateAanmeldingDto : CreateAanmeldingDto
@@ -120,6 +96,7 @@ public class UpdateAanmeldingDto : CreateAanmeldingDto
     [Required]
     public int AanmeldingId { get; set; }
 }
+
 
 
 // ────────────────────────────── VEILING ──────────────────────────────

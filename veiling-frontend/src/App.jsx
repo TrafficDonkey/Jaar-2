@@ -1,6 +1,6 @@
 // App.jsx
-// Hoofdrouting van de React-applicatie.
-// Bepaalt welke pagina's openbaar zijn (login/registratie) en welke beschermd zijn via ProtectedRoute.
+// Top-level router van de React-app.
+// Definieert publieke routes (login/registratie) en beveiligde /app-routes.
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import LoginScreen from "./pages/LoginScreen";
@@ -9,21 +9,20 @@ import Layout from "./Layout";
 import ProtectedRoute from "./ProtectedRoute";
 import HomePage from "./pages/HomePage";
 import SettingsPage from "./pages/SettingsPage";
+import AanvoerderPage from "./pages/AanvoerderPage"; // pagina voor aanvoerders
 
 export default function App() {
+
   return (
     <Routes>
-      {/* ────────────────────────────── ROOT ────────────────────────────── */}
-      {/* Redirect de hoofdpagina automatisch naar /login */}
+      {/* Standaard: doorsturen naar /login */}
       <Route path="/" element={<Navigate to="/login" replace />} />
 
-      {/* ────────────────────────────── OPENBARE PAGINA'S ────────────────────────────── */}
-      {/* Login- en registratieschermen zijn publiek toegankelijk */}
+      {/* Publieke routes */}
       <Route path="/login" element={<LoginScreen />} />
       <Route path="/register" element={<RegisterScreen />} />
 
-      {/* ────────────────────────────── BESCHERMDE PAGINA'S ────────────────────────────── */}
-      {/* Alle routes binnen /app vereisen authenticatie via ProtectedRoute */}
+      {/* Beveiligd gedeelte van de app */}
       <Route
         path="/app"
         element={
@@ -32,15 +31,17 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        {/* Standaard startpagina binnen de app */}
-        <Route index element={<HomePage />} /> {/* /app */}
+        {/* /app → algemene landing na inloggen (rol-neutraal) */}
+        <Route index element={<HomePage />} />
 
-        {/* Instellingenpagina binnen de app */}
-        <Route path="instellingen" element={<SettingsPage />} /> {/* /app/instellingen */}
+        {/* /app/instellingen → instellingenpagina */}
+        <Route path="instellingen" element={<SettingsPage />} />
+
+        {/* /app/aanvoerder → scherm specifiek voor rol 'Aanvoerder' */}
+        <Route path="aanvoerder" element={<AanvoerderPage />} />
       </Route>
 
-      {/* ────────────────────────────── FOUT/ONGELDIGE ROUTE ────────────────────────────── */}
-      {/* Onbekende routes leiden terug naar login */}
+      {/* Fallback: onbekende URL's gaan terug naar login */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

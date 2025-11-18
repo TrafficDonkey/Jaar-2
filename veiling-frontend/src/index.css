@@ -8,29 +8,32 @@
   --color-surface: #ffffff;
   --color-primary: #0c3c5a;
   --color-primary-dark: #07293d;
-  --color-accent: #f26b1d;
+
+  /* Accent en muted donkerder gemaakt voor beter contrast (WCAG 4.5:1) */
+  --color-accent: #b34700;       /* was #f26b1d */
   --color-text: #102a43;
-  --color-muted: #6b7a89;
+  --color-muted: #4b5563;        /* was #6b7a89 */
   --color-border: #d0d7df;
+
   --radius-lg: 1.25rem;
   --radius-md: 0.75rem;
   --shadow-sm: 0 8px 18px rgba(12, 60, 90, 0.1);
   --shadow-md: 0 14px 30px rgba(12, 60, 90, 0.12);
 }
 
-/* Donkere modus – gebruikt alternatieve kleuren en schaduwen */
 :root.dark {
-  --color-bg: #0b1220;           /* Achtergrond donker */
-  --color-surface: #111827;      /* Panelen / kaarten */
+  --color-bg: #0b1220;
+  --color-surface: #111827;
   --color-primary: #e2e8f0;
   --color-primary-dark: #cbd5f5;
-  --color-accent: #f97316;
+  --color-accent: #fb923c;   /* accent mag hier wat lichter, achtergrond is donker */
   --color-text: #ecf3ff;
-  --color-muted: #94a3b8;
+  --color-muted: #9ca3af;
   --color-border: #1f2937;
   --shadow-sm: 0 8px 18px rgba(0, 0, 0, 0.25);
   --shadow-md: 0 14px 30px rgba(0, 0, 0, 0.3);
 }
+
 
 /* ────────────────────────────── BASISINSTELLINGEN ────────────────────────────── */
 *,

@@ -1,179 +1,106 @@
-// HomePage.jsx
-// Dashboardoverzicht na inloggen.
-// Haalt veilingen en kavels op, toont statistieken en de eerstvolgende kavels (op basis van veilingstart / gewenste veildatum).
+// src/pages/HomePage.jsx
+// Rol-neutrale landingspagina (geen data-fetch, geen rolbadge).
+// Toont hero, voordelen, stappenplan en CTA’s. CTA toont altijd Registreren + Inloggen.
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import "./HomePageStyle.css";
-import apiFetch from "../api";
-
-// ────────────────────────────── helpers ──────────────────────────────
-// Formatteer ISO-datum naar NL-weergave (datum + tijd)
-const fmtDate = (iso) => {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  return new Intl.DateTimeFormat("nl-NL", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(d);
-};
 
 export default function HomePage() {
-  // ────────────────────────────── staat ──────────────────────────────
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-  const [veilingen, setVeilingen] = useState([]);
-  const [kavels, setKavels] = useState([]);
 
-  // Huidige rol (alleen voor weergavebadge)
-  const role = localStorage.getItem("role") || "Gebruiker";
-
-  // ────────────────────────────── data laden ──────────────────────────────
-  // Laad veilingen en kavels parallel; voorkom setState na unmount met 'cancelled' vlag
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setErr("");
-      try {
-        const [vRes, kRes] = await Promise.all([
-          apiFetch("/Veilingen"),
-          apiFetch("/VeilingProducts"),
-        ]);
-        if (cancelled) return;
-        setVeilingen(Array.isArray(vRes) ? vRes : []);
-        setKavels(Array.isArray(kRes) ? kRes : []);
-      } catch (e) {
-        if (!cancelled) setErr(e?.message ?? "Kon gegevens niet laden.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => { cancelled = true; };
+    document.title = "Homepage";
   }, []);
-
-  // ────────────────────────────── afgeleide data ──────────────────────────────
-  // Bepaal eerstvolgende 5 kavels op datum (veiling.startTijd of aanmelding.gewensteVeilDatum)
-  const upcoming = useMemo(() => {
-    const list = [...kavels].map(k => {
-      const vd = k?.veiling?.startTijd || k?.aanmelding?.gewensteVeilDatum;
-      return { ...k, _when: vd ? new Date(vd) : null };
-    }).filter(x => x._when && x._when >= new Date());
-
-    list.sort((a,b) => a._when - b._when);
-    return list.slice(0, 5);
-  }, [kavels]);
-
-  const today = new Intl.DateTimeFormat("nl-NL", { dateStyle: "full" }).format(new Date());
-
-  // ────────────────────────────── weergave ──────────────────────────────
+  // ────────────────────────────── Weergave ──────────────────────────────
   return (
-    <div className="hp-shell">
-      {/* hero / introductie */}
-      <header className="hp-hero" aria-labelledby="hp-title">
-        <div className="hp-hero__left">
-          <h1 id="hp-title" className="hp-hero__title">
-            Welkom terug <span aria-hidden="true">👋</span>
+    <div className="lp-shell">
+      {/* ───────── Hero: korte pitch + primaire CTA’s ───────── */}
+      <header className="lp-hero" aria-labelledby="lp-title">
+        <div className="lp-hero__content">
+          <h1 id="lp-title" className="lp-hero__title">
+            Verbinding tussen kwekers en kopers.
           </h1>
-          <p className="hp-hero__sub">
-            {today} · Alles wat je nodig hebt op één plek.
+          <p className="lp-hero__sub">
+            Eén moderne omgeving om producten aan te bieden, te ontdekken en veilig te verhandelen—van planning tot toewijzing.
           </p>
-          <div className="hp-hero__meta">
-            <span className="role-badge" aria-label={`Jouw rol: ${role}`}>
-              {role}
-            </span>
+
+          {/* Toon altijd beide keuzes: registreren of inloggen */}
+          <div className="lp-cta">
+            <Link to="/register" className="btn btn--primary">Account aanmaken</Link>
+            <Link to="/login" className="btn btn--ghost">Inloggen</Link>
+          </div>
+
+          <p className="lp-trust">Betrouwbaar. Schaalbaar. Ontworpen voor de sierteeltketen.</p>
+        </div>
+
+        {/* Decoratieve illustratie (geen functionele content) */}
+        <div className="lp-hero__art" aria-hidden="true">
+          <div className="lp-blob" />
+          <div className="lp-card lp-card--floating">
+            <span className="lp-dot" /> Live veilingen
+          </div>
+          <div className="lp-card lp-card--floating2">
+            <span className="lp-dot" /> Transparante prijzen
           </div>
         </div>
-
-        {/* snelle acties (placeholder / later rol-specifiek) */}
-        <nav className="hp-quick" aria-label="Snel naar">
-          {/* Quick actions – nu generiek; later per-rol activeren */}
-          <button className="qa-btn" disabled title="Komt binnenkort">
-            Product aanmelden
-          </button>
-          <button className="qa-btn" disabled title="Komt binnenkort">
-            Nieuwe veiling
-          </button>
-          <Link className="qa-link" to="/instellingen">Instellingen</Link>
-        </nav>
       </header>
 
-      {/* status / foutmelding */}
-      {err && (
-        <div className="hp-alert" role="alert">
-          ❌ {err}
-        </div>
-      )}
-
-      {/* statistiekenblok */}
-      <section className="hp-grid" aria-label="Overzicht">
-        <article className="stat-card" aria-live="polite">
-          <h2 className="stat-card__label">Aantal veilingen</h2>
-          <p className="stat-card__value">{veilingen.length}</p>
-          <p className="stat-card__hint">Totaal geregistreerd</p>
-        </article>
-
-        <article className="stat-card" aria-live="polite">
-          <h2 className="stat-card__label">Aantal kavels</h2>
-          <p className="stat-card__value">{kavels.length}</p>
-          <p className="stat-card__hint">Gepland / afgerond</p>
-        </article>
-
-        <article className="stat-card stat-card--ok" aria-live="polite">
-          <h2 className="stat-card__label">Systeemstatus</h2>
-          <p className="stat-card__value">OK</p>
-          <p className="stat-card__hint">Data uit backend (EF Core)</p>
-        </article>
+      {/* ───────── Voordelen ───────── */}
+      <section className="lp-section" aria-labelledby="benefits-title">
+        <h2 id="benefits-title" className="lp-section__title">Waarom dit platform?</h2>
+        <ul className="lp-benefits">
+          <li className="lp-benefit">
+            <div className="lp-ico" aria-hidden="true">⚡</div>
+            <h3>Snelle afhandeling</h3>
+            <p>Gestroomlijnde processen van aanmelden tot toewijzing.</p>
+          </li>
+          <li className="lp-benefit">
+            <div className="lp-ico" aria-hidden="true">🔒</div>
+            <h3>Veilige transacties</h3>
+            <p>Bewezen authenticatie en duidelijke toewijzingsregels.</p>
+          </li>
+          <li className="lp-benefit">
+            <div className="lp-ico" aria-hidden="true">📈</div>
+            <h3>Inzicht &amp; overzicht</h3>
+            <p>Heldere dashboards en rapportage zodra je bent ingelogd.</p>
+          </li>
+        </ul>
       </section>
 
-      {/* eerstvolgende kavels lijst */}
-      <section className="hp-panel" aria-labelledby="upcoming-title">
-        <div className="hp-panel__head">
-          <h2 id="upcoming-title" className="hp-panel__title">Eerstvolgende kavels</h2>
-          <span className="hp-panel__meta">Totaal {upcoming.length} kavels</span>
-        </div>
-
-        {loading ? (
-          <div className="hp-skeleton" aria-hidden="true" />
-        ) : upcoming.length === 0 ? (
-          <p className="hp-empty">Er zijn nog geen aankomende kavels.</p>
-        ) : (
-          <ul className="kavel-list">
-            {upcoming.map(k => (
-              <li key={k.veilingProductId ?? `${k.aanmeldingId}-${k.veilingId}`}>
-                <article className="kavel-item">
-                  <div className="kavel-item__main">
-                    <h3 className="kavel-item__title">
-                      {k?.aanmelding?.productBeschrijving ?? "Kavel"}
-                    </h3>
-                    <p className="kavel-item__sub">
-                      {k?.aanmelding?.gewensteKlokLocatie ?? "Locatie n.b."}
-                      {" · "}
-                      {fmtDate(k?._when)}
-                    </p>
-                  </div>
-                  <div className="kavel-item__side">
-                    <Link to="#" className="ghost-btn" aria-disabled="true" title="Komt binnenkort">
-                      Bekijken
-                    </Link>
-                  </div>
-                </article>
-              </li>
-            ))}
-          </ul>
-        )}
+      {/* ───────── Hoe het werkt ───────── */}
+      <section className="lp-section lp-section--alt" aria-labelledby="how-title">
+        <h2 id="how-title" className="lp-section__title">Hoe het werkt</h2>
+        <ol className="lp-steps">
+          <li className="lp-step">
+            <span className="lp-step__nr">1</span>
+            <h3>Maak een account</h3>
+            <p>Registreren kost een minuut. Je krijgt toegang tot je eigen omgeving.</p>
+          </li>
+          <li className="lp-step">
+            <span className="lp-step__nr">2</span>
+            <h3>Ontdek of bied</h3>
+            <p>Bekijk aanbod of start met aanbieden — jij bepaalt je doel.</p>
+          </li>
+          <li className="lp-step">
+            <span className="lp-step__nr">3</span>
+            <h3>Rond veilig af</h3>
+            <p>Transparante toewijzing en overzichtelijke afhandeling.</p>
+          </li>
+        </ol>
       </section>
 
-      {/* placeholder voor toekomstige rol-specifieke activiteit */}
-      <section className="hp-panel" aria-labelledby="activity-title">
-        <div className="hp-panel__head">
-          <h2 id="activity-title" className="hp-panel__title">Laatste activiteit</h2>
-          <span className="hp-panel__meta">demo</span>
+      {/* ───────── CTA-strip ───────── */}
+      <section className="lp-ctaStrip" aria-label="Call to action">
+        <div className="lp-ctaStrip__box">
+          <h2 className="lp-ctaStrip__title">Klaar om te starten?</h2>
+          <p className="lp-ctaStrip__sub">Maak gratis een account of log in om verder te gaan.</p>
+
+          {/* Ook hier altijd beide knoppen */}
+          <div className="lp-cta lp-cta--center">
+            <Link to="/register" className="btn btn--primary">Account aanmaken</Link>
+            <Link to="/login" className="btn btn--ghost">Ik heb al een account</Link>
+          </div>
         </div>
-        <p className="hp-muted">
-          Hier verschijnen binnenkort rol-specifieke updates (bijv. recente biedingen, aangemelde producten, veilingnotities).
-        </p>
       </section>
     </div>
   );

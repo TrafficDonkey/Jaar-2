@@ -149,9 +149,10 @@
   color: var(--color-text);
 }
 .outline-btn {
-  border: 1px solid rgba(242, 107, 29, 0.5);
-  background: rgba(242, 107, 29, 0.08);
-  color: var(--color-accent);
+  /* stevigere rand en iets neutralere achtergrond voor beter contrast */
+  border: 1px solid var(--color-accent, #b34700);
+  background: #fff7ed; /* lichte crème i.p.v. bijna-wit transparant oranje */
+  color: var(--color-accent, #b34700);
   border-radius: 0.6rem;
   padding: 0.35rem 0.7rem;
   cursor: pointer;
