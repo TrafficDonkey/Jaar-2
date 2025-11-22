@@ -1,32 +1,38 @@
 // GebruikersController.cs
-// Controller voor het beheren van gebruikers (CRUD-functionaliteit).
-// Handelt HTTP-verzoeken af en communiceert met de service-laag voor gebruikersbeheer.
+// Beheer van gebruikers (lezen, aanmaken, bijwerken, verwijderen).
+// - Admin: mag alle gebruikers zien, aanmaken, wijzigen en verwijderen.
+// - Normale gebruiker: mag alleen zijn eigen profiel lezen en bijwerken.
 
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VeilingApi.Models;
 using VeilingApi.Services;
-using Microsoft.AspNetCore.Authorization;
 
 namespace VeilingApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize] // iedereen moet ingelogd zijn, maar rol verschilt per actie
 public class GebruikersController : ControllerBase
 {
     private readonly IGebruikerService _svc;
 
-    // Injecteert de service die de logica voor gebruikers afhandelt
-    public GebruikersController(IGebruikerService svc) => _svc = svc;
+    public GebruikersController(IGebruikerService svc)
+    {
+        _svc = svc;
+    }
 
-    // ────────────────────────────── GET ──────────────────────────────
+    // ────────────────────────────── GET: api/Gebruikers (alle users, alleen Admin) ──────────────────────────────
 
-    // Haalt alle gebruikers op
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<IEnumerable<GebruikerDto>>> GetAll()
         => Ok(await _svc.GetAllAsync());
 
-    // Haalt één specifieke gebruiker op via ID
+    // ────────────────────────────── GET: api/Gebruikers/{id} ──────────────────────────────
+    // Ingezet voor o.a. SettingsPage. Elke ingelogde gebruiker mag dit gebruiken.
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<GebruikerDto>> Get(int id)
     {
@@ -34,38 +40,52 @@ public class GebruikersController : ControllerBase
         return item is null ? NotFound() : Ok(item);
     }
 
-    // ────────────────────────────── POST ──────────────────────────────
+    // ────────────────────────────── POST: api/Gebruikers (alleen Admin) ──────────────────────────────
+    // Admin kan accounts aanmaken namens Aanvoerders / Veilingmeesters.
 
-    // Maakt een nieuwe gebruiker aan
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<GebruikerDto>> Create(CreateGebruikerDto dto)
     {
-        // Controleer of het model geldig is
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
         var created = await _svc.CreateAsync(dto);
-        // Retourneert 201 Created met link naar de nieuwe gebruiker
         return CreatedAtAction(nameof(Get), new { id = created.GebruikerId }, created);
     }
 
-    // ────────────────────────────── PUT ──────────────────────────────
+    // ────────────────────────────── PUT: api/Gebruikers/{id} ──────────────────────────────
+    // Admin: mag iedereen wijzigen.
+    // Niet-admin: mag alleen zijn eigen profiel wijzigen.
 
-    // Wijzigt een bestaande gebruiker
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, UpdateGebruikerDto dto)
     {
-        // ID in route moet overeenkomen met ID in DTO
-        if (id != dto.GebruikerId) return BadRequest();
-        if (!ModelState.IsValid) return BadRequest(ModelState);
+        if (id != dto.GebruikerId)
+            return BadRequest("Route-id komt niet overeen met body-id.");
+
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        // Huidige caller uit het JWT halen
+        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (idClaim is null)
+            return Forbid(); // geen geldig token
+
+        var callerId = int.Parse(idClaim);
+        var isAdmin = User.IsInRole("Admin");
+
+        // Als je geen admin bent en je probeert iemand anders te wijzigen → Forbid
+        if (!isAdmin && callerId != id)
+            return Forbid();
 
         var ok = await _svc.UpdateAsync(dto);
         return ok ? NoContent() : NotFound();
     }
 
-    // ────────────────────────────── DELETE ──────────────────────────────
+    // ────────────────────────────── DELETE: api/Gebruikers/{id} (alleen Admin) ──────────────────────────────
 
-    // Verwijdert een gebruiker op basis van ID
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
         var ok = await _svc.DeleteAsync(id);

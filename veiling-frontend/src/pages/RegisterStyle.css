@@ -1,31 +1,28 @@
-/* RegisterStyle.css */
-/* Stijlen voor het registratiescherm: layout, panel, rolkeuze en links. */
-/* Alleen beschrijvende comments toegevoegd; geen functionele wijzigingen. */
-
-/* ────────────────────────────── ACHTERGROND ────────────────────────────── */
 .reg-shell {
-  background: radial-gradient(circle at top, #ffffff 0%, #f3f5f7 50%, #dfe6ec 100%);
+  background: radial-gradient(
+    circle at top,
+    #ffffff 0%,
+    #f3f5f7 50%,
+    #dfe6ec 100%
+  );
 }
 
-/* ────────────────────────────── LAYOUT ────────────────────────────── */
 .reg-main {
   display: flex;
   justify-content: center;
   padding: 3rem 1rem 2rem;
 }
 
-/* Paneel waarin het registratieformulier staat */
 .auth-panel {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  border: 1px solid rgba(12, 60, 90, .03);
+  border: 1px solid rgba(12, 60, 90, 0.03);
   max-width: 32rem;
   width: 100%;
   padding: 2.4rem 2rem;
 }
 
-/* ────────────────────────────── ROLKEUZE ────────────────────────────── */
 .role-line {
   display: flex;
   gap: 0.5rem;
@@ -38,27 +35,34 @@
   margin-bottom: 0.35rem;
 }
 
-/* ────────────────────────────── ALTERNATIEVE ACTIE ────────────────────────────── */
 .auth-alt {
-  margin-top: .875rem;
-  font-size: .95rem;
+  margin-top: 0.875rem;
+  font-size: 0.95rem;
   color: var(--color-muted, #6b7a89);
 }
 
-/* Link-stijl voor secundaire actie (naar login) */
 .link-btn {
-  /* donkerder oranje voor betere contrast ratio op wit */
-  color: var(--color-accent, #b34700);
+  color: var(--color-accent, #f26b1d);
   font-weight: 600;
   text-decoration: none;
   border-bottom: 2px solid currentColor;
   padding-bottom: 2px;
 }
 
-
-/* Toegankelijkheidsfocus op de link-knop */
 .link-btn:focus-visible {
   outline: 3px solid #1a73e8;
   outline-offset: 2px;
   border-bottom-color: transparent;
+}
+
+/* Nieuwe stijl: lijst met wachtwoordvoorwaarden */
+.pw-rules {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.pw-rules li {
+  margin-bottom: 0.15rem;
 }

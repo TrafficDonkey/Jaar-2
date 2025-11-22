@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VeilingApi.Models;
 using VeilingApi.Services;
+using System.Security.Claims;
+
 
 namespace VeilingApi.Controllers;
 
@@ -22,6 +24,21 @@ public class AanmeldingenController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AanmeldingDto>>> GetAll()
         => Ok(await _svc.GetAllAsync());
+
+        // ────────────────────────────── GET: eigen aanmeldingen ──────────────────────────────
+        // Geeft alle aanmeldingen terug van de ingelogde aanvoerder (gebaseerd op GebruikerId in het JWT)
+        [HttpGet("mine")]
+        [Authorize(Roles = "Aanvoerder,Admin")]
+        public async Task<ActionResult<IEnumerable<AanmeldingDto>>> GetMine()
+        {
+            var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(idClaim, out var gebruikerId))
+                return Unauthorized("Kon GebruikerId niet bepalen uit token.");
+
+            var list = await _svc.GetForAanvoerderAsync(gebruikerId);
+            return Ok(list);
+        }
+
 
     // Eén aanmelding
     [HttpGet("{id:int}")]

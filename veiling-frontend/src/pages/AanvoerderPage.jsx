@@ -1,13 +1,15 @@
-// AanvoerderPage.jsx
-// Volledig herschreven versie zonder Aanvoerders-tabel.
-// De ingelogde gebruiker *is* de aanvoerder. We gebruiken dus direct gebruikerId
-// om aanmeldingen en toewijzingen op te halen en nieuwe aanmeldingen op te slaan.
+// src/pages/AanvoerderPage.jsx
+// Pagina voor rol "Aanvoerder".
+// - Toont formulier om een product aan te melden.
+// - Laat "mijn aanmeldingen" en "mijn toewijzingen" zien.
+// - Bepaalt de gebruiker via token/localStorage en staat GEEN toegang toe
+//   als de rol niet "Aanvoerder" is.
 
 import React, { useEffect, useState } from "react";
 import "./AanvoerderPageStyle.css";
 import apiFetch from "../api";
 
-// JWT helper om gebruikerId uit token te halen (fallback voor localStorage)
+// Probeer gebruikerId uit JWT-token te halen
 function getGebruikerIdFromToken() {
   const token = localStorage.getItem("token");
   if (!token) return null;
@@ -15,15 +17,34 @@ function getGebruikerIdFromToken() {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
     const payload = JSON.parse(atob(parts[1]));
-
     const raw =
       payload.nameid ||
-      payload[
-        "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
-      ] ||
+      payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] ||
+      payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier"] ||
       null;
-
     return raw ? Number(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Probeer rol uit localStorage / JWT-token te halen
+function getRoleFromToken() {
+  const stored = localStorage.getItem("role");
+  if (stored) return stored;
+
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1]));
+    return (
+      payload.role ||
+      payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
+      null
+    );
   } catch {
     return null;
   }
@@ -34,25 +55,48 @@ export default function AanvoerderPage() {
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
 
-  const [gebruikerNaam, setGebruikerNaam] = useState("");
+  const [role, setRole] = useState(null);
   const [gebruikerId, setGebruikerId] = useState(null);
+  const [gebruikerNaam, setGebruikerNaam] = useState("");
 
   const [aanmeldingen, setAanmeldingen] = useState([]);
   const [toewijzingen, setToewijzingen] = useState([]);
 
-  // Formulier-state
   const [form, setForm] = useState({
     fotoUrl: "",
     productBeschrijving: "",
     hoeveelheid: 1,
     minimumPrijs: 0,
     kloklocatie: "Naaldwijk",
-    veilDatum: ""
+    veilDatum: "",
   });
 
-  // ────────────────────────────── Data laden ──────────────────────────────
+  // Eerste init: titel + rol + gebruikerId bepalen
   useEffect(() => {
-    document.title = "Aanvoerder — Dashboard";
+    document.title = "FloraFlow — Aanvoerder";
+
+    const r = getRoleFromToken();
+    setRole(r);
+
+    const storedId = localStorage.getItem("gebruikerId");
+    if (storedId) {
+      setGebruikerId(Number(storedId));
+    } else {
+      setGebruikerId(getGebruikerIdFromToken());
+    }
+  }, []);
+
+  // Data laden zodra rol + gebruikerId bekend zijn
+  useEffect(() => {
+    // Rol bekend maar géén Aanvoerder? -> geen data laden
+    if (role && role !== "Aanvoerder") {
+      setLoading(false);
+      return;
+    }
+    if (!gebruikerId) {
+      // nog aan het bepalen of het lukt niet
+      return;
+    }
 
     async function load() {
       setLoading(true);
@@ -60,42 +104,32 @@ export default function AanvoerderPage() {
       setMsg("");
 
       try {
-        // 1) gebruikerId bepalen
-        let id = localStorage.getItem("gebruikerId");
-        if (id) id = Number(id);
-        else id = getGebruikerIdFromToken();
+        // 1) Gebruiker-info ophalen (voor "Ingelogd als …")
+        const g = await apiFetch(`/Gebruikers/${gebruikerId}`);
+        setGebruikerNaam(g?.naam ?? "");
 
-        if (!id) {
-          setError("Kon gebruiker niet bepalen. Log opnieuw in.");
-          setLoading(false);
-          return;
-        }
-
-        setGebruikerId(id);
-
-        // 2) Gebruiker-info ophalen
-        const gebruiker = await apiFetch(`/Gebruikers/${id}`);
-        setGebruikerNaam(gebruiker.naam);
-
-        // 3) Aanmeldingen + toewijzingen laden (gebruiker is nu de aanvoerder)
-        const [aanm, toew] = await Promise.all([
-          apiFetch(`/Aanmeldingen/by-gebruiker/${id}`),
-          apiFetch(`/Toewijzingen/by-gebruiker/${id}`)
+        // 2) Eigen aanmeldingen + toewijzingen
+        // LET OP: ik ga hier uit van backend-routes:
+        //   GET /api/Aanmeldingen/mine
+        //   GET /api/Toewijzingen/mine
+        const [aRes, tRes] = await Promise.all([
+          apiFetch("/Aanmeldingen/mine"),
+          apiFetch("/Toewijzingen/mine"),
         ]);
 
-        setAanmeldingen(Array.isArray(aanm) ? aanm : []);
-        setToewijzingen(Array.isArray(toew) ? toew : []);
+        setAanmeldingen(Array.isArray(aRes) ? aRes : []);
+        setToewijzingen(Array.isArray(tRes) ? tRes : []);
       } catch (err) {
-        setError(err?.message ?? "Gegevens konden niet worden geladen.");
+        setError(err?.message ?? "Kon gegevens niet laden.");
       } finally {
         setLoading(false);
       }
     }
 
     load();
-  }, []);
+  }, [role, gebruikerId]);
 
-  // ────────────────────────────── Helpers ──────────────────────────────
+  // ───────────────────────── helpers ─────────────────────────
 
   function updateField(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -107,7 +141,7 @@ export default function AanvoerderPage() {
     return new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" }).format(d);
   }
 
-  // ────────────────────────────── Submit nieuwe aanmelding ──────────────────────────────
+  // ───────────────────── nieuwe aanmelding opslaan ─────────────────────
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -115,10 +149,11 @@ export default function AanvoerderPage() {
     setError("");
 
     if (!gebruikerId) {
-      setError("GebruikerId kon niet worden vastgesteld. Log opnieuw in.");
+      setError(
+        "Kon de ingelogde gebruiker niet bepalen. Log opnieuw in en probeer het nog eens."
+      );
       return;
     }
-
     if (!form.productBeschrijving.trim()) {
       setError("Productbeschrijving is verplicht.");
       return;
@@ -136,55 +171,84 @@ export default function AanvoerderPage() {
       const payload = {
         fotoUrl: form.fotoUrl.trim() || null,
         productBeschrijving: form.productBeschrijving.trim(),
-        hoeveelheid: Number(form.hoeveelheid),
-        minimumPrijs: Number(form.minimumPrijs),
+        hoeveelheid: Number(form.hoeveelheid) || 0,
+        minimumPrijs: Number(form.minimumPrijs) || 0,
         gewensteKlokLocatie: form.kloklocatie,
         gewensteVeilDatum: veilDatumIso,
-        gebruikerId: gebruikerId           // ⭐ Nieuwe sleutel!
+        gebruikerId: gebruikerId
       };
 
       const created = await apiFetch("/Aanmeldingen", {
         method: "POST",
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
+      // nieuwe aanmelding bovenaan
       setAanmeldingen((prev) => [created, ...prev]);
 
+      // formulier resetten
       setForm({
         fotoUrl: "",
         productBeschrijving: "",
         hoeveelheid: 1,
         minimumPrijs: 0,
         kloklocatie: "Naaldwijk",
-        veilDatum: ""
+        veilDatum: "",
       });
 
       setMsg("✅ Aanmelding opgeslagen.");
     } catch (err) {
-      setError(err?.message ?? "Opslaan mislukt.");
+      setError(err?.message ?? "Opslaan van de aanmelding is mislukt.");
     }
   }
 
-  // ────────────────────────────── Render ──────────────────────────────
+  // ───────────────────── rol-guard (geen aanvoerder) ─────────────────────
+
+  if (role && role !== "Aanvoerder") {
+    return (
+      <div className="page-shell aanv-shell">
+        <main className="aanv-main">
+          <section className="aanv-panel">
+            <h1>Geen toegang</h1>
+            <p className="aanv-sub">
+              Deze pagina is alleen beschikbaar voor aanvoerders.
+            </p>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  // ────────────────────────── render ──────────────────────────
 
   return (
     <div className="page-shell aanv-shell">
       <main className="aanv-main" aria-labelledby="aanv-title">
         <section className="aanv-panel">
           <header className="aanv-header">
-            <h1 id="aanv-title">Product aanmelden</h1>
-            <p className="aanv-sub">
-              Vul onderstaande gegevens in en klik op Opslaan.
-            </p>
-            {gebruikerNaam && (
-              <p className="aanv-meta">
-                Ingelogd als <strong>{gebruikerNaam}</strong>
+            <div>
+              <h1 id="aanv-title">Product aanmelden</h1>
+              <p className="aanv-sub">
+                Vul onderstaande gegevens in en klik op Opslaan.
               </p>
-            )}
+              {gebruikerNaam && (
+                <p className="aanv-meta">
+                  Ingelogd als <strong>{gebruikerNaam}</strong>
+                </p>
+              )}
+            </div>
           </header>
 
-          {error && <div className="aanv-alert">❌ {error}</div>}
-          {msg && !error && <p className="aanv-msg">{msg}</p>}
+          {error && (
+            <div className="aanv-alert" role="alert">
+              ❌ {error}
+            </div>
+          )}
+          {msg && !error && (
+            <p className="aanv-msg" aria-live="polite">
+              {msg}
+            </p>
+          )}
 
           <form className="aanv-form" onSubmit={handleSubmit} noValidate>
             <div className="field">
@@ -232,7 +296,9 @@ export default function AanvoerderPage() {
                   min="0"
                   step="0.01"
                   value={form.minimumPrijs}
-                  onChange={(e) => updateField("minimumPrijs", e.target.value)}
+                  onChange={(e) =>
+                    updateField("minimumPrijs", e.target.value)
+                  }
                   required
                 />
               </div>
@@ -276,20 +342,23 @@ export default function AanvoerderPage() {
                     hoeveelheid: 1,
                     minimumPrijs: 0,
                     kloklocatie: "Naaldwijk",
-                    veilDatum: ""
+                    veilDatum: "",
                   })
                 }
               >
                 Annuleren
               </button>
-              <button type="submit" className="btn btn-primary">
-                Opslaan
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={loading || !gebruikerId}
+              >
+                {loading ? "Bezig…" : "Opslaan"}
               </button>
             </div>
           </form>
         </section>
 
-        {/* Aanmeldingen tabel */}
         <section className="aanv-panel">
           <h2>Mijn aanmeldingen</h2>
           {loading ? (
@@ -303,7 +372,7 @@ export default function AanvoerderPage() {
                   <th>ID</th>
                   <th>Product</th>
                   <th>Hoeveelheid</th>
-                  <th>Min. prijs</th>
+                  <th>Minimumprijs</th>
                   <th>Veildatum</th>
                 </tr>
               </thead>
@@ -322,7 +391,6 @@ export default function AanvoerderPage() {
           )}
         </section>
 
-        {/* Toewijzingen tabel */}
         <section className="aanv-panel">
           <h2>Mijn toewijzingen</h2>
           {loading ? (

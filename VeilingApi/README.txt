@@ -288,3 +288,27 @@ Create a branch: git checkout -b feature/<name>
 Commit small, clear changes
 
 Push & open a Pull Request: git push -u origin feature/<name>
+
+******************************************************************************************
+
+## 🛠️ Standaard administrator-account
+
+Het systeem bevat één vooraf ingestelde beheerder (Admin).  
+Deze gebruiker heeft volledige toegang tot alle accounts en kan nieuwe
+**Klanten**, **Aanvoerders** en **Veilingmeesters** aanmaken.
+
+> Gebruik dit account alleen voor beheertaken.
+
+**Admin login**
+
+| Veld       | Waarde                |
+| ---------- | --------------------- |
+| E-mail     | `admin@floraflow.nl`  |
+| Wachtwoord | `Admin123!`           |
+| Rol        | `Admin`               |
+
+**Belangrijk**
+
+- Zelfregistratie via `/register` maakt **altijd** een gebruiker met rol `Klant`.
+- Rollen `Aanvoerder` en `Veilingmeester` kunnen alleen via de **Admin-pagina** worden toegekend.
+- Admin-accounts worden niet via de UI aangemaakt, maar zijn hardcoded / via seeding aanwezig.

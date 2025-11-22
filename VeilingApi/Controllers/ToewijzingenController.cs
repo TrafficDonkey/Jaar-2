@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VeilingApi.Models;
 using VeilingApi.Services;
+using System.Security.Claims;
+
 
 namespace VeilingApi.Controllers;
 
@@ -21,6 +23,19 @@ public class ToewijzingenController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ToewijzingDto>>> GetAll()
         => Ok(await _svc.GetAllAsync());
+
+        // ────────────────────────────── GET: toewijzingen van ingelogde aanvoerder ──────────────────────────────
+    [HttpGet("mine")]
+    [Authorize(Roles = "Aanvoerder,Admin")]
+    public async Task<ActionResult<IEnumerable<ToewijzingDto>>> GetMine()
+    {
+        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idClaim, out var gebruikerId))
+            return Unauthorized("Kon GebruikerId niet bepalen uit token.");
+
+        var list = await _svc.GetForAanvoerderAsync(gebruikerId);
+        return Ok(list);
+    }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ToewijzingDto>> Get(int id)

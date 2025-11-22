@@ -1,5 +1,9 @@
 // ToewijzingService.cs
-// Service voor lezen/schrijven van Toewijzingen.
+// Service voor CRUD-operaties op Toewijzing en mapping naar DTO's via EF Core.
+// Daarnaast bevat deze service methodes om:
+// - alleen de toewijzingen terug te geven van kavels waarvan de onderliggende
+//   Aanmelding aan een bepaalde gebruiker toebehoort (aanvoerder).
+// - toewijzingen op te halen waarbij een gebruiker koper is.
 
 using Microsoft.EntityFrameworkCore;
 using VeilingApi.Data;
@@ -12,65 +16,72 @@ public class ToewijzingService : IToewijzingService
     private readonly AppDbContext _db;
     public ToewijzingService(AppDbContext db) => _db = db;
 
-    // ────────────────────────────── READ: alles ──────────────────────────────
+    private static ToewijzingDto MapToDto(Toewijzing t) => new()
+    {
+        ToewijzingId    = t.ToewijzingId,
+        KoperId         = t.KoperId,
+        KoperNaam       = t.Koper != null ? t.Koper.Naam : string.Empty,
+        VeilingProductId= t.VeilingProductId,
+        EindPrijs       = t.EindPrijs,
+        Datum           = t.Datum
+    };
+
+    // ────────────────────────────── READ: alle toewijzingen ──────────────────────────────
+
     public async Task<List<ToewijzingDto>> GetAllAsync()
     {
         return await _db.Toewijzingen
             .Include(t => t.Koper)
             .Include(t => t.VeilingProduct)
-            .Select(t => new ToewijzingDto
-            {
-                ToewijzingId = t.ToewijzingId,
-                KoperId = t.KoperId,
-                KoperNaam = t.Koper!.Naam,
-                VeilingProductId = t.VeilingProductId,
-                EindPrijs = t.EindPrijs,
-                Datum = t.Datum
-            })
+            .OrderByDescending(t => t.Datum)
+            .Select(t => MapToDto(t))
             .ToListAsync();
     }
 
     // ────────────────────────────── READ: detail ──────────────────────────────
+
     public async Task<ToewijzingDto?> GetByIdAsync(int id)
     {
         return await _db.Toewijzingen
             .Include(t => t.Koper)
+            .Include(t => t.VeilingProduct)
             .Where(t => t.ToewijzingId == id)
-            .Select(t => new ToewijzingDto
-            {
-                ToewijzingId = t.ToewijzingId,
-                KoperId = t.KoperId,
-                KoperNaam = t.Koper!.Naam,
-                VeilingProductId = t.VeilingProductId,
-                EindPrijs = t.EindPrijs,
-                Datum = t.Datum
-            })
+            .Select(t => MapToDto(t))
             .FirstOrDefaultAsync();
     }
 
-    // ────────────────────────────── READ: per aanvoerder (gebruiker) ─────────────────────
-    public async Task<List<ToewijzingDto>> GetByGebruikerAsync(int gebruikerId)
+    // ────────────────────────────── READ: toewijzingen voor aanvoerder ────────
+    // gebruikerId = GebruikerId van de eigenaar van de Aanmelding.
+
+    public async Task<List<ToewijzingDto>> GetForAanvoerderAsync(int gebruikerId)
     {
-        // Filter op kavels waarvan de aanmelding door deze gebruiker is gedaan
+        // We gaan ervan uit dat een Toewijzing altijd een VeilingProduct + Aanmelding heeft.
+        // Met de ! vertellen we de compiler dat we dat zeker weten (anders CS8602 warning).
         return await _db.Toewijzingen
             .Include(t => t.Koper)
-            .Include(t => t.VeilingProduct)!
+            .Include(t => t.VeilingProduct)
                 .ThenInclude(vp => vp.Aanmelding)
-            .Where(t => t.VeilingProduct!.Aanmelding != null &&
-                        t.VeilingProduct.Aanmelding.GebruikerId == gebruikerId)
-            .Select(t => new ToewijzingDto
-            {
-                ToewijzingId = t.ToewijzingId,
-                KoperId = t.KoperId,
-                KoperNaam = t.Koper!.Naam,
-                VeilingProductId = t.VeilingProductId,
-                EindPrijs = t.EindPrijs,
-                Datum = t.Datum
-            })
+            .Where(t => t.VeilingProduct!.Aanmelding!.GebruikerId == gebruikerId)
+            .OrderByDescending(t => t.Datum)
+            .Select(t => MapToDto(t))
+            .ToListAsync();
+    }
+
+    // ────────────────────────────── READ: toewijzingen waar gebruiker koper is ───────────
+
+    public async Task<List<ToewijzingDto>> GetByGebruikerAsync(int gebruikerId)
+    {
+        return await _db.Toewijzingen
+            .Include(t => t.Koper)
+            .Include(t => t.VeilingProduct)
+            .Where(t => t.KoperId == gebruikerId)
+            .OrderByDescending(t => t.Datum)
+            .Select(t => MapToDto(t))
             .ToListAsync();
     }
 
     // ────────────────────────────── CREATE ──────────────────────────────
+
     public async Task<ToewijzingDto> CreateAsync(CreateToewijzingDto dto)
     {
         var buyerExists = await _db.Gebruikers.AnyAsync(g => g.GebruikerId == dto.KoperId);
@@ -81,30 +92,24 @@ public class ToewijzingService : IToewijzingService
 
         var t = new Toewijzing
         {
-            KoperId = dto.KoperId,
-            VeilingProductId = dto.VeilingProductId,
-            EindPrijs = dto.EindPrijs,
-            Datum = dto.Datum
+            KoperId         = dto.KoperId,
+            VeilingProductId= dto.VeilingProductId,
+            EindPrijs       = dto.EindPrijs,
+            Datum           = dto.Datum
         };
 
         _db.Toewijzingen.Add(t);
         await _db.SaveChangesAsync();
 
-        var created = await _db.Toewijzingen.Include(x => x.Koper)
+        var created = await _db.Toewijzingen
+            .Include(x => x.Koper)
             .FirstAsync(x => x.ToewijzingId == t.ToewijzingId);
 
-        return new ToewijzingDto
-        {
-            ToewijzingId = created.ToewijzingId,
-            KoperId = created.KoperId,
-            KoperNaam = created.Koper!.Naam,
-            VeilingProductId = created.VeilingProductId,
-            EindPrijs = created.EindPrijs,
-            Datum = created.Datum
-        };
+        return MapToDto(created);
     }
 
     // ────────────────────────────── DELETE ──────────────────────────────
+
     public async Task<bool> DeleteAsync(int id)
     {
         var t = await _db.Toewijzingen.FindAsync(id);

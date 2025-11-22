@@ -1,15 +1,13 @@
-/* SettingsPageStyle.css */
-/* Stijlen voor de instellingenpagina: paneel, formulier, toggle en geavanceerde acties. */
-/* Alleen beschrijvende comments toegevoegd; geen functionele wijzigingen. */
-
-/* ────────────────────────────── ACHTERGROND / SHELL ────────────────────────────── */
-/* Gebruik variabelen zodat de achtergrond ook in dark mode meeverandert */
 .settings-shell {
   /* use variable so it changes in dark mode */
-  background: radial-gradient(circle at top, var(--color-bg) 0%, var(--color-bg) 50%, var(--color-bg) 100%);
+  background: radial-gradient(
+    circle at top,
+    var(--color-bg) 0%,
+    var(--color-bg) 50%,
+    var(--color-bg) 100%
+  );
 }
 
-/* ────────────────────────────── LAYOUT ────────────────────────────── */
 .settings-main {
   max-width: 720px;
   margin: 2.3rem auto 3rem;
@@ -17,63 +15,67 @@
   padding: 0 1rem;
 }
 
-/* Hoofdpaneel met titel en formulier */
 .settings-panel {
-  background: var(--color-surface);             /* was #fff */
+  background: var(--color-surface); /* was #fff */
   color: var(--color-text);
   border-radius: 1rem;
   box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(12, 60, 90, .025);
+  border: 1px solid rgba(12, 60, 90, 0.025);
   padding: 1.8rem 1.5rem 1.8rem;
 }
+
 .settings-panel h1 {
   margin-top: 0;
   margin-bottom: 0.2rem;
   color: var(--color-text);
 }
+
 .panel-subtitle {
   color: var(--color-muted);
   margin-bottom: 1.3rem;
 }
 
-/* ────────────────────────────── FORMULIER ────────────────────────────── */
 .settings-form {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
+
 .settings-form .field {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
 }
+
 .settings-form input,
 .settings-form select {
   border: 1px solid var(--color-border);
   border-radius: 0.7rem;
   padding: 0.5rem 0.6rem;
-  background: var(--color-surface);             /* so it darkens too */
+  background: var(--color-surface); /* so it darkens too */
   color: var(--color-text);
 }
+
+.settings-form input::placeholder {
+  color: var(--color-muted);
+}
+
 .settings-form input:focus,
 .settings-form select:focus {
   outline: 3px solid var(--color-accent);
   outline-offset: 2px;
 }
 
-/* Subtiele statusregel onder het formulier */
 .form-msg {
   min-height: 1.1rem;
   color: var(--color-muted);
 }
 
-/* Optionele topbar-stijl (indien gebruikt binnen deze pagina) */
 .app-topbar {
   background: var(--color-surface);
   color: var(--color-text);
 }
 
-/* ────────────────────────────── DONKERE MODUS TOGGLE ────────────────────────────── */
 .toggle-field {
   display: flex;
   justify-content: space-between;
@@ -81,7 +83,7 @@
   gap: 1rem;
 }
 
-/* Schakelaar UI */
+/* switch */
 .switch {
   position: relative;
   display: inline-block;
@@ -99,7 +101,7 @@
   inset: 0;
   background: #cbd5e1;
   border-radius: 999px;
-  transition: .2s;
+  transition: 0.2s;
 }
 .slider::before {
   content: "";
@@ -110,7 +112,7 @@
   top: 3px;
   background: #fff;
   border-radius: 50%;
-  transition: .2s;
+  transition: 0.2s;
 }
 .switch input:checked + .slider {
   background: var(--color-accent);
@@ -119,10 +121,9 @@
   transform: translateX(20px);
 }
 
-/* ────────────────────────────── KNOPPEN ────────────────────────────── */
 .primary-btn {
   border: none;
-  background: var(--color-primary);             /* use variable */
+  background: var(--color-primary); /* use variable */
   color: #fff;
   padding: 0.65rem 0.75rem;
   border-radius: 0.75rem;
@@ -137,7 +138,6 @@
   outline-offset: 2px;
 }
 
-/* ────────────────────────────── GEVANCEERD BLOK ────────────────────────────── */
 .danger-zone {
   margin-top: 1.6rem;
   border-top: 1px solid rgba(12, 60, 90, 0.05);
@@ -149,10 +149,9 @@
   color: var(--color-text);
 }
 .outline-btn {
-  /* stevigere rand en iets neutralere achtergrond voor beter contrast */
-  border: 1px solid var(--color-accent, #b34700);
-  background: #fff7ed; /* lichte crème i.p.v. bijna-wit transparant oranje */
-  color: var(--color-accent, #b34700);
+  border: 1px solid rgba(242, 107, 29, 0.5);
+  background: rgba(242, 107, 29, 0.08);
+  color: var(--color-accent);
   border-radius: 0.6rem;
   padding: 0.35rem 0.7rem;
   cursor: pointer;

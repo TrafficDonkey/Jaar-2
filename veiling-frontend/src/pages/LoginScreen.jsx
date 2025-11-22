@@ -1,44 +1,8 @@
-// LoginScreen.jsx
-// Pagina voor inloggen. Stuurt credentials naar de backend en slaat het JWT-token op.
-// Haalt rol en gebruikerId uit het token en stuurt de gebruiker daarna naar de juiste app-route.
-
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import "./LoginStyle.css";
 
 const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
-
-// Hulpfunctie: parseer een JWT-token en geef de payload terug
-function parseJwt(token) {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-    const payloadJson = atob(parts[1]);
-    return JSON.parse(payloadJson);
-  } catch {
-    return null;
-  }
-}
-
-// Hulpfunctie: haal rol en gebruikerId uit de token-payload
-function getAuthInfoFromToken(token) {
-  const payload = parseJwt(token);
-  if (!payload) return { role: null, gebruikerId: null };
-
-  const role =
-    payload.role ||
-    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ||
-    null;
-
-  const gebruikerIdRaw =
-    payload.nameid ||
-    payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] ||
-    null;
-
-  const gebruikerId = gebruikerIdRaw ? Number(gebruikerIdRaw) : null;
-
-  return { role, gebruikerId };
-}
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -49,14 +13,13 @@ export default function LoginScreen() {
   const nav = useNavigate();
   const location = useLocation();
 
-  // Vooraf e-mailadres invullen met laatst gebruikte adres
+  // prefill email
   useEffect(() => {
+    document.title = "FloraFlow — Inloggen";
     const last = localStorage.getItem("lastEmail");
     if (last) setEmail(last);
-    document.title = "Login";
   }, []);
 
-  // Formulier versturen
   async function handleSubmit(e) {
     e.preventDefault();
     setMsg("Inloggen…");
@@ -65,7 +28,7 @@ export default function LoginScreen() {
       const res = await fetch(`${API}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password: pw })
+        body: JSON.stringify({ email: email.trim(), password: pw }),
       });
 
       const text = await res.text();
@@ -78,47 +41,35 @@ export default function LoginScreen() {
         return;
       }
 
-      // Bewaar laatst gebruikte e-mailadres
       localStorage.setItem("lastEmail", email.trim());
 
       let data = {};
       try {
         data = JSON.parse(text || "{}");
-      } catch {
-        data = {};
-      }
+      } catch {}
 
-      // Token is verplicht
       if (!data.token) {
         setMsg("❌ Geen token ontvangen van de server");
         return;
       }
 
-      // Sla token op
       localStorage.setItem("token", data.token);
-
-      // Haal rol + gebruikerId uit token (of uit response als die er nog in zit)
-      const fromToken = getAuthInfoFromToken(data.token);
-      const finalRole = data.role || fromToken.role || "";
-      const finalGebruikerId =
-        data.gebruikerId ?? fromToken.gebruikerId ?? null;
-
-      if (finalRole) {
-        localStorage.setItem("role", finalRole);
-      }
-      if (finalGebruikerId != null) {
-        localStorage.setItem("gebruikerId", String(finalGebruikerId));
+      if (data.role) localStorage.setItem("role", data.role);
+      if (data.gebruikerId) {
+        localStorage.setItem("gebruikerId", String(data.gebruikerId));
       }
 
       setMsg("✅ Ingelogd!");
 
-      // Standaard doel-URL op basis van rol
+      // standaard doel op basis van rol
+      const finalRole = data.role || localStorage.getItem("role");
       let defaultTarget = "/app";
       if (finalRole === "Aanvoerder") {
         defaultTarget = "/app/aanvoerder";
+      } else if (finalRole === "Admin") {
+        defaultTarget = "/app/admin";
       }
 
-      // Als gebruiker via ProtectedRoute kwam → terug naar die pagina
       const from = location.state?.from?.pathname;
       const to =
         from && from !== "/login" && from !== "/" ? from : defaultTarget;
@@ -134,8 +85,6 @@ export default function LoginScreen() {
       <a href="#main" className="skip-link">
         Ga naar hoofdinhoud
       </a>
-
-      {/* Bovenbalk met merk en link naar registratie */}
       <header className="topbar" aria-label="Hoofdnavigatie">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">
@@ -148,7 +97,6 @@ export default function LoginScreen() {
         </Link>
       </header>
 
-      {/* Hoofdinhoud: loginformulier */}
       <main id="main" className="login-main" aria-labelledby="login-title">
         <section className="auth-panel" aria-describedby="login-sub">
           <h1 id="login-title">Inloggen</h1>
@@ -163,6 +111,7 @@ export default function LoginScreen() {
                 id="email"
                 type="email"
                 autoComplete="email"
+                placeholder="naam@bedrijf.nl"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -175,6 +124,7 @@ export default function LoginScreen() {
                 id="password"
                 type={showPw ? "text" : "password"}
                 autoComplete="current-password"
+                placeholder="Wachtwoord"
                 value={pw}
                 onChange={(e) => setPw(e.target.value)}
                 onKeyUp={(e) =>

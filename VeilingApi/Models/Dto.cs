@@ -235,9 +235,10 @@ public class RegisterDto
     [JsonPropertyName("password")]
     public string Wachtwoord { get; set; } = string.Empty;
 
-    [Required]
-    public string Rol { get; set; } = "Aanvoerder";
+    // Wordt genegeerd bij normale registratie; rol wordt in de backend bepaald.
+    public string Rol { get; set; } = "Klant";
 }
+
 
 public class LoginDto
 {
@@ -247,4 +248,19 @@ public class LoginDto
     [Required]
     [JsonPropertyName("password")]
     public string Wachtwoord { get; set; } = string.Empty;
+}
+
+public class AdminCreateUserDto
+{
+    [Required, MaxLength(100)]
+    public string Naam { get; set; } = string.Empty;
+
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required, MinLength(6)]
+    public string Wachtwoord { get; set; } = string.Empty;
+
+    [Required]
+    public string Rol { get; set; } = "Klant";  // Admin kan hier "Aanvoerder" of "Veilingmeester" kiezen
 }

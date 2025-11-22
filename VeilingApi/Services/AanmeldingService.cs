@@ -1,5 +1,7 @@
 // AanmeldingService.cs
 // Service voor CRUD-operaties op Aanmelding en mapping naar DTO's via EF Core.
+// Verantwoordelijk voor ophalen, aanmaken, bijwerken en verwijderen van aanmeldingen.
+// Sinds de rol-gebaseerde aanpak gebruikt Aanmelding nu GebruikerId (geen aparte Aanvoerder-tabel).
 
 using Microsoft.EntityFrameworkCore;
 using VeilingApi.Data;
@@ -10,135 +12,133 @@ namespace VeilingApi.Services;
 public class AanmeldingService : IAanmeldingService
 {
     private readonly AppDbContext _db;
+
+    // Constructor: injecteert de databasecontext
     public AanmeldingService(AppDbContext db) => _db = db;
 
+    // Kleine helper om duplicatie te voorkomen
+    private static AanmeldingDto MapToDto(Aanmelding a) => new AanmeldingDto
+    {
+        AanmeldingId         = a.AanmeldingId,
+        FotoUrl              = a.FotoUrl,
+        ProductBeschrijving  = a.ProductBeschrijving,
+        Hoeveelheid          = a.Hoeveelheid,
+        MinimumPrijs         = a.MinimumPrijs,
+        GewensteKlokLocatie  = a.GewensteKlokLocatie,
+        GewensteVeilDatum    = a.GewensteVeilDatum,
+        GebruikerId          = a.GebruikerId,
+        GebruikerNaam        = a.Gebruiker?.Naam ?? string.Empty
+    };
+
     // ────────────────────────────── READ: alle aanmeldingen ──────────────────────────────
+    // Haal alle aanmeldingen op, inclusief gekoppelde gebruiker (eigenaar).
     public async Task<List<AanmeldingDto>> GetAllAsync()
     {
-        return await _db.Aanmeldingen
+        var entities = await _db.Aanmeldingen
             .Include(a => a.Gebruiker)
-            .Select(a => new AanmeldingDto
-            {
-                AanmeldingId = a.AanmeldingId,
-                FotoUrl = a.FotoUrl,
-                ProductBeschrijving = a.ProductBeschrijving,
-                Hoeveelheid = a.Hoeveelheid,
-                MinimumPrijs = a.MinimumPrijs,
-                GewensteKlokLocatie = a.GewensteKlokLocatie,
-                GewensteVeilDatum = a.GewensteVeilDatum,
-                GebruikerId = a.GebruikerId,
-                GebruikerNaam = a.Gebruiker != null ? a.Gebruiker.Naam : string.Empty
-            })
+            .OrderByDescending(a => a.GewensteVeilDatum)
             .ToListAsync();
+
+        return entities.Select(MapToDto).ToList();
     }
 
     // ────────────────────────────── READ: detail ──────────────────────────────
+    // Haal één aanmelding op via ID.
     public async Task<AanmeldingDto?> GetByIdAsync(int id)
     {
-        return await _db.Aanmeldingen
+        var entity = await _db.Aanmeldingen
             .Include(a => a.Gebruiker)
-            .Where(a => a.AanmeldingId == id)
-            .Select(a => new AanmeldingDto
-            {
-                AanmeldingId = a.AanmeldingId,
-                FotoUrl = a.FotoUrl,
-                ProductBeschrijving = a.ProductBeschrijving,
-                Hoeveelheid = a.Hoeveelheid,
-                MinimumPrijs = a.MinimumPrijs,
-                GewensteKlokLocatie = a.GewensteKlokLocatie,
-                GewensteVeilDatum = a.GewensteVeilDatum,
-                GebruikerId = a.GebruikerId,
-                GebruikerNaam = a.Gebruiker != null ? a.Gebruiker.Naam : string.Empty
-            })
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(a => a.AanmeldingId == id);
+
+        return entity is null ? null : MapToDto(entity);
     }
 
-    // ────────────────────────────── READ: per gebruiker (aanvoerder) ─────────────────────
+    // ────────────────────────────── READ: op basis van gebruiker ──────────────────────────────
+    // Haal alle aanmeldingen op die horen bij een specifieke gebruiker (eigenaar).
+    // Dit wordt o.a. gebruikt voor "mijn aanmeldingen" in de Aanvoerder/leverancier-omgeving.
     public async Task<List<AanmeldingDto>> GetByGebruikerAsync(int gebruikerId)
     {
-        return await _db.Aanmeldingen
+        var entities = await _db.Aanmeldingen
             .Include(a => a.Gebruiker)
             .Where(a => a.GebruikerId == gebruikerId)
-            .Select(a => new AanmeldingDto
-            {
-                AanmeldingId = a.AanmeldingId,
-                FotoUrl = a.FotoUrl,
-                ProductBeschrijving = a.ProductBeschrijving,
-                Hoeveelheid = a.Hoeveelheid,
-                MinimumPrijs = a.MinimumPrijs,
-                GewensteKlokLocatie = a.GewensteKlokLocatie,
-                GewensteVeilDatum = a.GewensteVeilDatum,
-                GebruikerId = a.GebruikerId,
-                GebruikerNaam = a.Gebruiker != null ? a.Gebruiker.Naam : string.Empty
-            })
+            .OrderByDescending(a => a.GewensteVeilDatum)
             .ToListAsync();
+
+        return entities.Select(MapToDto).ToList();
     }
 
     // ────────────────────────────── CREATE ──────────────────────────────
+    // Maak een nieuwe aanmelding aan en retourneer de DTO.
     public async Task<AanmeldingDto> CreateAsync(CreateAanmeldingDto dto)
     {
-        var gebruikerExists = await _db.Gebruikers.AnyAsync(g => g.GebruikerId == dto.GebruikerId);
-        if (!gebruikerExists)
-            throw new InvalidOperationException("Gebruiker bestaat niet.");
+        // Controleer of de gekoppelde gebruiker bestaat
+        var userExists = await _db.Gebruikers
+            .AnyAsync(g => g.GebruikerId == dto.GebruikerId);
 
-        var a = new Aanmelding
+        if (!userExists)
+            throw new InvalidOperationException("Gebruiker bij deze aanmelding bestaat niet.");
+
+        var entity = new Aanmelding
         {
-            FotoUrl = dto.FotoUrl ?? string.Empty,
+            FotoUrl             = dto.FotoUrl ?? string.Empty,
             ProductBeschrijving = dto.ProductBeschrijving,
-            Hoeveelheid = dto.Hoeveelheid,
-            MinimumPrijs = dto.MinimumPrijs,
+            Hoeveelheid         = dto.Hoeveelheid,
+            MinimumPrijs        = dto.MinimumPrijs,
             GewensteKlokLocatie = dto.GewensteKlokLocatie,
-            GewensteVeilDatum = dto.GewensteVeilDatum,
-            GebruikerId = dto.GebruikerId,
+            GewensteVeilDatum   = dto.GewensteVeilDatum,
+            GebruikerId         = dto.GebruikerId
         };
 
-        _db.Aanmeldingen.Add(a);
+        _db.Aanmeldingen.Add(entity);
         await _db.SaveChangesAsync();
 
+        // Opnieuw ophalen inclusief navigatie-eigenschappen
         var created = await _db.Aanmeldingen
-            .Include(x => x.Gebruiker)
-            .FirstAsync(x => x.AanmeldingId == a.AanmeldingId);
+            .Include(a => a.Gebruiker)
+            .FirstAsync(a => a.AanmeldingId == entity.AanmeldingId);
 
-        return new AanmeldingDto
-        {
-            AanmeldingId = created.AanmeldingId,
-            FotoUrl = created.FotoUrl,
-            ProductBeschrijving = created.ProductBeschrijving,
-            Hoeveelheid = created.Hoeveelheid,
-            MinimumPrijs = created.MinimumPrijs,
-            GewensteKlokLocatie = created.GewensteKlokLocatie,
-            GewensteVeilDatum = created.GewensteVeilDatum,
-            GebruikerId = created.GebruikerId,
-            GebruikerNaam = created.Gebruiker?.Naam ?? string.Empty
-        };
+        return MapToDto(created);
     }
 
     // ────────────────────────────── UPDATE ──────────────────────────────
+    // Werk een bestaande aanmelding bij; retourneer false als deze niet bestaat.
     public async Task<bool> UpdateAsync(UpdateAanmeldingDto dto)
     {
-        var a = await _db.Aanmeldingen.FindAsync(dto.AanmeldingId);
-        if (a == null) return false;
+        var entity = await _db.Aanmeldingen.FindAsync(dto.AanmeldingId);
+        if (entity is null)
+            return false;
 
-        a.FotoUrl = dto.FotoUrl ?? string.Empty;
-        a.ProductBeschrijving = dto.ProductBeschrijving;
-        a.Hoeveelheid = dto.Hoeveelheid;
-        a.MinimumPrijs = dto.MinimumPrijs;
-        a.GewensteKlokLocatie = dto.GewensteKlokLocatie;
-        a.GewensteVeilDatum = dto.GewensteVeilDatum;
-        a.GebruikerId = dto.GebruikerId;
+        entity.FotoUrl             = dto.FotoUrl ?? string.Empty;
+        entity.ProductBeschrijving = dto.ProductBeschrijving;
+        entity.Hoeveelheid         = dto.Hoeveelheid;
+        entity.MinimumPrijs        = dto.MinimumPrijs;
+        entity.GewensteKlokLocatie = dto.GewensteKlokLocatie;
+        entity.GewensteVeilDatum   = dto.GewensteVeilDatum;
+        entity.GebruikerId         = dto.GebruikerId;
 
         await _db.SaveChangesAsync();
         return true;
     }
 
     // ────────────────────────────── DELETE ──────────────────────────────
+    // Verwijder een aanmelding; retourneer false als niet gevonden.
     public async Task<bool> DeleteAsync(int id)
     {
-        var a = await _db.Aanmeldingen.FindAsync(id);
-        if (a == null) return false;
+        var entity = await _db.Aanmeldingen.FindAsync(id);
+        if (entity is null)
+            return false;
 
-        _db.Aanmeldingen.Remove(a);
+        _db.Aanmeldingen.Remove(entity);
         await _db.SaveChangesAsync();
         return true;
     }
+
+    // "Aanvoerder" = gebruiker die het product aanbiedt.
+// Voor achterwaartse compatibiliteit laten we deze methode gewoon
+// doorverwijzen naar GetByGebruikerAsync.
+    public Task<List<AanmeldingDto>> GetForAanvoerderAsync(int gebruikerId)
+    {
+        return GetByGebruikerAsync(gebruikerId);
+    }
+
 }

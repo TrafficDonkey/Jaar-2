@@ -1,6 +1,5 @@
-// Layout.jsx
-// Hoofdlay-out van de applicatie (zichtbaar na inloggen).
-// Bevat de topnavigatiebalk, themaschakeling (donker/licht), en ruimte voor subpagina's via <Outlet>.
+// src/Layout.jsx
+// Hoofdlayout voor ingelogde omgeving (navbar + content).
 
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -9,13 +8,13 @@ import "./Layout.css";
 export default function Layout() {
   const nav = useNavigate();
 
-  // ────────────────────────────── THEMASTATUS ──────────────────────────────
-  // Lees de huidige themawaarde (donker/licht) uit localStorage bij opstart
   const [dark, setDark] = useState(() => {
     return localStorage.getItem("theme") === "dark";
   });
 
-  // Pas het thema toe op het <html>-element en sla voorkeur op
+  const [role] = useState(() => localStorage.getItem("role") || "");
+
+  // Dark/light theme toepassen op <html> element
   useEffect(() => {
     const root = document.documentElement;
     if (dark) {
@@ -27,8 +26,6 @@ export default function Layout() {
     }
   }, [dark]);
 
-  // ────────────────────────────── LOGOUT ──────────────────────────────
-  // Verwijder authenticatiegegevens en navigeer terug naar het login-scherm
   function handleLogout() {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
@@ -36,11 +33,8 @@ export default function Layout() {
     nav("/login", { replace: true });
   }
 
-  // ────────────────────────────── LAYOUT ──────────────────────────────
-  // Topbar met merknaam en navigatie, gevolgd door de pagina-inhoud
   return (
     <div className="app-shell">
-      {/* Navigatiebalk bovenaan */}
       <header className="topbar">
         <div className="topbar__brand">
           <div className="logo-circle" aria-hidden="true">
@@ -49,25 +43,42 @@ export default function Layout() {
           <span className="brand-text">FloraFlow</span>
         </div>
 
-        {/* Hoofdmenu met navigatielinks */}
         <nav className="topbar__nav" aria-label="Hoofdmenu">
           <NavLink to="." end className="topbar__link">
             Dashboard
           </NavLink>
+
+          {/* Alleen voor rol Aanvoerder */}
+          {role === "Aanvoerder" && (
+            <NavLink to="aanvoerder" className="topbar__link">
+              Aanvoerder
+            </NavLink>
+          )}
+
+          {/* Alleen voor rol Admin */}
+          {role === "Admin" && (
+            <NavLink to="admin" className="topbar__link">
+              Beheer
+            </NavLink>
+          )}
+
           <NavLink to="instellingen" className="topbar__link">
             Instellingen
           </NavLink>
         </nav>
 
-        {/* Actieknoppen (zoals uitloggen, later evt. themaschakelaar) */}
         <div className="topbar__actions">
-          <button type="button" onClick={handleLogout} className="logout-btn">
+          {/* eventueel later weer een theme-toggle naast de logout */}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="logout-btn"
+          >
             Uitloggen
           </button>
         </div>
       </header>
 
-      {/* Hoofdinhoud (wisselt per subpagina via router Outlet) */}
       <main className="main-content" aria-live="polite">
         <Outlet />
       </main>

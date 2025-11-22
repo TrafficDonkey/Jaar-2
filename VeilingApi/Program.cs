@@ -5,6 +5,7 @@
 using Microsoft.EntityFrameworkCore;
 using VeilingApi.Data;
 using VeilingApi.Services;
+using VeilingApi.Models; 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -91,13 +92,35 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Controleer database en voer migraties automatisch uit
+// Ensure DB & migrations exist + seed admin
+// Ensure DB & migrations exist + seed admin-account
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    Console.WriteLine("DB-verbinding: " + db.Database.GetDbConnection().ConnectionString);
+    Console.WriteLine("DB ConnString = " + db.Database.GetDbConnection().ConnectionString);
     db.Database.Migrate();
+
+    // Hardcoded admin-account: wordt alleen aangemaakt als hij nog niet bestaat
+    const string adminEmail = "admin@floraflow.nl";
+    const string adminPassword = "Admin123!";
+
+    var adminBestaat = db.Gebruikers.Any(g => g.Email == adminEmail);
+    if (!adminBestaat)
+    {
+        var admin = new Gebruiker
+        {
+            Naam = "Beheerder",
+            Email = adminEmail,
+            Rol = "Admin",
+            WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword)
+        };
+
+        db.Gebruikers.Add(admin);
+        db.SaveChanges();
+        Console.WriteLine("Admin-account aangemaakt: " + adminEmail);
+    }
 }
+
 
 // Forceer HTTPS-omleiding
 app.UseHttpsRedirection();
