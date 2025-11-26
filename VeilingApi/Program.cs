@@ -5,7 +5,7 @@
 using Microsoft.EntityFrameworkCore;
 using VeilingApi.Data;
 using VeilingApi.Services;
-using VeilingApi.Models; 
+using VeilingApi.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -92,7 +92,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Ensure DB & migrations exist + seed admin
 // Ensure DB & migrations exist + seed admin-account
 using (var scope = app.Services.CreateScope())
 {
@@ -120,7 +119,6 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine("Admin-account aangemaakt: " + adminEmail);
     }
 }
-
 
 // Forceer HTTPS-omleiding
 app.UseHttpsRedirection();

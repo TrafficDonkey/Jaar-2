@@ -134,11 +134,30 @@ public class AanmeldingService : IAanmeldingService
     }
 
     // "Aanvoerder" = gebruiker die het product aanbiedt.
-// Voor achterwaartse compatibiliteit laten we deze methode gewoon
-// doorverwijzen naar GetByGebruikerAsync.
+    // Voor achterwaartse compatibiliteit laten we deze methode gewoon
+    // doorverwijzen naar GetByGebruikerAsync.
     public Task<List<AanmeldingDto>> GetForAanvoerderAsync(int gebruikerId)
     {
         return GetByGebruikerAsync(gebruikerId);
     }
+    
+    public async Task<List<AanmeldingDto>> GetOpenAsync()
+{
+    // Open = nog niet gekoppeld aan een veilingproduct.
+    // Pas 'VeilingProducten' aan als je navigatie anders heet.
+    return await _db.Aanmeldingen
+        .Where(a => a.VeilingProduct == null)
+        .Select(a => new AanmeldingDto
+        {
+            AanmeldingId = a.AanmeldingId,
+            ProductBeschrijving = a.ProductBeschrijving,
+            Hoeveelheid = a.Hoeveelheid,
+            MinimumPrijs = a.MinimumPrijs,
+            GewensteKlokLocatie = a.GewensteKlokLocatie,
+            GewensteVeilDatum = a.GewensteVeilDatum
+        })
+        .ToListAsync();
+}
+
 
 }

@@ -8,5 +8,9 @@ public interface IAuthService
 
     // Login: geeft nu ook Rol + GebruikerId terug
     Task<(string? Token, string? Role, int? GebruikerId)> LoginAsync(string email, string wachtwoord);
+
+     // ────────────────────────────── Admin ──────────────────────────────
+    // Laat een admin een nieuw account aanmaken met gekozen rol.
+    Task<GebruikerDto> AdminCreateUserAsync(AdminCreateUserDto dto);
 }
 

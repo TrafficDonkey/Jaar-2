@@ -1,6 +1,6 @@
 // IVeilingService.cs
-// Interface die de servicecontracten definieert voor VeilingService.
-// Beschrijft alle CRUD-operaties voor veilingen.
+// Interface voor alle logica rondom veilingen.
+// Bevat CRUD-operaties en extra methodes voor o.a. de koperspagina.
 
 using VeilingApi.Models;
 
@@ -8,18 +8,25 @@ namespace VeilingApi.Services;
 
 public interface IVeilingService
 {
-    // Haal alle veilingen op
+    // Alle veilingen
     Task<List<VeilingDto>> GetAllAsync();
 
-    // Haal één veiling op via ID
+    // Eén veiling op ID
     Task<VeilingDto?> GetByIdAsync(int id);
 
-    // Maak een nieuwe veiling aan
+    // Nieuwe veiling aanmaken
     Task<VeilingDto> CreateAsync(CreateVeilingDto dto);
 
-    // Werk een bestaande veiling bij
+    // Bestaande veiling bijwerken
     Task<bool> UpdateAsync(UpdateVeilingDto dto);
 
-    // Verwijder een veiling via ID
+    // Verwijderen op ID
     Task<bool> DeleteAsync(int id);
+
+    // ────────────────────────────── Nieuw voor kopers ──────────────────────────────
+    // Haal de huidige actieve veiling op, inclusief het product dat nu op de klok staat.
+    Task<ActieveVeilingDto?> GetActieveAsync();
+
+    // Optioneel: vanuit een aanmelding direct een veiling starten
+    Task<VeilingDto?> StartVeilingAsync(StartVeilingDto dto);
 }

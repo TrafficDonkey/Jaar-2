@@ -54,19 +54,25 @@ public class AuthController : ControllerBase
         });
     }
 
-    // ───────────────────── Admin: gebruiker met rol aanmaken ─────────────────────
-    // [HttpPost("admin-create")]
-    // [Authorize(Roles = "Admin")]
-    // public async Task<IActionResult> AdminCreate([FromBody] AdminCreateUserDto dto)
-    // {
-    //     if (!ModelState.IsValid)
-    //         return BadRequest(ModelState);
+    //───────────────────── Admin: gebruiker met rol aanmaken ─────────────────────
+    [HttpPost("admin-create")]
+    [Authorize(Roles = "Admin")]
+    
+    // ────────────────────────────── Admin: nieuwe gebruiker maken ──────────────────────────────
+    // Route: POST /api/auth/admin/create-user
+    // Alleen bereikbaar voor ingelogde gebruikers met rol "Admin".
+    [HttpPost("admin/create-user")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<GebruikerDto>> AdminCreateUser(AdminCreateUserDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-    //     var result = await _svc.AdminCreateAsync(dto);
+        var created = await _svc.AdminCreateUserAsync(dto);
 
-    //     if (!result.Success)
-    //         return BadRequest(new { message = result.ErrorMessage });
-
-    //     return Ok(new { message = "Gebruiker aangemaakt", gebruiker = result.Gebruiker });
-    // }
+        // 201 Created teruggeven; frontend hoeft de Location niet per se te gebruiken.
+        return CreatedAtAction(nameof(AdminCreateUser),
+            new { id = created.GebruikerId },
+            created);
+    }
 }

@@ -83,4 +83,13 @@ public class AanmeldingenController : ControllerBase
         var ok = await _svc.DeleteAsync(id);
         return ok ? NoContent() : NotFound();
     }
+
+    [HttpGet("open")]
+    [Authorize(Roles = "Veilingmeester,Admin")]
+    public async Task<ActionResult<IEnumerable<AanmeldingDto>>> GetOpen()
+    {
+        var list = await _svc.GetOpenAsync();
+        return Ok(list);
+    }
+
 }

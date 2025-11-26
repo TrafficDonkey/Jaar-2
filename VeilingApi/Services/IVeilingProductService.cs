@@ -1,6 +1,5 @@
 // IVeilingProductService.cs
-// Interface die de servicecontracten definieert voor VeilingProductService.
-// Beschrijft alle CRUD-operaties voor veilingproducten (kavels binnen een veiling).
+// Interface voor de service rond veilingproducten (kavels).
 
 using VeilingApi.Models;
 
@@ -10,6 +9,9 @@ public interface IVeilingProductService
 {
     // Haal alle veilingproducten op
     Task<List<VeilingProductDto>> GetAllAsync();
+
+    // Haal alle kavels voor één veiling op
+    Task<List<VeilingProductDto>> GetByVeilingAsync(int veilingId);
 
     // Haal één veilingproduct op via ID
     Task<VeilingProductDto?> GetByIdAsync(int id);

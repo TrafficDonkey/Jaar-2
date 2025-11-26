@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<VeilingProduct> VeilingProducts => Set<VeilingProduct>();
     public DbSet<Bieding> Biedingen => Set<Bieding>();
     public DbSet<Toewijzing> Toewijzingen => Set<Toewijzing>();
+    public DbSet<VeilingProduct> VeilingProducten { get; set; } = null!;
 
     // ────────────────────────────── Modelconfig ──────────────────────────────
     protected override void OnModelCreating(ModelBuilder mb)

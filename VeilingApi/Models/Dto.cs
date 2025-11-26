@@ -105,31 +105,43 @@ public class UpdateAanmeldingDto : CreateAanmeldingDto
 public class VeilingDto
 {
     public int VeilingId { get; set; }
-    public DateTime StartTijd { get; set; }
-    public DateTime EindTijd { get; set; }
+    public string Naam { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
-    public int AantalKavels { get; set; }                 // Afgeleid veld voor weergave
+    public DateTime StartTijd { get; set; }
+    public DateTime? EindTijd { get; set; }
+
+    // De producten (kavels) die bij deze veiling horen
+    public List<VeilingProductDto> VeilingProducten { get; set; } = new();
 }
 
 public class CreateVeilingDto
 {
     [Required]
+    public string Naam { get; set; } = string.Empty;
+
+    [Required]
+    public string Status { get; set; } = "Concept";   // bv. Concept / Gepland / Actief
+
+    [Required]
     public DateTime StartTijd { get; set; }
 
-    [Required]
-    public DateTime EindTijd { get; set; }
+    public DateTime? EindTijd { get; set; }
 
     [Required]
-    public string Status { get; set; } = "Gepland";
-
-    [Required]
-    public int GestartDoorId { get; set; }                // FK naar gebruiker
+    public int GestartDoorId { get; set; }            // veilingmeester
 }
 
 public class UpdateVeilingDto : CreateVeilingDto
 {
     [Required]
     public int VeilingId { get; set; }
+}
+
+public class StartVeilingDto
+{
+    public string? Naam { get; set; }
+    public DateTime? StartTijd { get; set; }
+    public int AanmeldingId { get; set; }
 }
 
 
@@ -139,11 +151,16 @@ public class UpdateVeilingDto : CreateVeilingDto
 public class VeilingProductDto
 {
     public int VeilingProductId { get; set; }
-    public int VeilingId { get; set; }
-    public DateTime VeilingStart { get; set; }
     public int AanmeldingId { get; set; }
+
     public string ProductBeschrijving { get; set; } = string.Empty;
-    public int VolgordeVeiling { get; set; }               // Positie binnen de veiling
+    public int Aantal { get; set; }
+
+    public decimal StartPrijs { get; set; }
+    public decimal HuidigePrijs { get; set; }
+
+    public string Kloklocatie { get; set; } = string.Empty;
+    public DateTime? GewensteVeilDatum { get; set; }
 }
 
 public class CreateVeilingProductDto
@@ -220,6 +237,32 @@ public class CreateToewijzingDto
 }
 
 
+// ────────────────────────────── KOPER (actieve veiling) ──────────────────────────────
+// Deze DTO's worden gebruikt op de koperspagina om de huidige veiling te tonen.
+
+public class ActieveVeilingProductDto
+{
+    public int VeilingProductId { get; set; }
+    public int AanmeldingId { get; set; }
+
+    public string ProductBeschrijving { get; set; } = string.Empty;
+    public int Hoeveelheid { get; set; }
+    public decimal MinimumPrijs { get; set; }
+
+    public string Kloklocatie { get; set; } = string.Empty;
+    public string? FotoUrl { get; set; }
+}
+
+public class ActieveVeilingDto
+{
+    public int VeilingId { get; set; }
+    public DateTime StartTijd { get; set; }
+    public DateTime? EindTijd { get; set; }
+
+    public ActieveVeilingProductDto? HuidigProduct { get; set; }
+}
+
+
 // ────────────────────────────── AUTH ──────────────────────────────
 // DTO's voor registratie en inloggen.
 
@@ -262,5 +305,5 @@ public class AdminCreateUserDto
     public string Wachtwoord { get; set; } = string.Empty;
 
     [Required]
-    public string Rol { get; set; } = "Klant";  // Admin kan hier "Aanvoerder" of "Veilingmeester" kiezen
+    public string Rol { get; set; } = null!;  // Admin kan hier "Aanvoerder" of "Veilingmeester" kiezen
 }

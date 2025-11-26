@@ -1,11 +1,10 @@
 // VeilingenController.cs
-// Controller voor het beheren van veilingen (CRUD-functionaliteit).
-// Handelt HTTP-verzoeken af en communiceert met de service-laag voor veilingen.
+// API-controller voor veilingen (CRUD + endpoint voor actieve veiling).
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VeilingApi.Models;
 using VeilingApi.Services;
-using Microsoft.AspNetCore.Authorization;
 
 namespace VeilingApi.Controllers;
 
@@ -16,17 +15,14 @@ public class VeilingenController : ControllerBase
 {
     private readonly IVeilingService _svc;
 
-    // Injecteert de service die de logica voor veilingen beheert
     public VeilingenController(IVeilingService svc) => _svc = svc;
 
-    // ────────────────────────────── GET ──────────────────────────────
-
-    // Haalt alle veilingen op
+    // ────────────────────────────── GET: /api/Veilingen ──────────────────────────────
     [HttpGet]
     public async Task<ActionResult<IEnumerable<VeilingDto>>> GetAll()
         => Ok(await _svc.GetAllAsync());
 
-    // Haalt één specifieke veiling op via ID
+    // ────────────────────────────── GET: /api/Veilingen/{id} ─────────────────────────
     [HttpGet("{id:int}")]
     public async Task<ActionResult<VeilingDto>> Get(int id)
     {
@@ -34,27 +30,38 @@ public class VeilingenController : ControllerBase
         return item is null ? NotFound() : Ok(item);
     }
 
-    // ────────────────────────────── POST ──────────────────────────────
+    // ────────────────────────────── Actieve veiling voor kopers ──────────────────────────────
+    // GET: api/Veilingen/actief
+    [HttpGet("actief")]
+    [Authorize(Roles = "Klant")]         // optioneel, mag je weghalen als je wilt dat iedereen hem kan zien
+    public async Task<ActionResult<VeilingDto>> GetActief()
+    {
+        var v = await _svc.GetActieveAsync();
 
-    // Maakt een nieuwe veiling aan
+        if (v == null)
+        {
+            // Dit is een "functionele" 404 (geen actieve veiling)
+            return NotFound(new { message = "Er is op dit moment geen actieve veiling." });
+        }
+
+        return Ok(v);
+    }
+
+    // ────────────────────────────── POST: /api/Veilingen ────────────────────────────
     [HttpPost]
+    [Authorize(Roles = "Veilingmeester,Admin")]
     public async Task<ActionResult<VeilingDto>> Create(CreateVeilingDto dto)
     {
-        // Controleer of het model geldig is
         if (!ModelState.IsValid) return BadRequest(ModelState);
-
         var created = await _svc.CreateAsync(dto);
-        // Retourneert 201 Created met link naar de nieuwe veiling
         return CreatedAtAction(nameof(Get), new { id = created.VeilingId }, created);
     }
 
-    // ────────────────────────────── PUT ──────────────────────────────
-
-    // Wijzigt een bestaande veiling
+    // ────────────────────────────── PUT: /api/Veilingen/{id} ─────────────────────────
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "Veilingmeester,Admin")]
     public async Task<IActionResult> Update(int id, UpdateVeilingDto dto)
     {
-        // ID in route moet overeenkomen met ID in DTO
         if (id != dto.VeilingId) return BadRequest();
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
@@ -62,13 +69,26 @@ public class VeilingenController : ControllerBase
         return ok ? NoContent() : NotFound();
     }
 
-    // ────────────────────────────── DELETE ──────────────────────────────
-
-    // Verwijdert een veiling op basis van ID
+    // ────────────────────────────── DELETE: /api/Veilingen/{id} ──────────────────────
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Veilingmeester,Admin")]
     public async Task<IActionResult> Delete(int id)
     {
         var ok = await _svc.DeleteAsync(id);
         return ok ? NoContent() : NotFound();
     }
+
+    [HttpPost("start")]
+    [Authorize(Roles = "Veilingmeester,Admin")]
+    public async Task<ActionResult<VeilingDto>> StartVeiling(StartVeilingDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var result = await _svc.StartVeilingAsync(dto);
+        if (result == null) return BadRequest("Kon veiling niet starten.");
+
+        // 201 Created met link naar detail
+        return CreatedAtAction(nameof(Get), new { id = result.VeilingId }, result);
+    }
+
 }

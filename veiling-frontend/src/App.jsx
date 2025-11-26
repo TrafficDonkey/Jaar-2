@@ -15,7 +15,9 @@ import Layout from "./Layout";
 import ProtectedRoute from "./ProtectedRoute";
 import HomePage from "./pages/HomePage";
 import SettingsPage from "./pages/SettingsPage";
+import KoperPage from "./pages/KoperPage";
 import AanvoerderPage from "./pages/AanvoerderPage";
+import VeilingmeesterPage from "./pages/VeilingMeesterPage";
 import AdminPage from "./pages/AdminPage";
 
 export default function App() {
@@ -43,11 +45,29 @@ export default function App() {
         {/* /app/instellingen */}
         <Route path="instellingen" element={<SettingsPage />} />
 
+        <Route 
+          path="koper" 
+          element={
+            <ProtectedRoute allowedRoles={["Klant", "Admin"]}>
+              <KoperPage />
+            </ProtectedRoute>
+        } />
+
+
+        <Route
+          path="/app/veiling"
+          element={
+            <ProtectedRoute allowedRoles={["Veilingmeester", "Admin"]}>
+                <VeilingmeesterPage />
+            </ProtectedRoute>
+          }
+        />
+
         {/* /app/aanvoerder alleen voor rol Aanvoerder */}
         <Route
           path="aanvoerder"
           element={
-            <ProtectedRoute requireRole="Aanvoerder">
+            <ProtectedRoute allowedRoles={["Aanvoerder", "Admin"]}>
               <AanvoerderPage />
             </ProtectedRoute>
           }

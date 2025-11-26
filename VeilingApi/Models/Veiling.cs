@@ -2,6 +2,7 @@
 // Modelklasse die een veiling vertegenwoordigt.
 // Bevat informatie over de start- en eindtijden, status en gekoppelde producten (kavels).
 
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
@@ -11,10 +12,21 @@ public class Veiling
 {
     // ────────────────────────────── Primaire gegevens ──────────────────────────────
 
-    public int VeilingId { get; set; }             // Unieke ID van de veiling
-    public DateTime StartTijd { get; set; }        // Starttijd van de veiling
-    public DateTime EindTijd { get; set; }         // Eindtijd van de veiling
-    public string Status { get; set; } = null!;    // Huidige status (bijv. "Gepland", "Actief", "Afgerond")
+    public int VeilingId { get; set; }
+
+    [Required, MaxLength(100)]
+    public string Naam { get; set; } = string.Empty;
+
+    // bijv. "Concept", "Gepland", "Actief", "Afgerond"
+    [Required, MaxLength(40)]
+    public string Status { get; set; } = "Concept";
+
+    public DateTime StartTijd { get; set; }
+    public DateTime? EindTijd { get; set; }
+
+    // 🔹 NAVIGATIE: alle producten in deze veiling
+    public ICollection<VeilingProduct> VeilingProducten { get; set; }
+        = new List<VeilingProduct>();   
 
     // ────────────────────────────── Relaties ──────────────────────────────
 

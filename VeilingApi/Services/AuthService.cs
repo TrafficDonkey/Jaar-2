@@ -108,4 +108,39 @@ public class AuthService : IAuthService
 
         return (jwtString, gebruiker.Rol, gebruiker.GebruikerId);
     }
+
+    // ────────────────────────────── AdminCreateUserAsync ──────────────────────────────
+    public async Task<GebruikerDto> AdminCreateUserAsync(AdminCreateUserDto dto)
+    {
+        var email = dto.Email.Trim().ToLowerInvariant();
+
+        // Email moet uniek zijn
+        var exists = await _db.Gebruikers.AnyAsync(g => g.Email.ToLower() == email);
+        if (exists)
+            throw new InvalidOperationException("Er bestaat al een gebruiker met dit e-mailadres.");
+
+        // Admin mag geen nieuwe Admin-accounts maken via deze weg
+        var rol = dto.Rol.Trim();
+        if (string.Equals(rol, "Admin", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Admin-rollen kunnen niet via deze route worden aangemaakt.");
+
+        var gebruiker = new Gebruiker
+        {
+            Naam = dto.Naam.Trim(),
+            Email = email,
+            Rol = rol,
+            WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(dto.Wachtwoord)
+        };
+
+        _db.Gebruikers.Add(gebruiker);
+        await _db.SaveChangesAsync();
+
+        return new GebruikerDto
+        {
+            GebruikerId = gebruiker.GebruikerId,
+            Naam = gebruiker.Naam,
+            Email = gebruiker.Email,
+            Rol = gebruiker.Rol
+        };
+    }
 }

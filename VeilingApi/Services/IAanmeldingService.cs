@@ -29,4 +29,7 @@ public interface IAanmeldingService
 
     // Aanmeldingen voor een willekeurige gebruiker (controller verwacht deze naam)
     Task<List<AanmeldingDto>> GetByGebruikerAsync(int gebruikerId);
+
+    Task<List<AanmeldingDto>> GetOpenAsync();
+
 }
