@@ -1,0 +1,127 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #0a100a, #142014, #0d260d); 
+    color: #f0f0f0;
+}
+
+.auction-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 50px;
+    min-height: 100vh;
+}
+
+.auction-card {
+    background: linear-gradient(145deg, #1a3d1a, #0d260d);
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 350px;
+    text-align: center;
+    color: #c8facc;
+    transition: transform 0.2s ease;
+}
+
+.auction-card:hover {
+    transform: scale(1.02);
+}
+
+.auction-card h1 {
+    font-size: 2.5em;
+    margin-bottom: 15px;
+    text-shadow: 1px 1px 6px rgba(0, 255, 0, 0.5);
+}
+
+.auction-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.auction-form input {
+    padding: 12px;
+    font-size: 1em;
+    border-radius: 12px;
+    border: 1px solid #2e7d32;
+    background-color: #111a11;
+    color: #c8facc;
+    transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+.auction-form input:focus {
+    outline: none;
+    border-color: #69f0ae;
+    background-color: #142214;
+}
+
+.auction-form button {
+    padding: 12px;
+    font-size: 1em;
+    border-radius: 12px;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    background: linear-gradient(90deg, #1b5e20, #69f0ae);
+    transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.auction-form button:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+}
+
+.auction-form button:not(:disabled):hover {
+    background: linear-gradient(90deg, #69f0ae, #1b5e20);
+    transform: scale(1.05);
+}
+
+.auction-status {
+    margin-top: 20px;
+    font-size: 1.2em;
+}
+
+.auction-rectangle-container {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: relative;
+}
+
+.price-axis, .time-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 300px;
+    color: #c8facc;
+    font-size: 12px;  
+
+
+
+}
+
+.auction-rectangle {
+    position: relative;
+    width: 80px;
+    height: 300px;
+    background: linear-gradient(to bottom, #0d260d, #111);
+    border: 2px solid #1b5e20;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.progress-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, #69f0ae, #00e676);
+    box-shadow: 0 0 8px #00ff88;
+    transition: top 0.1s linear;
+}
