@@ -5054,23 +5054,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Traff\\.nuget\\packages\\": {},
+    "C:\\Users\\khali\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Traff\\OneDrive\\Documenten\\Software Engineering\\Jaar 2\\VeilingApi\\VeilingApi.csproj",
+      "projectUniqueName": "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
       "projectName": "VeilingApi",
-      "projectPath": "C:\\Users\\Traff\\OneDrive\\Documenten\\Software Engineering\\Jaar 2\\VeilingApi\\VeilingApi.csproj",
-      "packagesPath": "C:\\Users\\Traff\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Traff\\OneDrive\\Documenten\\Software Engineering\\Jaar 2\\VeilingApi\\obj\\",
+      "projectPath": "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
+      "packagesPath": "C:\\Users\\khali\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\Traff\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\khali\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],

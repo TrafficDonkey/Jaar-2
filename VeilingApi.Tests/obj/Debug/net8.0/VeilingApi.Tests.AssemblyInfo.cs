@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("VeilingApi.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+144e0bc6d4834f9969bbc03b08a999f5f7a43f58")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c5d228336fdb4cf5e79ab45fb4c49de4ef3c368f")]
 [assembly: System.Reflection.AssemblyProductAttribute("VeilingApi.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("VeilingApi.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
