@@ -8,7 +8,13 @@ Wat is er toegevoegd of aangepast?
 - [ ] Console errors opgelost
 - [ ] Branch is up-to-date met dev
 
+
 ## Uitleg voor Git-hub
+
+## [Het joinen van repository]
+git clone https://github.com/TrafficDonkey/Jaar-2.git
+
+
 ## [maken van nieuwe branch]
 git checkout dev
 git pull
