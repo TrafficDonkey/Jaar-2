@@ -8,5 +8,14 @@ Wat is er toegevoegd of aangepast?
 - [ ] Console errors opgelost
 - [ ] Branch is up-to-date met dev
 
+## Uitleg voor Git-hub
+- [Het versturen van jouw progressie op jouw branch]
+
+
+git add .
+git commit -m "Your message"
+git push
+
+
 ## Reviewer notes
 Zijn er dingen om op te letten?
