@@ -77,7 +77,9 @@ export default function LoginScreen() {
         defaultTarget = "/app/aanvoerder";
       } else if (finalRole === "Admin") {
         defaultTarget = "/app/admin";
-      } else if (finalRole === "Koper") {
+      } else if (finalRole === "Veilingmeester") {
+        defaultTarget = "/app/veilingmeester";
+      }else if (finalRole === "Koper") {
         defaultTarget = "/app/koper";
       }
 

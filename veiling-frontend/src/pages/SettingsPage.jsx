@@ -3,15 +3,14 @@
 // - Haalt naam + e-mailadres op uit de backend (Gebruikers-controller)
 // - Laat gebruiker deze velden aanpassen
 // - Slaat wijzigingen op via PUT /Gebruikers/{id}
-// - Beheert ook de donkere modus voorkeur (client-side via localStorage)
 
 import React, { useEffect, useState } from "react";
 import "./SettingsPageStyle.css";
 import apiFetch from "../api";
 
-// Hulpfunctie: lees gebruikerId uit JWT-token als localStorage leeg is
+// Hulpfunctie: lees gebruikerId uit JWT-token als sessionStorage leeg is
 function getGebruikerIdFromToken() {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   if (!token) return null;
   try {
     const parts = token.split(".");
@@ -40,18 +39,9 @@ export default function SettingsPage() {
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Donkere modus (client-side)
-  const [darkMode, setDarkMode] = useState(false);
-
   // ────────────────────────────── Effect: init ──────────────────────────────
   useEffect(() => {
     document.title = "FloraFlow — Instellingen";
-
-    // 1) donkere modus toepassen vanuit localStorage
-    const savedDark = localStorage.getItem("darkMode");
-    const initialDark = savedDark === "true";
-    setDarkMode(initialDark);
-    applyDarkMode(initialDark);
 
     // 2) gebruiker-profiel laden
     let cancelled = false;
@@ -61,7 +51,7 @@ export default function SettingsPage() {
       setMsg("");
       try {
         // bepaal gebruikerId
-        let id = localStorage.getItem("gebruikerId");
+        let id = sessionStorage.getItem("gebruikerId");
         if (id) {
           id = Number(id);
         } else {
@@ -85,9 +75,9 @@ export default function SettingsPage() {
         setEmail(g.email || "");
         setRol(g.rol || "Gebruiker");
 
-        // localStorage up-to-date houden
-        localStorage.setItem("gebruikerId", String(g.gebruikerId));
-        if (g.rol) localStorage.setItem("role", g.rol);
+        // sessionStorage up-to-date houden
+        sessionStorage.setItem("gebruikerId", String(g.gebruikerId));
+        if (g.rol) sessionStorage.setItem("role", g.rol);
         if (g.email) localStorage.setItem("lastEmail", g.email);
       } catch (err) {
         if (!cancelled) {
@@ -103,18 +93,6 @@ export default function SettingsPage() {
       cancelled = true;
     };
   }, []);
-
-  // ────────────────────────────── Donkere modus ──────────────────────────────
-
-  function applyDarkMode(next) {
-    if (next) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("darkMode", "true");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("darkMode", "false");
-    }
-  }
 
   // ────────────────────────────── Opslaan ──────────────────────────────
 
@@ -143,7 +121,7 @@ export default function SettingsPage() {
         gebruikerId: userId,
         naam: trimmedName,
         email: trimmedEmail,
-        rol: rol || localStorage.getItem("role") || "Gebruiker",
+        rol: rol || sessionStorage.getItem("role") || "Gebruiker",
       };
 
       await apiFetch(`/Gebruikers/${userId}`, {
@@ -154,7 +132,7 @@ export default function SettingsPage() {
       // lokale opslag bijwerken (handig voor login-screen & rol)
       localStorage.setItem("lastEmail", trimmedEmail);
       if (payload.rol) {
-        localStorage.setItem("role", payload.rol);
+        sessionStorage.setItem("role", payload.rol);
       }
 
       setMsg("✅ Instellingen opgeslagen.");
@@ -204,24 +182,6 @@ export default function SettingsPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-            </div>
-
-            {/* Donkere modus toggle */}
-            <div className="field toggle-field">
-              <span>Donkere modus</span>
-              <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={darkMode}
-                  onChange={(e) => {
-                    const next = e.target.checked;
-                    setDarkMode(next);
-                    applyDarkMode(next);
-                  }}
-                  aria-label="Schakel donkere modus in of uit"
-                />
-                <span className="slider" aria-hidden="true"></span>
-              </label>
             </div>
 
             <button

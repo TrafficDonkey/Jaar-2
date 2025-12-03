@@ -55,7 +55,7 @@ export default function App() {
 
 
         <Route
-          path="/app/veiling"
+          path="veilingmeester"
           element={
             <ProtectedRoute allowedRoles={["Veilingmeester", "Admin"]}>
                 <VeilingmeesterPage />

@@ -30,7 +30,7 @@ export default function Layout() {
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("role");
     sessionStorage.removeItem("gebruikerId");
-    nav("/login", { replace: true });
+    nav("/", { replace: true });
   }
 
   return (
@@ -44,10 +44,6 @@ export default function Layout() {
         </div>
 
         <nav className="topbar__nav" aria-label="Hoofdmenu">
-          <NavLink to="." end className="topbar__link">
-            Dashboard
-          </NavLink>
-
           {/* Alleen voor rol Klant */}
           {(role === "Klant" || role === "Admin") && (
             <NavLink to="/app/koper" className="topbar__link">
@@ -56,7 +52,7 @@ export default function Layout() {
           )}
 
           {(role === "Veilingmeester" || role === "Admin") && (
-            <NavLink to="/app/veiling" className="topbar__link">
+            <NavLink to="/app/veilingmeester" className="topbar__link">
               Veilingbeheer
             </NavLink>
           )}
