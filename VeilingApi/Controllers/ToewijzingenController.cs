@@ -1,0 +1,77 @@
+// ToewijzingenController.cs
+// Controller voor het beheren van toewijzingen (verkochte kavels).
+
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using VeilingApi.Models;
+using VeilingApi.Services;
+using System.Security.Claims;
+
+
+namespace VeilingApi.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class ToewijzingenController : ControllerBase
+{
+    private readonly IToewijzingService _svc;
+    public ToewijzingenController(IToewijzingService svc) => _svc = svc;
+
+    // ────────────────────────────── GET ──────────────────────────────
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<ToewijzingDto>>> GetAll()
+        => Ok(await _svc.GetAllAsync());
+
+        // ────────────────────────────── GET: toewijzingen van ingelogde aanvoerder ──────────────────────────────
+    [HttpGet("mine")]
+    [Authorize(Roles = "Aanvoerder,Admin")]
+    public async Task<ActionResult<IEnumerable<ToewijzingDto>>> GetMine()
+    {
+        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idClaim, out var gebruikerId))
+            return Unauthorized("Kon GebruikerId niet bepalen uit token.");
+
+        var list = await _svc.GetForAanvoerderAsync(gebruikerId);
+        return Ok(list);
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<ToewijzingDto>> Get(int id)
+    {
+        var item = await _svc.GetByIdAsync(id);
+        return item is null ? NotFound() : Ok(item);
+    }
+
+    // Toewijzingen voor kavels van een bepaalde gebruiker (aanvoerder)
+    [HttpGet("by-gebruiker/{gebruikerId:int}")]
+    public async Task<ActionResult<IEnumerable<ToewijzingDto>>> GetByGebruiker(int gebruikerId)
+        => Ok(await _svc.GetByGebruikerAsync(gebruikerId));
+
+    // ────────────────────────────── POST ──────────────────────────────
+
+    [HttpPost]
+    public async Task<ActionResult<ToewijzingDto>> Create(CreateToewijzingDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        try
+        {
+            var created = await _svc.CreateAsync(dto);
+            return CreatedAtAction(nameof(Get), new { id = created.ToewijzingId }, created);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    // ────────────────────────────── DELETE ──────────────────────────────
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var ok = await _svc.DeleteAsync(id);
+        return ok ? NoContent() : NotFound();
+    }
+}
