@@ -1,0 +1,90 @@
+/* Layout.css */
+/* Stijlen voor de hoofdlay-out en navigatiebalk van de applicatie.
+   Deze CSS ondersteunt de structuur in Layout.jsx. */
+
+/* ────────────────────────────── CONTAINER ────────────────────────────── */
+.app-shell { 
+  min-height: 100vh; 
+  display: flex; 
+  flex-direction: column; 
+}
+
+/* ────────────────────────────── TOPBAR ────────────────────────────── */
+/* Vastgezette navigatiebalk bovenaan met merk, navigatie en acties */
+.topbar { 
+  position: sticky; 
+  top: 0; 
+  z-index: 10; 
+  background: #0c3c5a; 
+  color: #fff; 
+  padding: .75rem 1rem; 
+  display: flex; 
+  align-items: center; 
+  gap: 1rem; 
+}
+
+/* Merknaam en logo linksboven */
+.topbar__brand { 
+  display: flex; 
+  align-items: center; 
+  gap: .5rem; 
+}
+
+/* Klein oranje logo-icoon (ronde vorm met emoji) */
+.logo-circle {
+  width: 36px; 
+  height: 36px; 
+  border-radius: 999px; 
+  background: #f26b1d; 
+  display: grid; 
+  place-items: center; 
+}
+
+/* ────────────────────────────── NAVIGATIE ────────────────────────────── */
+.topbar__nav { 
+  display: flex; 
+  gap: .5rem; 
+  margin-left: .5rem; 
+}
+
+/* Navigatielinks in de topbalk */
+.topbar__link { 
+  color: #cfe8ff; 
+  padding: .4rem .75rem; 
+  border-radius: .5rem; 
+  text-decoration: none; 
+}
+
+/* Actieve of gehoverde link */
+.topbar__link.active { 
+  background: rgba(255,255,255,.14); 
+  color: #fff; 
+}
+
+/* ────────────────────────────── ACTIES ────────────────────────────── */
+/* Rechterzijde van de topbar: logout/thema-knoppen */
+.topbar__actions { 
+  margin-left: auto; 
+  display: flex; 
+  gap: .5rem; 
+}
+
+/* Knoppen met transparante stijl (zoals logout) */
+.logout-btn, 
+.ghost-btn { 
+  border: 1px solid rgba(255,255,255,.3); 
+  background: transparent; 
+  color: #fff; 
+  border-radius: .5rem; 
+  padding: .4rem .75rem; 
+  cursor: pointer; 
+}
+
+/* ────────────────────────────── INHOUD ────────────────────────────── */
+/* Hoofdinhoud van de pagina onder de topbar */
+.main-content { 
+  max-width: 1100px; 
+  margin: 1.25rem auto; 
+  padding: 0 1rem; 
+  width: 100%; 
+}

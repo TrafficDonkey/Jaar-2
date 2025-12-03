@@ -1,0 +1,128 @@
+/* ===========================================================
+   AuctionClock.css — klok-styling, geen globale styles
+   =========================================================== */
+
+/* Buitenste kaart */
+.auction-clock-wrapper {
+  width: 280px;
+  padding: 24px;
+  border-radius: 18px;
+
+  /* translucent card, werkt in dark + light */
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 18px rgba(3, 140, 73, 0.15);
+
+  color: #fff;
+  font-family: "Inter", sans-serif;
+}
+
+.auction-clock-wrapper h2 {
+  margin: 0 0 16px 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* Tekst boven de balk */
+.auction-clock-price {
+  font-size: 18px;
+  margin-bottom: 4px;
+  color: #e8f5ef;
+}
+
+.auction-clock-time {
+  font-size: 15px;
+  margin-bottom: 16px;
+  color: #d9efe3;
+}
+
+/* ===========================================================
+   Layout van balk + prijs- en tijd-as
+   =========================================================== */
+
+.auction-rectangle-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* kolommen links en rechts van de balk */
+.price-axis,
+.time-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 260px;
+  font-size: 0.8rem;
+  color: rgba(240, 248, 255, 0.9);
+}
+
+.price-axis span,
+.time-axis span {
+  display: block; /* elke waarde op eigen regel */
+}
+
+/* ===========================================================
+   De balk zelf (gradient zoals je screenshot)
+   =========================================================== */
+
+.auction-rectangle {
+  position: relative;
+  width: 80px;
+  height: 260px;
+  border-radius: 20px;
+
+  /* Soft blue → groen gradient */
+  background: linear-gradient(
+    180deg,
+    rgba(210, 230, 255, 0.9) 0%,
+    rgba(220, 245, 255, 0.9) 30%,
+    rgba(210, 250, 240, 0.9) 60%,
+    rgba(190, 245, 230, 0.9) 100%
+  );
+
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 12px rgba(15, 23, 42, 0.35);
+
+  overflow: hidden;
+}
+
+/* horizontale lijntjes in de balk */
+.tick-line {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: rgba(148, 163, 184, 0.4);
+}
+
+/* lijn / highlight op huidige prijs */
+.progress-line {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(90deg, #1d4ed8, #22c55e);
+  box-shadow: 0 0 6px rgba(56, 189, 248, 0.8);
+  transition: top 0.1s linear;
+}
+
+/* ===========================================================
+   Responsive
+   =========================================================== */
+
+@media (max-width: 450px) {
+  .auction-clock-wrapper {
+    width: 100%;
+  }
+
+  .auction-rectangle {
+    height: 220px;
+  }
+
+  .price-axis,
+  .time-axis {
+    height: 220px;
+  }
+}

@@ -1,0 +1,153 @@
+.vm-shell {
+  background: radial-gradient(circle at top, var(--color-bg) 0%, var(--color-bg) 50%, var(--color-bg) 100%);
+}
+
+.vm-main {
+  max-width: 1100px;
+  margin: 2.4rem auto 3rem;
+  padding: 0 1rem;
+}
+
+.vm-panel {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  padding: 1.8rem 1.6rem 2rem;
+}
+
+.vm-header h1 {
+  margin: 0 0 0.2rem;
+}
+
+.vm-sub {
+  margin: 0 0 1.4rem;
+  color: var(--color-muted);
+}
+
+.vm-alert {
+  background: #7f1d1d;
+  color: #fee2e2;
+  border-radius: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid #fecaca;
+}
+
+.vm-msg {
+  margin-top: 0.2rem;
+  margin-bottom: 0.9rem;
+  color: var(--color-muted);
+}
+
+.vm-grid {
+  display: grid;
+  gap: 1.2rem;
+}
+
+@media (min-width: 880px) {
+  .vm-grid {
+    grid-template-columns: 1.1fr 0.9fr;
+  }
+}
+
+.vm-block {
+  padding: 1rem 0.3rem 0.2rem;
+}
+
+.vm-muted {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.vm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-top: 0.6rem;
+}
+
+.vm-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.vm-form input,
+.vm-form select {
+  border: 1px solid var(--color-border);
+  border-radius: 0.7rem;
+  padding: 0.5rem 0.6rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.field-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.3rem;
+}
+
+.vm-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.form-actions {
+  margin-top: 0.6rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-primary {
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+  padding: 0.55rem 0.9rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.vm-active {
+  padding: 0.8rem 0.8rem 0.9rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.05);
+  background: radial-gradient(circle at top, rgba(15, 23, 42, 0.06), transparent 55%);
+}
+
+.vm-tag {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: rgba(22, 163, 74, 0.1);
+  color: #22c55e;
+  margin-bottom: 0.4rem;
+}
+
+.vm-product {
+  margin-top: 0.8rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.vm-product-title {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+}
+
+.vm-product-meta {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}

@@ -1,0 +1,219 @@
+/* index.css */
+/* Globale stijlen en themavariabelen voor de volledige applicatie.
+   Bevat zowel lichte als donkere modus, typografie, layout en UI-utilities. */
+
+/* ────────────────────────────── KLEUR- EN STIJLVARIABELEN ────────────────────────────── */
+:root {
+  --color-bg: #f3f5f7;
+  --color-surface: #ffffff;
+  --color-primary: #0c3c5a;
+  --color-primary-dark: #07293d;
+
+  /* Accent en muted donkerder gemaakt voor beter contrast (WCAG 4.5:1) */
+  --color-accent: #b34700;       /* was #f26b1d */
+  --color-text: #102a43;
+  --color-muted: #4b5563;        /* was #6b7a89 */
+  --color-border: #d0d7df;
+
+  --radius-lg: 1.25rem;
+  --radius-md: 0.75rem;
+  --shadow-sm: 0 8px 18px rgba(12, 60, 90, 0.1);
+  --shadow-md: 0 14px 30px rgba(12, 60, 90, 0.12);
+}
+
+:root.dark {
+  --color-bg: #0b1220;
+  --color-surface: #111827;
+  --color-primary: #e2e8f0;
+  --color-primary-dark: #cbd5f5;
+  --color-accent: #fb923c;   /* accent mag hier wat lichter, achtergrond is donker */
+  --color-text: #ecf3ff;
+  --color-muted: #9ca3af;
+  --color-border: #1f2937;
+  --shadow-sm: 0 8px 18px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 14px 30px rgba(0, 0, 0, 0.3);
+}
+
+
+/* ────────────────────────────── BASISINSTELLINGEN ────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-bg);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+/* ────────────────────────────── TOEGANKELIJKHEID ────────────────────────────── */
+/* Link om direct naar hoofdinhoud te springen (voor screenreaders) */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  background: var(--color-accent);
+  color: #fff;
+  padding: 0.6rem 1rem;
+  z-index: 99;
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+/* Verberg visueel maar behoud toegankelijkheid voor screenreaders */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ────────────────────────────── LAYOUT-UTILITIES ────────────────────────────── */
+.page-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+main {
+  flex: 1;
+}
+
+/* ────────────────────────────── APP-SHELL EN NAVIGATIE ────────────────────────────── */
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+/* ─────────── TOPBAR ─────────── */
+.topbar {
+  height: 56px;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 0 1.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Merk- / logo-sectie linksboven */
+.topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logo-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  background: var(--color-accent);
+  display: grid;
+  place-items: center;
+  font-size: 0.9rem;
+}
+
+.brand-text {
+  font-weight: 600;
+}
+
+/* Navigatielinks in de topbar */
+.topbar__nav {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+}
+
+.topbar__link {
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.35rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: 500;
+}
+.topbar__link.active,
+.topbar__link:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* Actieknoppen rechts (bijv. darkmode of logout) */
+.topbar__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ghost-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  border-radius: 9999px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.logout-btn {
+  background: var(--color-accent);
+  border: none;
+  color: #fff;
+  padding: 0.35rem 0.9rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ─────────── INHOUD ─────────── */
+.main-content {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ─────────── KAARTEN / DASHBOARD-ELEMENTEN ─────────── */
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(208, 215, 223, 0.2);
+}
+
+/* ────────────────────────────── DONKERE MODUS ────────────────────────────── */
+:root.dark .topbar {
+  background: #0a111a;
+}
+:root.dark .app-shell,
+:root.dark .main-content {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+:root.dark .card {
+  background: var(--color-surface);
+  border-color: rgba(255, 255, 255, 0.03);
+}
