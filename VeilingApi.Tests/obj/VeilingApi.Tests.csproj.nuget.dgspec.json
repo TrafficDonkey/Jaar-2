@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi.Tests\\VeilingApi.Tests.csproj": {}
+    "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi.Tests\\VeilingApi.Tests.csproj": {}
   },
   "projects": {
-    "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi.Tests\\VeilingApi.Tests.csproj": {
+    "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi.Tests\\VeilingApi.Tests.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi.Tests\\VeilingApi.Tests.csproj",
+        "projectUniqueName": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi.Tests\\VeilingApi.Tests.csproj",
         "projectName": "VeilingApi.Tests",
-        "projectPath": "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi.Tests\\VeilingApi.Tests.csproj",
-        "packagesPath": "C:\\Users\\khali\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi.Tests\\obj\\",
+        "projectPath": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi.Tests\\VeilingApi.Tests.csproj",
+        "packagesPath": "C:\\Users\\ROG gaming pc\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi.Tests\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\khali\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\ROG gaming pc\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -32,8 +32,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj": {
-                "projectPath": "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj"
+              "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj": {
+                "projectPath": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj"
               }
             }
           }
@@ -47,8 +47,7 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        },
-        "SdkAnalysisLevel": "9.0.300"
+        }
       },
       "frameworks": {
         "net8.0": {
@@ -95,24 +94,24 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Users\\ROG gaming pc\\.dotnet\\sdk\\8.0.414/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj": {
+    "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
+        "projectUniqueName": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
         "projectName": "VeilingApi",
-        "projectPath": "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
-        "packagesPath": "C:\\Users\\khali\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\khali\\RiderProjects\\Jaar-2\\VeilingApi\\obj\\",
+        "projectPath": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
+        "packagesPath": "C:\\Users\\ROG gaming pc\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\khali\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\ROG gaming pc\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -208,7 +207,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Users\\khali\\.dotnet\\sdk\\8.0.414/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Users\\ROG gaming pc\\.dotnet\\sdk\\8.0.414/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

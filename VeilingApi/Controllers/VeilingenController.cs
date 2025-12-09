@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VeilingApi.Models;
 using VeilingApi.Services;
+using System.Security.Claims;
+
 
 namespace VeilingApi.Controllers;
 
@@ -33,7 +35,7 @@ public class VeilingenController : ControllerBase
     // ────────────────────────────── Actieve veiling voor kopers ──────────────────────────────
     // GET: api/Veilingen/actief
     [HttpGet("actief")]
-    [Authorize(Roles = "Klant")]         // optioneel, mag je weghalen als je wilt dat iedereen hem kan zien
+    [Authorize(Roles = "Klant, Admin")]         // optioneel, mag je weghalen als je wilt dat iedereen hem kan zien
     public async Task<ActionResult<VeilingDto>> GetActief()
     {
         var v = await _svc.GetActieveAsync();
@@ -79,16 +81,19 @@ public class VeilingenController : ControllerBase
     }
 
     [HttpPost("start")]
-    [Authorize(Roles = "Veilingmeester,Admin")]
-    public async Task<ActionResult<VeilingDto>> StartVeiling(StartVeilingDto dto)
-    {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
+        [Authorize(Roles = "Veilingmeester,Admin")]
+        public async Task<ActionResult<VeilingDto>> StartVeiling(StartVeilingDto dto)
+        {
+            var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(idClaim) || !int.TryParse(idClaim, out var gestartDoorId))
+                return Unauthorized("Geen geldig gebruikers-ID in token.");
 
-        var result = await _svc.StartVeilingAsync(dto);
-        if (result == null) return BadRequest("Kon veiling niet starten.");
+            var result = await _svc.StartVeilingAsync(dto, gestartDoorId);
 
-        // 201 Created met link naar detail
-        return CreatedAtAction(nameof(Get), new { id = result.VeilingId }, result);
-    }
+            if (result == null)
+                return BadRequest("Kon veiling niet starten.");
+
+            return Ok(result);
+        }
 
 }

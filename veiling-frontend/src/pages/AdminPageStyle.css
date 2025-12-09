@@ -1,9 +1,14 @@
 /* AdminPageStyle.css
-   Styling voor Admin accountbeheerpagina.
+   Styling voor Admin accountbeheerpagina in het groene FloraFlow-thema.
 */
 
 .admin-shell {
-  background: radial-gradient(circle at top, var(--color-bg) 0%, var(--color-bg) 60%, var(--color-bg) 100%);
+  background: radial-gradient(
+    circle at top,
+    #ffffff 0%,
+    #f3f7f4 55%,
+    #e1efe7 100%
+  );
 }
 
 .admin-main {
@@ -35,7 +40,7 @@
   border-radius: 0.9rem;
   padding: 0.9rem 1.1rem;
   box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(12, 60, 90, 0.06);
+  border: 1px solid var(--color-border);
 }
 
 .admin-statLabel {
@@ -55,12 +60,11 @@
   background: var(--color-surface);
   border-radius: 1rem;
   box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(12, 60, 90, 0.06);
+  border: 1px solid var(--color-border);
   padding: 1.6rem 1.6rem 1.4rem;
 }
 
 .admin-card--wide {
-  /* zelfde breedte als statsRow: container is .admin-main */
   width: 100%;
   margin-top: 0.5rem;
 }
@@ -98,7 +102,7 @@
   border-radius: 0.7rem;
   border: 1px solid var(--color-border);
   padding: 0.55rem 0.7rem;
-  background: var(--color-surface);
+  background: #ffffff;
   color: var(--color-text);
 }
 
@@ -138,7 +142,8 @@
   padding-left: 1.1rem;
 }
 
-/* Buttons hergebruiken globale .btn stijl */
+/* ───── Buttons (consistent met andere pagina's) ───── */
+
 .btn {
   border-radius: 0.8rem;
   font-weight: 600;
@@ -149,7 +154,7 @@
 
 .btn--primary {
   background: var(--color-primary);
-  color: #fff;
+  color: #ffffff;
 }
 
 .btn--primary:hover {
@@ -163,7 +168,7 @@
 }
 
 .btn--ghost:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: #f9fafb;
 }
 
 .btn:focus-visible {

@@ -2,37 +2,56 @@
 // Centrale helperfunctie voor API-verzoeken naar de backend.
 // Voegt automatisch het JWT-token toe (indien aanwezig) en handelt fouten en 401-status af.
 
-export default async function apiFetch(path, options = {}) {
-  const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api"; // Basis-URL van de API (uit .env of lokaal)
-  const token = localStorage.getItem("token");
+const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
 
-  // ────────────────────────────── HEADERS ──────────────────────────────
-  // Voeg standaard headers toe + Authorization indien ingelogd
+export default async function apiFetch(path, options = {}) {
+  const token = sessionStorage.getItem("token");
+
+  // Bestaande headers uit options meenemen
+  const existingHeaders = options.headers ?? {};
+
+  // Standaard headers + Authorization
   const headers = {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {})
+    ...existingHeaders,
+    "Content-Type": existingHeaders["Content-Type"] || "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  // ────────────────────────────── FETCH ──────────────────────────────
-  // Voer het verzoek uit en vang fouten netjes op
-  const res = await fetch(`${API}${path}`, { headers, ...options });
+  const fetchOptions = {
+    ...options,
+    headers,
+    // als je ooit cookies gaat gebruiken kun je deze laten staan:
+    // credentials: "include",
+  };
 
-  // Controleer of het antwoord geldig is
+  const res = await fetch(`${API_BASE}${path}`, fetchOptions);
+
+  // Eerst 401 checken → user uitloggen
+  if (res.status === 401) {
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("role");
+    sessionStorage.removeItem("gebruikerId");
+    // Globale redirect naar login
+    window.location.href = "/login";
+    throw new Error("Niet ingelogd of sessie verlopen");
+  }
+
+  // Andere fouten netjes doorgeven
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `${res.status} ${res.statusText}`);
   }
 
-  // ────────────────────────────── AUTHENTICATIE ──────────────────────────────
-  // Als token ongeldig is, verwijder lokale data en stuur gebruiker terug naar login
-  if (res.status === 401) {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("gebruikerId");
-    window.location.href = "/login";
+  // Geen content
+  if (res.status === 204) {
+    return null;
   }
 
-  // ────────────────────────────── RESULTAAT ──────────────────────────────
-  // Retourneer JSON-data of null (bij lege respons)
-  return res.status === 204 ? null : res.json();
+  // Probeer JSON te parsen, val anders terug op text
+  const contentType = res.headers.get("Content-Type") || "";
+  if (contentType.includes("application/json")) {
+    return res.json();
+  }
+
+  return res.text();
 }

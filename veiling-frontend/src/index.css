@@ -1,37 +1,30 @@
 /* index.css */
 /* Globale stijlen en themavariabelen voor de volledige applicatie.
-   Bevat zowel lichte als donkere modus, typografie, layout en UI-utilities. */
+   Bevat typografie, layout en UI-utilities. */
 
 /* ────────────────────────────── KLEUR- EN STIJLVARIABELEN ────────────────────────────── */
 :root {
+  /* Licht thema met groene accenten */
   --color-bg: #f3f5f7;
   --color-surface: #ffffff;
-  --color-primary: #0c3c5a;
-  --color-primary-dark: #07293d;
 
-  /* Accent en muted donkerder gemaakt voor beter contrast (WCAG 4.5:1) */
-  --color-accent: #b34700;       /* was #f26b1d */
-  --color-text: #102a43;
-  --color-muted: #4b5563;        /* was #6b7a89 */
-  --color-border: #d0d7df;
+  /* Primair groen (topbar, belangrijke knoppen) */
+  --color-primary: #14532d;
+  --color-primary-dark: #0f3f22;
+
+  /* Accentgroen (badges, highlights, logo-bolletje) – donker genoeg voor wit */
+  --color-accent: #15803d;
+
+  /* Tekst en ondersteunende kleuren */
+  --color-text: #0f172a;
+  --color-muted: #4b5563;
+  --color-border: #e2e8f0;
 
   --radius-lg: 1.25rem;
   --radius-md: 0.75rem;
-  --shadow-sm: 0 8px 18px rgba(12, 60, 90, 0.1);
-  --shadow-md: 0 14px 30px rgba(12, 60, 90, 0.12);
-}
 
-:root.dark {
-  --color-bg: #0b1220;
-  --color-surface: #111827;
-  --color-primary: #e2e8f0;
-  --color-primary-dark: #cbd5f5;
-  --color-accent: #fb923c;   /* accent mag hier wat lichter, achtergrond is donker */
-  --color-text: #ecf3ff;
-  --color-muted: #9ca3af;
-  --color-border: #1f2937;
-  --shadow-sm: 0 8px 18px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 14px 30px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 8px 18px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 14px 30px rgba(15, 23, 42, 0.12);
 }
 
 
@@ -151,18 +144,18 @@ main {
 }
 
 .topbar__link {
-  color: rgba(255, 255, 255, 0.7);
-  padding: 0.35rem 0.5rem;
+  color: rgba(229, 245, 236, 0.9);
+  padding: 0.35rem 0.7rem;
   border-radius: 9999px;
   font-weight: 500;
 }
 .topbar__link.active,
 .topbar__link:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.16);
   color: #fff;
 }
 
-/* Actieknoppen rechts (bijv. darkmode of logout) */
+/* Actieknoppen rechts (bijv. logout) */
 .topbar__actions {
   display: flex;
   gap: 0.5rem;
@@ -170,7 +163,7 @@ main {
 
 .ghost-btn {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   color: #fff;
   border-radius: 9999px;
   width: 32px;
@@ -201,19 +194,5 @@ main {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(208, 215, 223, 0.2);
-}
-
-/* ────────────────────────────── DONKERE MODUS ────────────────────────────── */
-:root.dark .topbar {
-  background: #0a111a;
-}
-:root.dark .app-shell,
-:root.dark .main-content {
-  background: var(--color-bg);
-  color: var(--color-text);
-}
-:root.dark .card {
-  background: var(--color-surface);
-  border-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(148, 163, 184, 0.2);
 }

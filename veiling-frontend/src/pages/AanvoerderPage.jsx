@@ -2,7 +2,7 @@
 // Pagina voor rol "Aanvoerder".
 // - Toont formulier om een product aan te melden.
 // - Laat "mijn aanmeldingen" en "mijn toewijzingen" zien.
-// - Bepaalt de gebruiker via token/localStorage en staat GEEN toegang toe
+// - Bepaalt de gebruiker via token/sessionStorage en staat GEEN toegang toe
 //   als de rol niet "Aanvoerder" is.
 
 import React, { useEffect, useState } from "react";
@@ -11,7 +11,7 @@ import apiFetch from "../api";
 
 // Probeer gebruikerId uit JWT-token te halen
 function getGebruikerIdFromToken() {
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   if (!token) return null;
   try {
     const parts = token.split(".");
@@ -28,12 +28,12 @@ function getGebruikerIdFromToken() {
   }
 }
 
-// Probeer rol uit localStorage / JWT-token te halen
+// Probeer rol uit sessionStorage / JWT-token te halen
 function getRoleFromToken() {
-  const stored = localStorage.getItem("role");
+  const stored = sessionStorage.getItem("role");
   if (stored) return stored;
 
-  const token = localStorage.getItem("token");
+  const token = sessionStorage.getItem("token");
   if (!token) return null;
 
   try {
@@ -78,7 +78,7 @@ export default function AanvoerderPage() {
     const r = getRoleFromToken();
     setRole(r);
 
-    const storedId = localStorage.getItem("gebruikerId");
+    const storedId = sessionStorage.getItem("gebruikerId");
     if (storedId) {
       setGebruikerId(Number(storedId));
     } else {
@@ -89,7 +89,7 @@ export default function AanvoerderPage() {
   // Data laden zodra rol + gebruikerId bekend zijn
   useEffect(() => {
     // Rol bekend maar géén Aanvoerder? -> geen data laden
-    if (role && role !== "Aanvoerder") {
+    if (role && role !== "Aanvoerder" || role !== "Admin") {
       setLoading(false);
       return;
     }
@@ -204,7 +204,7 @@ export default function AanvoerderPage() {
 
   // ───────────────────── rol-guard (geen aanvoerder) ─────────────────────
 
-  if (role && role !== "Aanvoerder") {
+  if (!role || (role !== "Aanvoerder" && role !== "Admin")) {
     return (
       <div className="page-shell aanv-shell">
         <main className="aanv-main">

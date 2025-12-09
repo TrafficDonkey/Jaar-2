@@ -5,7 +5,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 
 export default function ProtectedRoute({ children }) {
-  const token = localStorage.getItem("token"); // JWT-token uit localStorage
+  const token = sessionStorage.getItem("token"); // JWT-token uit sessionStorage
   const location = useLocation();              // huidige route (voor redirect terug)
 
   // ────────────────────────────── AUTHENTICATIECHECK ──────────────────────────────
