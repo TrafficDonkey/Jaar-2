@@ -56,9 +56,14 @@ public class AanmeldingDto
 {
     public int AanmeldingId { get; set; }
     public string? FotoUrl { get; set; }
+
     public string ProductBeschrijving { get; set; } = string.Empty;
     public int Hoeveelheid { get; set; }
     public decimal MinimumPrijs { get; set; }
+
+    // NIEUW: categorie (bijv. "Snijbloemen", "Kamerplanten", "Buitenplanten")
+    public string Categorie { get; set; } = string.Empty;
+
     public string GewensteKlokLocatie { get; set; } = string.Empty;
     public DateTime GewensteVeilDatum { get; set; }
 
@@ -66,6 +71,7 @@ public class AanmeldingDto
     public int GebruikerId { get; set; }
     public string GebruikerNaam { get; set; } = string.Empty;
 }
+
 
 public class CreateAanmeldingDto
 {
@@ -79,6 +85,10 @@ public class CreateAanmeldingDto
 
     [Range(0, 999999)]
     public decimal MinimumPrijs { get; set; }
+
+    // NIEUW: categorie verplicht
+    [Required, StringLength(100)]
+    public string Categorie { get; set; } = string.Empty;
 
     [Required]
     public string GewensteKlokLocatie { get; set; } = "Naaldwijk";
@@ -96,7 +106,6 @@ public class UpdateAanmeldingDto : CreateAanmeldingDto
     [Required]
     public int AanmeldingId { get; set; }
 }
-
 
 
 // ────────────────────────────── VEILING ──────────────────────────────
@@ -156,12 +165,18 @@ public class VeilingProductDto
     public string ProductBeschrijving { get; set; } = string.Empty;
     public int Aantal { get; set; }
 
+    public string? FotoUrl { get; set; }
+
     public decimal StartPrijs { get; set; }
     public decimal HuidigePrijs { get; set; }
 
     public string Kloklocatie { get; set; } = string.Empty;
     public DateTime? GewensteVeilDatum { get; set; }
+
+    // NIEUW
+    public string Categorie { get; set; } = string.Empty;
 }
+
 
 public class CreateVeilingProductDto
 {
@@ -251,6 +266,8 @@ public class ActieveVeilingProductDto
 
     public string Kloklocatie { get; set; } = string.Empty;
     public string? FotoUrl { get; set; }
+
+    public string Categorie { get; set; } = string.Empty;
 }
 
 public class ActieveVeilingDto

@@ -16,6 +16,8 @@ public class Aanmelding
     public string GewensteKlokLocatie { get; set; } = string.Empty;
     public DateTime GewensteVeilDatum { get; set; }
 
+    public string Categorie { get; set; }
+
     // Gebruiker die dit product heeft aangemeld (aanvoerder)
     public int GebruikerId { get; set; }
 

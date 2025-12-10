@@ -1,5 +1,13 @@
+/* VeilingmeesterPageStyle.css */
+/* Dashboard voor de veilingmeester met tabs, timers en tabellen. */
+
 .vm-shell {
-  background: radial-gradient(circle at top, var(--color-bg) 0%, var(--color-bg) 50%, var(--color-bg) 100%);
+  background: radial-gradient(
+    circle at top,
+    var(--color-bg) 0%,
+    var(--color-bg) 50%,
+    var(--color-bg) 100%
+  );
 }
 
 .vm-main {
@@ -17,6 +25,15 @@
   padding: 1.8rem 1.6rem 2rem;
 }
 
+/* Header + stats */
+
+.vm-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.25rem;
+  align-items: flex-start;
+}
+
 .vm-header h1 {
   margin: 0 0 0.2rem;
 }
@@ -26,20 +43,212 @@
   color: var(--color-muted);
 }
 
+.vm-header-stats {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Stats-blok als los tabje */
+.vm-header-stats--separate {
+  margin-top: 0.4rem;
+}
+
+.vm-stat {
+  min-width: 120px;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.75rem;
+  background: #f9fafb;
+  border: 1px solid var(--color-border);
+  text-align: right;
+}
+
+.vm-stat-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.vm-stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* Alerts / messages */
+
 .vm-alert {
   background: #7f1d1d;
   color: #fee2e2;
   border-radius: 0.75rem;
   padding: 0.6rem 0.9rem;
+  margin-top: 0.9rem;
   margin-bottom: 0.75rem;
   border: 1px solid #fecaca;
 }
 
 .vm-msg {
-  margin-top: 0.2rem;
+  margin-top: 0.6rem;
   margin-bottom: 0.9rem;
   color: var(--color-muted);
 }
+
+/* Tabs */
+
+.vm-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--color-border);
+  margin-top: 1.4rem;
+  margin-bottom: 0.9rem;
+}
+
+.vm-tab {
+  border: none;
+  background: transparent;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.75rem 0.75rem 0 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.vm-tab--active {
+  background: #ecfdf3;
+  color: #166534;
+  border: 1px solid var(--color-border);
+  border-bottom-color: #ecfdf3;
+}
+
+/* Tab content */
+
+.vm-tabcontent {
+  padding-top: 0.4rem;
+}
+
+/* Algemene helpers */
+
+.vm-muted {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.vm-help {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+}
+
+/* Actieve veilingen */
+
+.vm-active-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.vm-active-card {
+  border-radius: 0.9rem;
+  border: 1px solid var(--color-border);
+  padding: 0.9rem 0.9rem 1rem;
+  background: radial-gradient(
+    circle at top,
+    rgba(220, 252, 231, 0.7),
+    #ffffff 55%
+  );
+  box-shadow: var(--shadow-sm);
+}
+
+.vm-active-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.vm-active-title {
+  margin: 0.15rem 0 0.2rem;
+}
+
+.vm-active-meta {
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+/* Extra actieknoppen onder actieve veiling */
+.vm-active-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Status tag */
+
+.vm-tag {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: rgba(21, 128, 61, 0.12);
+  color: #14532d;
+  margin-bottom: 0.2rem;
+}
+
+/* Productblok */
+
+.vm-product {
+  margin-top: 0.8rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.vm-product-title {
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+}
+
+.vm-product-meta {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+/* Timer / progress bar */
+
+.vm-timer {
+  margin-top: 0.8rem;
+}
+
+.vm-timer-bar {
+  position: relative;
+  width: 100%;
+  height: 24px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vm-timer-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #22c55e, #16a34a, #15803d);
+  box-shadow: 0 0 10px rgba(22, 163, 74, 0.7);
+}
+
+.vm-timer-label {
+  position: relative;
+  z-index: 1;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #064e3b;
+}
+
+/* Beheer tab (formulier + open aanmeldingen) */
 
 .vm-grid {
   display: grid;
@@ -53,13 +262,10 @@
 }
 
 .vm-block {
-  padding: 1rem 0.3rem 0.2rem;
+  padding: 0.4rem 0.1rem 0.2rem;
 }
 
-.vm-muted {
-  color: var(--color-muted);
-  font-size: 0.9rem;
-}
+/* Formulier */
 
 .vm-form {
   display: flex;
@@ -83,6 +289,12 @@
   color: var(--color-text);
 }
 
+.vm-form input:focus,
+.vm-form select:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .field-inline {
   display: flex;
   flex-wrap: wrap;
@@ -97,20 +309,23 @@
   font-size: 0.9rem;
 }
 
-.form-actions {
-  margin-top: 0.6rem;
-  display: flex;
-  justify-content: flex-end;
+/* Buttons (consistente stijl met de rest) */
+
+.btn {
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .btn-primary {
   border: none;
   background: var(--color-primary);
   color: #fff;
-  padding: 0.55rem 0.9rem;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-dark);
 }
 
 .btn-primary:disabled {
@@ -118,36 +333,75 @@
   cursor: default;
 }
 
-.vm-active {
-  padding: 0.8rem 0.8rem 0.9rem;
+.btn-outline {
   border-radius: 0.75rem;
-  border: 1px solid rgba(15, 23, 42, 0.05);
-  background: radial-gradient(circle at top, rgba(15, 23, 42, 0.06), transparent 55%);
-}
-
-.vm-tag {
-  display: inline-block;
-  padding: 0.12rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  background: rgba(21, 128, 61, 0.12);
-  color: #14532d;
-  margin-bottom: 0.4rem;
-}
-
-.vm-product {
-  margin-top: 0.8rem;
-  padding-top: 0.6rem;
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-.vm-product-title {
-  margin: 0 0 0.25rem;
+  padding: 0.5rem 0.9rem;
   font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
 }
 
-.vm-product-meta {
-  margin: 0;
-  color: var(--color-muted);
+.btn-outline:hover {
+  background: #f9fafb;
+}
+
+.form-actions {
+  margin-top: 0.6rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Tabellen (archief + open aanmeldingen) */
+
+.vm-table-wrap {
+  margin-top: 0.7rem;
+  overflow-x: auto;
+}
+
+.vm-table-wrap--small {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.vm-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 0.9rem;
+}
+
+.vm-table th,
+.vm-table td {
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+  text-align: left;
+}
+
+.vm-table th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted);
+}
+
+/* Responsive tweaks */
+
+@media (max-width: 780px) {
+  .vm-header {
+    flex-direction: column;
+  }
+
+  .vm-header-stats {
+    justify-content: flex-start;
+  }
+
+  .vm-active-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .vm-active-meta {
+    text-align: left;
+  }
 }

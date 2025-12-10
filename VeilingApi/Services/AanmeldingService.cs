@@ -84,6 +84,9 @@ public class AanmeldingService : IAanmeldingService
             ProductBeschrijving = dto.ProductBeschrijving,
             Hoeveelheid         = dto.Hoeveelheid,
             MinimumPrijs        = dto.MinimumPrijs,
+            Categorie = string.IsNullOrWhiteSpace(dto.Categorie)
+                ? "Overig"
+                : dto.Categorie,
             GewensteKlokLocatie = dto.GewensteKlokLocatie,
             GewensteVeilDatum   = dto.GewensteVeilDatum,
             GebruikerId         = dto.GebruikerId

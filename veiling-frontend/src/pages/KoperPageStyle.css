@@ -114,6 +114,17 @@
   color: var(--color-muted);
 }
 
+select#catFilter {
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: box-shadow 0.2s ease;
+}
+
+select#catFilter:hover {
+  box-shadow: 0 2px 5px rgba(0,0,0,0.10);
+}
+
+
 /* ============================================================
    Rechterkolom — details + klok
    ============================================================ */
