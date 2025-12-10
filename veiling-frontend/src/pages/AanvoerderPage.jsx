@@ -1,11 +1,10 @@
 // src/pages/AanvoerderPage.jsx
-// Pagina voor rol "Aanvoerder".
-// - Toont formulier om een product aan te melden.
-// - Laat "mijn aanmeldingen" en "mijn toewijzingen" zien.
-// - Bepaalt de gebruiker via token/sessionStorage en staat GEEN toegang toe
-//   als de rol niet "Aanvoerder" is.
+// Aanvoerder-dashboard:
+// - Producten aanmelden voor de veiling
+// - Overzicht van eigen aanmeldingen
+// - Overzicht van toewijzingen (verkochte kavels) + totale opbrengst
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./AanvoerderPageStyle.css";
 import apiFetch from "../api";
 
@@ -19,8 +18,12 @@ function getGebruikerIdFromToken() {
     const payload = JSON.parse(atob(parts[1]));
     const raw =
       payload.nameid ||
-      payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] ||
-      payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier"] ||
+      payload[
+        "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+      ] ||
+      payload[
+        "http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier"
+      ] ||
       null;
     return raw ? Number(raw) : null;
   } catch {
@@ -50,8 +53,47 @@ function getRoleFromToken() {
   }
 }
 
+function formatDate(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  return new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" }).format(d);
+}
+
+function formatCurrency(value) {
+  const nr = Number(value);
+  if (Number.isNaN(nr)) return "-";
+  return nr.toLocaleString("nl-NL", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+// Bepaal status van een aanmelding op basis van veildatum
+function getAanmeldingStatus(iso) {
+  if (!iso) return { label: "Onbekend", className: "aanv-status--unknown" };
+
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime()))
+    return { label: "Onbekend", className: "aanv-status--unknown" };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const cmp = new Date(d);
+  cmp.setHours(0, 0, 0, 0);
+
+  if (cmp.getTime() === today.getTime()) {
+    return { label: "Vandaag", className: "aanv-status--today" };
+  }
+  if (cmp > today) {
+    return { label: "Gepland", className: "aanv-status--upcoming" };
+  }
+  return { label: "Verlopen", className: "aanv-status--past" };
+}
+
 export default function AanvoerderPage() {
-  const [loading, setLoading] = useState(true);
+  const [loadingData, setLoadingData] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
 
@@ -67,6 +109,7 @@ export default function AanvoerderPage() {
     productBeschrijving: "",
     hoeveelheid: 1,
     minimumPrijs: 0,
+    categorie: "Snijbloemen", 
     kloklocatie: "Naaldwijk",
     veilDatum: "",
   });
@@ -88,9 +131,9 @@ export default function AanvoerderPage() {
 
   // Data laden zodra rol + gebruikerId bekend zijn
   useEffect(() => {
-    // Rol bekend maar géén Aanvoerder? -> geen data laden
-    if (role && role !== "Aanvoerder" || role !== "Admin") {
-      setLoading(false);
+    // Rol bekend maar géén Aanvoerder of Admin? -> geen data laden
+    if (role && role !== "Aanvoerder" && role !== "Admin") {
+      setLoadingData(false);
       return;
     }
     if (!gebruikerId) {
@@ -99,7 +142,7 @@ export default function AanvoerderPage() {
     }
 
     async function load() {
-      setLoading(true);
+      setLoadingData(true);
       setError("");
       setMsg("");
 
@@ -109,9 +152,6 @@ export default function AanvoerderPage() {
         setGebruikerNaam(g?.naam ?? "");
 
         // 2) Eigen aanmeldingen + toewijzingen
-        // LET OP: ik ga hier uit van backend-routes:
-        //   GET /api/Aanmeldingen/mine
-        //   GET /api/Toewijzingen/mine
         const [aRes, tRes] = await Promise.all([
           apiFetch("/Aanmeldingen/mine"),
           apiFetch("/Toewijzingen/mine"),
@@ -122,7 +162,7 @@ export default function AanvoerderPage() {
       } catch (err) {
         setError(err?.message ?? "Kon gegevens niet laden.");
       } finally {
-        setLoading(false);
+        setLoadingData(false);
       }
     }
 
@@ -135,11 +175,54 @@ export default function AanvoerderPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function formatDate(iso) {
-    if (!iso) return "-";
-    const d = new Date(iso);
-    return new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" }).format(d);
-  }
+  // Stats voor bovenaan de pagina
+  const stats = useMemo(() => {
+    const totaalAanmeldingen = aanmeldingen.length;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const geplandeAanmeldingen = aanmeldingen.filter((a) => {
+      if (!a.gewensteVeilDatum) return false;
+      const d = new Date(a.gewensteVeilDatum);
+      if (Number.isNaN(d.getTime())) return false;
+      d.setHours(0, 0, 0, 0);
+      return d >= today;
+    }).length;
+
+    const totaalToewijzingen = toewijzingen.length;
+    const totaleOpbrengst = toewijzingen.reduce((sum, t) => {
+      const nr = Number(t.eindPrijs);
+      return sum + (Number.isNaN(nr) ? 0 : nr);
+    }, 0);
+
+    return {
+      totaalAanmeldingen,
+      geplandeAanmeldingen,
+      totaalToewijzingen,
+      totaleOpbrengst,
+    };
+  }, [aanmeldingen, toewijzingen]);
+
+  const sortedAanmeldingen = useMemo(
+    () =>
+      [...aanmeldingen].sort((a, b) => {
+        const da = new Date(a.gewensteVeilDatum ?? 0).getTime();
+        const db = new Date(b.gewensteVeilDatum ?? 0).getTime();
+        return da - db;
+      }),
+    [aanmeldingen]
+  );
+
+  const sortedToewijzingen = useMemo(
+    () =>
+      [...toewijzingen].sort((a, b) => {
+        const da = new Date(a.datum ?? 0).getTime();
+        const db = new Date(b.datum ?? 0).getTime();
+        return db - da;
+      }),
+    [toewijzingen]
+  );
 
   // ───────────────────── nieuwe aanmelding opslaan ─────────────────────
 
@@ -163,19 +246,56 @@ export default function AanvoerderPage() {
       return;
     }
 
+    // Client-side validatie voor hoeveelheid, prijs en datum
+    const qty = Number(form.hoeveelheid);
+    const minPrice = Number(form.minimumPrijs);
+
+    if (!Number.isFinite(qty) || qty <= 0) {
+      setError("Hoeveelheid moet groter zijn dan 0.");
+      return;
+    }
+
+    if (!Number.isFinite(minPrice) || minPrice < 0) {
+      setError("Minimumprijs kan niet negatief zijn.");
+      return;
+    }
+
+    const veilDate = new Date(form.veilDatum + "T00:00:00");
+    if (Number.isNaN(veilDate.getTime())) {
+      setError("De gekozen veildatum is ongeldig.");
+      return;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const veilCmp = new Date(veilDate);
+    veilCmp.setHours(0, 0, 0, 0);
+
+    if (veilCmp < today) {
+      setError("De veildatum kan niet in het verleden liggen.");
+      return;
+    }
+
+    if (!form.kloklocatie.trim()) {
+      setError("Kloklocatie is verplicht.");
+      return;
+    }
+
     try {
+      setSaving(true);
       setMsg("Aanmelding opslaan…");
 
-      const veilDatumIso = new Date(form.veilDatum + "T00:00:00").toISOString();
+      const veilDatumIso = veilDate.toISOString();
 
       const payload = {
         fotoUrl: form.fotoUrl.trim() || null,
         productBeschrijving: form.productBeschrijving.trim(),
-        hoeveelheid: Number(form.hoeveelheid) || 0,
-        minimumPrijs: Number(form.minimumPrijs) || 0,
-        gewensteKlokLocatie: form.kloklocatie,
+        hoeveelheid: qty,
+        minimumPrijs: minPrice,
+        categorie: form.categorie, 
+        gewensteKlokLocatie: form.kloklocatie.trim(),
         gewensteVeilDatum: veilDatumIso,
-        gebruikerId: gebruikerId
+        gebruikerId: gebruikerId,
       };
 
       const created = await apiFetch("/Aanmeldingen", {
@@ -192,6 +312,7 @@ export default function AanvoerderPage() {
         productBeschrijving: "",
         hoeveelheid: 1,
         minimumPrijs: 0,
+        categorie: "Snijbloemen",
         kloklocatie: "Naaldwijk",
         veilDatum: "",
       });
@@ -199,7 +320,23 @@ export default function AanvoerderPage() {
       setMsg("✅ Aanmelding opgeslagen.");
     } catch (err) {
       setError(err?.message ?? "Opslaan van de aanmelding is mislukt.");
+    } finally {
+      setSaving(false);
     }
+  }
+
+  function handleResetForm() {
+    setForm({
+      fotoUrl: "",
+      productBeschrijving: "",
+      hoeveelheid: 1,
+      minimumPrijs: 0,
+      categorie: "Snijbloemen",
+      kloklocatie: "Naaldwijk",
+      veilDatum: "",
+    });
+    setError("");
+    setMsg("");
   }
 
   // ───────────────────── rol-guard (geen aanvoerder) ─────────────────────
@@ -224,12 +361,14 @@ export default function AanvoerderPage() {
   return (
     <div className="page-shell aanv-shell">
       <main className="aanv-main" aria-labelledby="aanv-title">
+        {/* Hoofdkaart: formulier + stats */}
         <section className="aanv-panel">
           <header className="aanv-header">
-            <div>
+            <div className="aanv-header-main">
               <h1 id="aanv-title">Product aanmelden</h1>
               <p className="aanv-sub">
-                Vul onderstaande gegevens in en klik op Opslaan.
+                Meld hier je kavels aan voor de veiling. Vul minimaal
+                beschrijving, hoeveelheid, minimumprijs en veildatum in.
               </p>
               {gebruikerNaam && (
                 <p className="aanv-meta">
@@ -237,7 +376,37 @@ export default function AanvoerderPage() {
                 </p>
               )}
             </div>
+            <div className="aanv-header-aside">
+              <p className="aanv-meta">
+                Vandaag gepland:{" "}
+                <strong>{stats.geplandeAanmeldingen}</strong> kavels
+              </p>
+            </div>
           </header>
+
+          {/* Kleine stats rij */}
+          <div className="aanv-stat-row" aria-label="Overzicht van jouw kavels">
+            <div className="aanv-stat-card">
+              <p className="aanv-stat-label">Totaal aangemeld</p>
+              <p className="aanv-stat-value">{stats.totaalAanmeldingen}</p>
+            </div>
+            <div className="aanv-stat-card">
+              <p className="aanv-stat-label">Kavels met toekomstige veildatum</p>
+              <p className="aanv-stat-value">
+                {stats.geplandeAanmeldingen}
+              </p>
+            </div>
+            <div className="aanv-stat-card">
+              <p className="aanv-stat-label">Totaal toegewezen kavels</p>
+              <p className="aanv-stat-value">{stats.totaalToewijzingen}</p>
+            </div>
+            <div className="aanv-stat-card">
+              <p className="aanv-stat-label">Totale opbrengst (incl. toewijzingen)</p>
+              <p className="aanv-stat-value">
+                € {formatCurrency(stats.totaleOpbrengst)}
+              </p>
+            </div>
+          </div>
 
           {error && (
             <div className="aanv-alert" role="alert">
@@ -273,15 +442,38 @@ export default function AanvoerderPage() {
                 }
                 required
               />
+              <p className="aanv-help">
+                Bijvoorbeeld: “Rozen rood 60cm, tros, 10 bossen per fust”.
+              </p>
             </div>
 
             <div className="field-row">
               <div className="field">
-                <label htmlFor="hoeveelheid">Hoeveelheid</label>
+                <label htmlFor="categorie">Categorie</label>
+                <select
+                  id="categorie"
+                  value={form.categorie}
+                  onChange={(e) => updateField("categorie", e.target.value)}
+                  required
+                >
+                  <option value="Snijbloemen">Snijbloemen</option>
+                  <option value="Kamerplanten">Kamerplanten</option>
+                  <option value="Tuinplanten">Tuinplanten</option>
+                  <option value="Boomkwekerij">Boomkwekerij</option>
+                  <option value="Decoratiegroen">Decoratiegroen</option>
+                  <option value="Overig">Overig</option>
+                </select>
+              </div>
+            </div>
+
+
+            <div className="field-row">
+              <div className="field">
+                <label htmlFor="hoeveelheid">Hoeveelheid (stuks)</label>
                 <input
                   id="hoeveelheid"
                   type="number"
-                  min="1"
+                  min={1}
                   value={form.hoeveelheid}
                   onChange={(e) => updateField("hoeveelheid", e.target.value)}
                   required
@@ -293,7 +485,7 @@ export default function AanvoerderPage() {
                 <input
                   id="minprijs"
                   type="number"
-                  min="0"
+                  min={0}
                   step="0.01"
                   value={form.minimumPrijs}
                   onChange={(e) =>
@@ -307,16 +499,14 @@ export default function AanvoerderPage() {
             <div className="field-row">
               <div className="field">
                 <label htmlFor="klok">Kloklocatie</label>
-                <select
+                <input
                   id="klok"
+                  type="text"
                   value={form.kloklocatie}
                   onChange={(e) => updateField("kloklocatie", e.target.value)}
-                >
-                  <option value="Naaldwijk">Naaldwijk</option>
-                  <option value="Aalsmeer">Aalsmeer</option>
-                  <option value="Rijnsburg">Rijnsburg</option>
-                  <option value="Eelde">Eelde</option>
-                </select>
+                  placeholder="Bijv. Naaldwijk, Aalsmeer, eigen locatie…"
+                  required
+                />
               </div>
 
               <div className="field">
@@ -331,71 +521,84 @@ export default function AanvoerderPage() {
               </div>
             </div>
 
+            <p className="aanv-help-inline">
+              De veiling bepaalt de exacte tijd. Jij kiest de dag en locatie.
+            </p>
+
             <div className="form-actions">
               <button
                 type="button"
                 className="btn btn-ghost"
-                onClick={() =>
-                  setForm({
-                    fotoUrl: "",
-                    productBeschrijving: "",
-                    hoeveelheid: 1,
-                    minimumPrijs: 0,
-                    kloklocatie: "Naaldwijk",
-                    veilDatum: "",
-                  })
-                }
+                onClick={handleResetForm}
               >
                 Annuleren
               </button>
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={loading || !gebruikerId}
+                disabled={saving || !gebruikerId}
               >
-                {loading ? "Bezig…" : "Opslaan"}
+                {saving ? "Bezig…" : "Opslaan"}
               </button>
             </div>
           </form>
         </section>
 
+        {/* Mijn aanmeldingen */}
         <section className="aanv-panel">
           <h2>Mijn aanmeldingen</h2>
-          {loading ? (
+          {loadingData ? (
             <p>Gegevens laden…</p>
-          ) : aanmeldingen.length === 0 ? (
-            <p className="aanv-empty">Je hebt nog geen producten aangemeld.</p>
+          ) : sortedAanmeldingen.length === 0 ? (
+            <p className="aanv-empty">
+              Je hebt nog geen producten aangemeld. Vul hierboven het formulier
+              in om een eerste kavel aan te melden.
+            </p>
           ) : (
             <table className="aanv-table">
               <thead>
                 <tr>
                   <th>ID</th>
                   <th>Product</th>
+                  <th>Categorie</th>
                   <th>Hoeveelheid</th>
                   <th>Minimumprijs</th>
                   <th>Veildatum</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {aanmeldingen.map((a) => (
-                  <tr key={a.aanmeldingId}>
-                    <td>{a.aanmeldingId}</td>
-                    <td>{a.productBeschrijving}</td>
-                    <td>{a.hoeveelheid}</td>
-                    <td>€ {a.minimumPrijs.toFixed(2)}</td>
-                    <td>{formatDate(a.gewensteVeilDatum)}</td>
-                  </tr>
-                ))}
+                {sortedAanmeldingen.map((a) => {
+                  const status = getAanmeldingStatus(a.gewensteVeilDatum);
+                  return (
+                    <tr key={a.aanmeldingId}>
+                      <td>{a.aanmeldingId}</td>
+                      <td>{a.productBeschrijving}</td>
+                      <td>{a.categorie}</td>
+                      <td>{a.hoeveelheid}</td>
+                      <td>€ {formatCurrency(a.minimumPrijs)}</td>
+                      <td>{formatDate(a.gewensteVeilDatum)}</td>
+                      <td>
+                        <span
+                          className={`aanv-status-pill ${status.className}`}
+                        >
+                          {status.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
         </section>
 
+        {/* Mijn toewijzingen */}
         <section className="aanv-panel">
           <h2>Mijn toewijzingen</h2>
-          {loading ? (
+          {loadingData ? (
             <p>Gegevens laden…</p>
-          ) : toewijzingen.length === 0 ? (
+          ) : sortedToewijzingen.length === 0 ? (
             <p className="aanv-empty">
               Er zijn nog geen kavels toegewezen voor jouw producten.
             </p>
@@ -411,12 +614,12 @@ export default function AanvoerderPage() {
                 </tr>
               </thead>
               <tbody>
-                {toewijzingen.map((t) => (
+                {sortedToewijzingen.map((t) => (
                   <tr key={t.toewijzingId}>
                     <td>{t.toewijzingId}</td>
                     <td>{t.veilingProductId}</td>
                     <td>{t.koperNaam}</td>
-                    <td>€ {t.eindPrijs.toFixed(2)}</td>
+                    <td>€ {formatCurrency(t.eindPrijs)}</td>
                     <td>{formatDate(t.datum)}</td>
                   </tr>
                 ))}

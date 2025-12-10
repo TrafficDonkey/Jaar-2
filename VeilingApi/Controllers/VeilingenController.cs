@@ -35,7 +35,7 @@ public class VeilingenController : ControllerBase
     // ────────────────────────────── Actieve veiling voor kopers ──────────────────────────────
     // GET: api/Veilingen/actief
     [HttpGet("actief")]
-    [Authorize(Roles = "Klant, Admin")]         // optioneel, mag je weghalen als je wilt dat iedereen hem kan zien
+    [Authorize(Roles = "Klant, Veilingmeester, Admin")]         // optioneel, mag je weghalen als je wilt dat iedereen hem kan zien
     public async Task<ActionResult<VeilingDto>> GetActief()
     {
         var v = await _svc.GetActieveAsync();
@@ -95,5 +95,27 @@ public class VeilingenController : ControllerBase
 
             return Ok(result);
         }
+    
+    // ────────────────────────────── GET: /api/Veilingen/archief ──────────────────────────────
+    // Alle veilingen die NIET meer actief zijn (b.v. Status = "Afgerond")
+    [HttpGet("archief")]
+    [Authorize(Roles = "Veilingmeester,Admin")]
+    public async Task<ActionResult<IEnumerable<VeilingDto>>> GetArchief()
+    {
+        var items = await _svc.GetArchiefAsync();
+        return Ok(items);
+    }
+
+    // ────────────────────────────── POST: /api/Veilingen/{id}/stop ───────────────────────────
+    // Markeer een veiling als afgerond (handmatig stoppen door veilingmeester)
+    [HttpPost("{id:int}/stop")]
+    [Authorize(Roles = "Veilingmeester,Admin")]
+    public async Task<IActionResult> Stop(int id)
+    {
+        var ok = await _svc.StopVeilingAsync(id);
+        if (!ok) return NotFound();
+        return NoContent();
+    }
+
 
 }

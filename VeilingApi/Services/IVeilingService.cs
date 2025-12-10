@@ -24,5 +24,8 @@ namespace VeilingApi.Services
 
         // Start een veiling vanuit één Aanmelding
         Task<VeilingDto?> StartVeilingAsync(StartVeilingDto dto, int gestartDoorId);
+
+        Task<IEnumerable<VeilingDto>> GetArchiefAsync();
+        Task<bool> StopVeilingAsync(int id);
     }
 }
