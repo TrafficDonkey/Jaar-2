@@ -1,0 +1,12 @@
+bin
+obj
+*.user
+*.suo
+*.csproj.user
+.vs
+.git
+.gitignore
+Dockerfile*
+docker-compose*
+node_modules
+.env
