@@ -25,7 +25,7 @@ export default function LoginScreen() {
     setMsg("Inloggen…");
 
     try {
-      const res = await fetch(`${API}/auth/login`, {
+            const res = await fetch(`${API}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -34,22 +34,39 @@ export default function LoginScreen() {
         }),
       });
 
-      const text = await res.text();
+      // Probeer JSON te lezen, maar val terug op lege object
+      const errorBody = res.ok ? null : await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        setMsg(
-          `❌ ${res.status} ${res.statusText} — ${
-            text || "Onjuiste inloggegevens"
-          }`
-        );
+        // Backend stuurt nu { Message, Fouten } bij 400-validatie
+        const friendly =
+          errorBody?.Message ||
+          (res.status === 400
+            ? "Het email adres of het wachtwoord zijn niet correct ingevuld."
+            : "Er ging iets mis bij het inloggen.");
+
+        // Combineer veldfouten indien aanwezig
+        let details = "";
+        if (errorBody?.Fouten) {
+          const lines = errorBody.Fouten.flatMap((f) =>
+            f.Errors.map((err) => `- ${f.Field}: ${err}`)
+          );
+          if (lines.length) {
+            details = "\n" + lines.join("\n");
+          }
+        } else if (errorBody?.title) {
+          details = `\n${errorBody.title}`;
+        }
+
+        setMsg(`❌ ${friendly}${details}`);
         return;
       }
 
+      const text = await res.text();
       let data = {};
       try {
         data = JSON.parse(text || "{}");
       } catch {
-        // als de server iets raars terugstuurt
         setMsg("❌ Onverwacht antwoord van de server");
         return;
       }
@@ -58,6 +75,7 @@ export default function LoginScreen() {
         setMsg("❌ Geen token ontvangen van de server");
         return;
       }
+
 
       // E-mail onthouden is prima in localStorage
       localStorage.setItem("lastEmail", email.trim());

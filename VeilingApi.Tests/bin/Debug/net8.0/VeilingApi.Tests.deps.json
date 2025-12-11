@@ -8,7 +8,7 @@
     ".NETCoreApp,Version=v8.0": {
       "VeilingApi.Tests/1.0.0": {
         "dependencies": {
-          "Microsoft.EntityFrameworkCore.InMemory": "8.0.10",
+          "Microsoft.EntityFrameworkCore.InMemory": "9.0.10",
           "Microsoft.NET.Test.Sdk": "17.12.0",
           "Moq": "4.20.72",
           "VeilingApi": "1.0.0",
@@ -197,14 +197,16 @@
         }
       },
       "Microsoft.EntityFrameworkCore.Analyzers/9.0.10": {},
-      "Microsoft.EntityFrameworkCore.InMemory/8.0.10": {
+      "Microsoft.EntityFrameworkCore.InMemory/9.0.10": {
         "dependencies": {
-          "Microsoft.EntityFrameworkCore": "9.0.10"
+          "Microsoft.EntityFrameworkCore": "9.0.10",
+          "Microsoft.Extensions.Caching.Memory": "9.0.10",
+          "Microsoft.Extensions.Logging": "9.0.10"
         },
         "runtime": {
           "lib/net8.0/Microsoft.EntityFrameworkCore.InMemory.dll": {
-            "assemblyVersion": "8.0.10.0",
-            "fileVersion": "8.0.1024.46708"
+            "assemblyVersion": "9.0.10.0",
+            "fileVersion": "9.0.1025.47514"
           }
         }
       },
@@ -1218,7 +1220,7 @@
         },
         "runtime": {
           "VeilingApi.dll": {
-            "assemblyVersion": "1.0.0.0",
+            "assemblyVersion": "1.0.0",
             "fileVersion": "1.0.0.0"
           }
         }
@@ -1329,12 +1331,12 @@
       "path": "microsoft.entityframeworkcore.analyzers/9.0.10",
       "hashPath": "microsoft.entityframeworkcore.analyzers.9.0.10.nupkg.sha512"
     },
-    "Microsoft.EntityFrameworkCore.InMemory/8.0.10": {
+    "Microsoft.EntityFrameworkCore.InMemory/9.0.10": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-TdtSEbBsMg8dFq5T1PiOv48w2oiiduNzaEf3Fa7tO2b3lTBFO1y1Dla6ihs628P53TowsScjLSG8g5ZEw6KN0Q==",
-      "path": "microsoft.entityframeworkcore.inmemory/8.0.10",
-      "hashPath": "microsoft.entityframeworkcore.inmemory.8.0.10.nupkg.sha512"
+      "sha512": "sha512-fRnQ7qcHNINRoErantws9k3CdjcYwvbx+fLB3ZDN/EDC7kt93J3fPB15aEbnum2JiFPbw3fgr9iOGWyxaRXD9Q==",
+      "path": "microsoft.entityframeworkcore.inmemory/9.0.10",
+      "hashPath": "microsoft.entityframeworkcore.inmemory.9.0.10.nupkg.sha512"
     },
     "Microsoft.EntityFrameworkCore.Relational/9.0.10": {
       "type": "package",

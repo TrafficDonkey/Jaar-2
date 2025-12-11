@@ -1,7 +1,7 @@
-/* RegisterStyle.css */
+﻿/* RegisterStyle.css */
 /* Registratie-scherm in dezelfde stijl als login + koperpagina. */
 
-/* ────────────────────────────── ACHTERGROND ────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ ACHTERGROND â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .reg-shell {
   background: radial-gradient(
     circle at top,
@@ -11,7 +11,7 @@
   );
 }
 
-/* ────────────────────────────── LAYOUT ────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ LAYOUT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .reg-main {
   display: flex;
   justify-content: center;
@@ -40,7 +40,7 @@
   color: var(--color-muted);
 }
 
-/* ────────────────────────────── FORMULIER ────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ FORMULIER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .auth-form {
   display: flex;
   flex-direction: column;
@@ -71,7 +71,7 @@
   outline-offset: 2px;
 }
 
-/* Wachtwoordveld met ‘toon/verberg’-knop */
+/* Wachtwoordveld met â€˜toon/verbergâ€™-knop */
 .password-field {
   position: relative;
 }
@@ -87,7 +87,7 @@
   font-size: 0.7rem;
 }
 
-/* ────────────────────────────── KNOPPEN ────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ KNOPPEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* Primaire actieknop */
 .primary-btn {
   border: none;
@@ -110,7 +110,7 @@
   outline-offset: 2px;
 }
 
-/* Kleine ‘ghost’-knop (wachtwoord tonen) */
+/* Kleine â€˜ghostâ€™-knop (wachtwoord tonen) */
 .ghost-btn {
   background: #edf3f2;
   border: 1px solid rgba(15, 118, 110, 0.2);
@@ -121,9 +121,9 @@
   color: var(--color-primary);
 }
 
-/* ────────────────────────────── EXTRA UI-ELEMENTEN ────────────────────────────── */
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ EXTRA UI-ELEMENTEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
-/* Rolregel “Je wordt Klant” */
+/* Rolregel â€œJe wordt Klantâ€ */
 .role-line {
   display: flex;
   gap: 0.5rem;
@@ -149,7 +149,7 @@
   margin-bottom: 0.15rem;
 }
 
-/* Link onder het formulier (“Heb je al een account?”) */
+/* Link onder het formulier (â€œHeb je al een account?â€) */
 .auth-alt {
   margin-top: 0.875rem;
   font-size: 0.95rem;
@@ -189,4 +189,25 @@
   padding: 1.25rem 1rem 1.5rem;
   color: var(--color-muted);
   font-size: 0.8rem;
+}
+
+/* Foutstijlen voor veld- en formuliermeldingen */
+.input-error {
+  border-color: #c53030;
+  background: #fff5f5;
+}
+
+.field-error {
+  color: #c53030;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.form-error {
+  background: #fdeaea;
+  border: 1px solid #f4b4b4;
+  color: #8a1c1c;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.65rem;
+  margin-bottom: 0.5rem;
 }

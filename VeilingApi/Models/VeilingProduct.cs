@@ -24,7 +24,7 @@ public class VeilingProduct
 
     public int VolgordeVeiling { get; set; }       // Positie van het product binnen de veiling
 
-    public string Categorie { get; set; }
+    public string Categorie { get; set; } = string.Empty;
 
     // ────────────────────────────── Relaties ──────────────────────────────
 

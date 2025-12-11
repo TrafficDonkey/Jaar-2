@@ -1,4 +1,4 @@
-// src/pages/RegisterScreen.jsx
+﻿// src/pages/RegisterScreen.jsx
 // Registratie-scherm. Nieuwe gebruikers krijgen altijd rol "Klant".
 // Andere rollen (Aanvoerder / Veilingmeester / Admin) worden door een beheerder toegekend.
 
@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import "./RegisterStyle.css";
 
 const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
+const emptyErrors = { general: "", fields: {} };
 
 export default function RegisterScreen() {
   const [naam, setNaam] = useState("");
@@ -16,13 +17,14 @@ export default function RegisterScreen() {
   const [showPw, setShowPw] = useState(false);
   const [caps, setCaps] = useState(false);
   const [msg, setMsg] = useState("");
+  const [errors, setErrors] = useState(emptyErrors);
   const nav = useNavigate();
 
   // rol is altijd "Klant" (niet zichtbaar in de UI)
   const [role] = useState("Klant");
 
   useEffect(() => {
-    document.title = "FloraFlow — Account aanmaken";
+    document.title = "FloraFlow - Account aanmaken";
     const last = localStorage.getItem("lastEmail");
     if (last) setEmail(last);
   }, []);
@@ -30,13 +32,18 @@ export default function RegisterScreen() {
   async function handleSubmit(e) {
     e.preventDefault();
     setMsg("");
+    setErrors(emptyErrors);
 
     if (pw !== pw2) {
-      setMsg("❌ Wachtwoorden komen niet overeen.");
+      const mismatch = "Wachtwoorden komen niet overeen.";
+      setErrors({
+        general: mismatch,
+        fields: { password: mismatch, password2: mismatch },
+      });
       return;
     }
 
-    setMsg("Registreren…");
+    setMsg("Registreren...");
     try {
       const res = await fetch(`${API}/auth/register`, {
         method: "POST",
@@ -45,25 +52,80 @@ export default function RegisterScreen() {
           naam: naam.trim(),
           email: email.trim(),
           password: pw,
-          rol: role // wordt in backend alsnog als 'Klant' gebruikt
-        })
+          rol: role, // wordt in backend alsnog als 'Klant' gebruikt
+        }),
       });
 
       const text = await res.text();
+      let data = {};
+      try {
+        data = JSON.parse(text || "{}");
+      } catch {
+        data = {};
+      }
+
       if (!res.ok) {
-        setMsg(
-          `❌ ${res.status} ${res.statusText} — ${
-            text || "Kan niet registreren"
-          }`
-        );
+        const labelMap = {
+          naam: "Naam",
+          email: "E-mailadres",
+          wachtwoord: "Wachtwoord",
+          password: "Wachtwoord",
+          password2: "Herhaal wachtwoord",
+          "herhaal wachtwoord": "Herhaal wachtwoord",
+        };
+
+        const translateError = (raw, label) => {
+          const txt = (raw || "").toString().trim();
+          const lower = txt.toLowerCase();
+          const translations = {
+            "the naam field is required.": "Naam is verplicht.",
+            "the email field is required.": "E-mailadres is verplicht.",
+            "the email field is not a valid e-mail address.": "Voer een geldig e-mailadres in.",
+            "the wachtwoord field is required.": "Wachtwoord is verplicht.",
+            "the field wachtwoord must be a string or array type with a minimum length of '6'.": "Wachtwoord moet minstens 6 tekens bevatten."
+          };
+
+          if (translations[lower]) return translations[lower];
+
+          if (lower.includes("field is required")) return `${label} is verplicht.`;
+          if (lower.includes("minimum length")) return `${label} moet minstens 6 tekens bevatten.`;
+
+          return txt || `${label} is ongeldig.`;
+        };
+
+        const fouten = data.fouten || data.Fouten || [];
+        const fieldErrors = {};
+
+        if (Array.isArray(fouten)) {
+          fouten.forEach((f) => {
+            const key = (f.field || "").toLowerCase();
+            const label = labelMap[key] || f.field || "Veld";
+            const joined = Array.isArray(f.errors)
+              ? f.errors.map((err) => translateError(err, label)).join(" ")
+              : translateError(f.errors, label);
+            if (key) fieldErrors[key] = joined || `${label} is ongeldig.`;
+          });
+        }
+
+        const general =
+          data.message ||
+          data.Message ||
+          (res.status === 400
+            ? "Sommige velden zijn niet correct ingevuld."
+            : "Kan niet registreren.");
+
+        setErrors({ general, fields: fieldErrors });
+        setMsg("");
         return;
       }
 
       localStorage.setItem("lastEmail", email.trim());
-      setMsg("✅ Gelukt! Doorsturen naar login…");
+      setErrors(emptyErrors);
+      setMsg("Gelukt! Doorsturen naar login...");
       setTimeout(() => nav("/login", { replace: true }), 800);
     } catch (err) {
-      setMsg(`❌ Netwerkfout: ${err.message ?? err}`);
+      setErrors(emptyErrors);
+      setMsg(`Netwerkfout: ${err.message ?? err}`);
     }
   }
 
@@ -75,7 +137,7 @@ export default function RegisterScreen() {
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">
-            🌿
+            dYOи
           </span>
           <span className="brand-name">FloraFlow</span>
         </div>
@@ -88,11 +150,16 @@ export default function RegisterScreen() {
         <section className="auth-panel" aria-labelledby="reg-title">
           <h1 id="reg-title">Account aanmaken</h1>
           <p className="panel-subtitle">
-            Vul je gegevens in. Je account krijgt standaard de rol
-            {" "}
+            Vul je gegevens in. Je account krijgt standaard de rol {" "}
             <strong>Klant</strong>. Extra rechten worden door een beheerder
             toegekend.
           </p>
+
+          {errors.general && (
+            <div className="form-error" role="alert">
+              {errors.general}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="auth-form" noValidate>
             <div className="field">
@@ -103,7 +170,15 @@ export default function RegisterScreen() {
                 value={naam}
                 onChange={(e) => setNaam(e.target.value)}
                 required
+                aria-invalid={Boolean(errors.fields.naam)}
+                aria-describedby={errors.fields.naam ? "naam-error" : undefined}
+                className={errors.fields.naam ? "input-error" : ""}
               />
+              {errors.fields.naam && (
+                <p className="field-error" id="naam-error" role="alert">
+                  {errors.fields.naam}
+                </p>
+              )}
             </div>
 
             <div className="field">
@@ -115,7 +190,15 @@ export default function RegisterScreen() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                aria-invalid={Boolean(errors.fields.email)}
+                aria-describedby={errors.fields.email ? "email-error" : undefined}
+                className={errors.fields.email ? "input-error" : ""}
               />
+              {errors.fields.email && (
+                <p className="field-error" id="email-error" role="alert">
+                  {errors.fields.email}
+                </p>
+              )}
             </div>
 
             <div className="field password-field">
@@ -132,6 +215,17 @@ export default function RegisterScreen() {
                   )
                 }
                 required
+                aria-invalid={Boolean(errors.fields.password || errors.fields.wachtwoord)}
+                aria-describedby={
+                  errors.fields.password || errors.fields.wachtwoord
+                    ? "password-error"
+                    : undefined
+                }
+                className={
+                  errors.fields.password || errors.fields.wachtwoord
+                    ? "input-error"
+                    : ""
+                }
               />
               <button
                 type="button"
@@ -140,8 +234,15 @@ export default function RegisterScreen() {
               >
                 {showPw ? "Verberg" : "Toon"}
               </button>
-              {caps && (
-                <p className="caps-hint">⚠️ Caps Lock staat aan</p>
+              {caps && <p className="caps-hint">Caps Lock staat aan</p>}
+              {(errors.fields.password || errors.fields.wachtwoord) && (
+                <p
+                  className="field-error"
+                  id="password-error"
+                  role="alert"
+                >
+                  {errors.fields.password || errors.fields.wachtwoord}
+                </p>
               )}
             </div>
 
@@ -154,7 +255,17 @@ export default function RegisterScreen() {
                 value={pw2}
                 onChange={(e) => setPw2(e.target.value)}
                 required
+                aria-invalid={Boolean(errors.fields.password2)}
+                aria-describedby={
+                  errors.fields.password2 ? "password2-error" : undefined
+                }
+                className={errors.fields.password2 ? "input-error" : ""}
               />
+              {errors.fields.password2 && (
+                <p className="field-error" id="password2-error" role="alert">
+                  {errors.fields.password2}
+                </p>
+              )}
             </div>
 
             <button type="submit" className="primary-btn">
@@ -176,7 +287,7 @@ export default function RegisterScreen() {
       </main>
 
       <footer className="footer">
-        <p>© {new Date().getFullYear()} FloraFlow — demo</p>
+        <p>Ac {new Date().getFullYear()} FloraFlow - demo</p>
       </footer>
     </div>
   );

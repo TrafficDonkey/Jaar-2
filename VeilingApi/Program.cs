@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Linq;
 using System.Text;
 using VeilingApi.Data;
 using VeilingApi.Services;
@@ -26,9 +28,34 @@ builder.Services.AddScoped<IBiedingService, BiedingService>();
 builder.Services.AddScoped<IToewijzingService, ToewijzingService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// Custom API behavior: nette NL validatiefouten
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(e => e.Value.Errors.Count > 0)
+            .Select(e => new
+            {
+                Field = e.Key,
+                Errors = e.Value.Errors.Select(er => er.ErrorMessage)
+            });
+
+        return new BadRequestObjectResult(new
+        {
+            Message = "Sommige velden zijn niet correct ingevuld.",
+            Fouten = errors
+        });
+    };
+});
+
 // Configure JWT authentication
 var jwt = builder.Configuration.GetSection("Jwt");
-var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["Key"]));
+var jwtKey = jwt.GetValue<string>("Key") ?? throw new InvalidOperationException("JWT key ontbreekt in configuratie.");
+var jwtIssuer = jwt.GetValue<string>("Issuer") ?? throw new InvalidOperationException("JWT issuer ontbreekt in configuratie.");
+var jwtAudience = jwt.GetValue<string>("Audience") ?? throw new InvalidOperationException("JWT audience ontbreekt in configuratie.");
+
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -39,8 +66,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = signingKey,
             ValidateIssuer = true,
             ValidateAudience = true,
-            ValidIssuer = jwt["Issuer"],
-            ValidAudience = jwt["Audience"]
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience
         };
     });
 
@@ -99,6 +126,22 @@ app.UseCors("web");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception)
+    {
+        context.Response.StatusCode = 500;
+        await context.Response.WriteAsJsonAsync(new
+        {
+            message = "Er is iets misgegaan. Probeer het later opnieuw."
+        });
+    }
+});
 
 app.MapControllers();
 

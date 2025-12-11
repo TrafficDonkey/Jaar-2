@@ -238,10 +238,12 @@
       "Microsoft.EntityFrameworkCore.Analyzers/9.0.10": {
         "type": "package"
       },
-      "Microsoft.EntityFrameworkCore.InMemory/8.0.10": {
+      "Microsoft.EntityFrameworkCore.InMemory/9.0.10": {
         "type": "package",
         "dependencies": {
-          "Microsoft.EntityFrameworkCore": "8.0.10"
+          "Microsoft.EntityFrameworkCore": "9.0.10",
+          "Microsoft.Extensions.Caching.Memory": "9.0.10",
+          "Microsoft.Extensions.Logging": "9.0.10"
         },
         "compile": {
           "lib/net8.0/Microsoft.EntityFrameworkCore.InMemory.dll": {
@@ -2183,10 +2185,10 @@
         "microsoft.entityframeworkcore.analyzers.nuspec"
       ]
     },
-    "Microsoft.EntityFrameworkCore.InMemory/8.0.10": {
-      "sha512": "TdtSEbBsMg8dFq5T1PiOv48w2oiiduNzaEf3Fa7tO2b3lTBFO1y1Dla6ihs628P53TowsScjLSG8g5ZEw6KN0Q==",
+    "Microsoft.EntityFrameworkCore.InMemory/9.0.10": {
+      "sha512": "fRnQ7qcHNINRoErantws9k3CdjcYwvbx+fLB3ZDN/EDC7kt93J3fPB15aEbnum2JiFPbw3fgr9iOGWyxaRXD9Q==",
       "type": "package",
-      "path": "microsoft.entityframeworkcore.inmemory/8.0.10",
+      "path": "microsoft.entityframeworkcore.inmemory/9.0.10",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -2194,7 +2196,7 @@
         "PACKAGE.md",
         "lib/net8.0/Microsoft.EntityFrameworkCore.InMemory.dll",
         "lib/net8.0/Microsoft.EntityFrameworkCore.InMemory.xml",
-        "microsoft.entityframeworkcore.inmemory.8.0.10.nupkg.sha512",
+        "microsoft.entityframeworkcore.inmemory.9.0.10.nupkg.sha512",
         "microsoft.entityframeworkcore.inmemory.nuspec"
       ]
     },
@@ -4278,7 +4280,7 @@
   },
   "projectFileDependencyGroups": {
     "net8.0": [
-      "Microsoft.EntityFrameworkCore.InMemory >= 8.0.10",
+      "Microsoft.EntityFrameworkCore.InMemory >= 9.0.10",
       "Microsoft.NET.Test.Sdk >= 17.12.0",
       "Moq >= 4.20.72",
       "VeilingApi >= 1.0.0",
@@ -4288,23 +4290,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\ROG gaming pc\\.nuget\\packages\\": {},
+    "C:\\Users\\huber\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi.Tests\\VeilingApi.Tests.csproj",
+      "projectUniqueName": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi.Tests\\VeilingApi.Tests.csproj",
       "projectName": "VeilingApi.Tests",
-      "projectPath": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi.Tests\\VeilingApi.Tests.csproj",
-      "packagesPath": "C:\\Users\\ROG gaming pc\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi.Tests\\obj\\",
+      "projectPath": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi.Tests\\VeilingApi.Tests.csproj",
+      "packagesPath": "C:\\Users\\huber\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi.Tests\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\ROG gaming pc\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\huber\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -4319,8 +4321,8 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj": {
-              "projectPath": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj"
+            "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\VeilingApi.csproj": {
+              "projectPath": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\VeilingApi.csproj"
             }
           }
         }
@@ -4342,7 +4344,7 @@
         "dependencies": {
           "Microsoft.EntityFrameworkCore.InMemory": {
             "target": "Package",
-            "version": "[8.0.10, )"
+            "version": "[9.0.10, )"
           },
           "Microsoft.NET.Test.Sdk": {
             "target": "Package",
@@ -4381,7 +4383,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.414/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.416/PortableRuntimeIdentifierGraph.json"
       }
     }
   }
