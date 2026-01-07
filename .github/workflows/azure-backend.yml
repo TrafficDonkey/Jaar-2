@@ -1,0 +1,38 @@
+name: Build and deploy ASP.NET Core API to Azure
+
+on:
+  push:
+    branches:
+      - fullproject-abel
+    paths:
+      - 'VeilingApi/**'
+      - '.github/workflows/**'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore VeilingApi/VeilingApi.csproj
+
+      - name: Build
+        run: dotnet build VeilingApi/VeilingApi.csproj --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish VeilingApi/VeilingApi.csproj -c Release -o publish
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: FloraFlow
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: publish
