@@ -27,6 +27,7 @@ builder.Services.AddScoped<IVeilingProductService, VeilingProductService>();
 builder.Services.AddScoped<IBiedingService, BiedingService>();
 builder.Services.AddScoped<IToewijzingService, ToewijzingService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IHistorischePrijsService, HistorischePrijsService>();
 
 // Custom API behavior: nette NL validatiefouten
 builder.Services.Configure<ApiBehaviorOptions>(options =>

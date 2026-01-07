@@ -283,7 +283,28 @@ public class ActieveVeilingDto
 // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ AUTH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // DTO's voor registratie en inloggen.
 
-public class RegisterDto
+
+// ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"? HISTORISCHE PRIJZEN ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?ƒ"?
+// DTO's voor historische prijzen per bloemsoort (categorie).
+
+public class HistorischePrijsItemDto
+{
+    public string AanvoerderNaam { get; set; } = string.Empty;
+    public DateTime Datum { get; set; }
+    public decimal PrijsPerBloem { get; set; }
+}
+
+public class HistorischePrijzenResponseDto
+{
+    public string Categorie { get; set; } = string.Empty;
+    public string AanvoerderNaam { get; set; } = string.Empty;
+
+    public List<HistorischePrijsItemDto> Laatste10Aanvoerder { get; set; } = new();
+    public decimal GemiddeldeAanvoerder { get; set; }
+
+    public List<HistorischePrijsItemDto> Laatste10Alle { get; set; } = new();
+    public decimal GemiddeldeAlle { get; set; }
+}public class RegisterDto
 {
     [Required, MaxLength(100)]
     public string Naam { get; set; } = string.Empty;

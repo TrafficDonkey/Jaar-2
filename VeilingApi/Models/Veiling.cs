@@ -35,7 +35,5 @@ public class Veiling
     [JsonIgnore][ValidateNever]
     public Gebruiker? GestartDoor { get; set; }    // Navigatie naar de gebruiker (veilingmeester)
 
-    [JsonIgnore][ValidateNever]
-    public ICollection<VeilingProduct>? Kavels { get; set; } = [];
-    // Producten (kavels) die onderdeel zijn van deze veiling
+    // Let op: geen tweede navigatie naar VeilingProducten om dubbele relaties te voorkomen.
 }

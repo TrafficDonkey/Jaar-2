@@ -46,6 +46,11 @@ export default function KoperPage() {
 
   const [myPurchases, setMyPurchases] = useState([]);
 
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyErr, setHistoryErr] = useState("");
+  const [historyData, setHistoryData] = useState(null);
+
   // tab: "veilingen" | "aankopen"
   const [activeTab, setActiveTab] = useState("veilingen");
 
@@ -208,6 +213,15 @@ export default function KoperPage() {
     setKoopMsg("De klok is gestopt. Wacht op de volgende ronde of veiling.");
   }
 
+  useEffect(() => {
+    if (!showHistory) return;
+    function onKeyDown(e) {
+      if (e.key === "Escape") setShowHistory(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showHistory]);
+
   async function handleKoop(e) {
     e.preventDefault();
     const product = veiling?.huidigProduct;
@@ -306,6 +320,40 @@ export default function KoperPage() {
     if (categoryFilter === "ALL") return actieveVeilingen;
     return actieveVeilingen.filter((v) => v.categorie === categoryFilter);
   }, [actieveVeilingen, categoryFilter]);
+
+  useEffect(() => {
+    if (!showHistory || !product?.veilingProductId) return;
+    setHistoryLoading(true);
+    setHistoryErr("");
+    setHistoryData(null);
+
+    apiFetch(`/VeilingProducts/${product.veilingProductId}/historische-prijzen`)
+      .then((data) => {
+        if (!data) {
+          setHistoryData(null);
+          return;
+        }
+
+        const normalized = {
+          categorie: data.categorie ?? data.Categorie ?? "",
+          aanvoerderNaam: data.aanvoerderNaam ?? data.AanvoerderNaam ?? "",
+          laatste10Aanvoerder:
+            data.laatste10Aanvoerder ?? data.Laatste10Aanvoerder ?? [],
+          gemiddeldeAanvoerder:
+            data.gemiddeldeAanvoerder ?? data.GemiddeldeAanvoerder ?? 0,
+          laatste10Alle: data.laatste10Alle ?? data.Laatste10Alle ?? [],
+          gemiddeldeAlle: data.gemiddeldeAlle ?? data.GemiddeldeAlle ?? 0,
+        };
+
+        setHistoryData(normalized);
+      })
+      .catch((e) => {
+        setHistoryErr(
+          e?.message ?? "Kon historische prijzen niet ophalen."
+        );
+      })
+      .finally(() => setHistoryLoading(false));
+  }, [showHistory, product?.veilingProductId]);
 
   return (
     <div className="kop-shell">
@@ -494,6 +542,15 @@ export default function KoperPage() {
                         <dd>{fmtDate(veiling.startTijd)}</dd>
                       </div>
                     </div>
+
+                    <button
+                      type="button"
+                      className="kop-koop-btn"
+                      onClick={() => setShowHistory(true)}
+                      disabled={!product?.veilingProductId}
+                    >
+                      Historische prijzen bekijken
+                    </button>
 
                     <p className="kop-extra-text">
                       De prijs daalt gedurende de ronde. Koop op het juiste
@@ -698,6 +755,144 @@ export default function KoperPage() {
             </div>
           )}
         </section>
+      )}
+
+      {showHistory && (
+        <div
+          className="kop-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Historische prijzen"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowHistory(false);
+          }}
+        >
+          <div className="kop-modal">
+            <div className="kop-modal-header">
+              <div>
+                <h3>Historische prijzen</h3>
+                <p className="kop-modal-sub">
+                  Inzicht in eerdere prijzen voor deze bloemsoort.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="kop-koop-btn kop-koop-btn--ghost"
+                onClick={() => setShowHistory(false)}
+              >
+                Sluiten
+              </button>
+            </div>
+            <div className="kop-modal-body">
+              {historyLoading ? (
+                <p className="kop-extra-text">Gegevens laden...</p>
+              ) : historyErr ? (
+                <p className="kop-error" role="alert">
+                  {historyErr}
+                </p>
+              ) : !historyData ? (
+                <p className="kop-extra-text">
+                  Geen historische prijzen gevonden voor dit product.
+                </p>
+              ) : (
+                <>
+                  <div className="kop-modal-section">
+                    <div className="kop-modal-meta">
+                      <div>
+                        <span>Bloemsoort</span>
+                        <strong>{historyData.categorie || "-"}</strong>
+                      </div>
+                      <div>
+                        <span>Aanvoerder</span>
+                        <strong>{historyData.aanvoerderNaam || "-"}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="kop-modal-section">
+                    <h4>Laatste 10 prijzen van deze aanvoerder</h4>
+                    {historyData.laatste10Aanvoerder.length === 0 ? (
+                      <p className="kop-extra-text">
+                        Geen historische orders voor deze aanvoerder.
+                      </p>
+                    ) : (
+                      <table className="kop-modal-table">
+                        <thead>
+                          <tr>
+                            <th>Aanvoerder</th>
+                            <th>Datum</th>
+                            <th>Prijs per bloem (EUR)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {historyData.laatste10Aanvoerder.map((row, idx) => (
+                            <tr key={`${row.datum ?? row.Datum}-${idx}`}>
+                              <td>
+                                {row.aanvoerderNaam ??
+                                  row.AanvoerderNaam ??
+                                  "-"}
+                              </td>
+                              <td>{fmtDate(row.datum ?? row.Datum)}</td>
+                              <td>
+                                {fmtCurrency(
+                                  row.prijsPerBloem ?? row.PrijsPerBloem
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                    <p className="kop-modal-summary">
+                      Gemiddelde prijs (aanvoerder): EUR{" "}
+                      {fmtCurrency(historyData.gemiddeldeAanvoerder)}
+                    </p>
+                  </div>
+
+                  <div className="kop-modal-section">
+                    <h4>Laatste 10 prijzen van alle aanvoerders</h4>
+                    {historyData.laatste10Alle.length === 0 ? (
+                      <p className="kop-extra-text">
+                        Geen historische orders beschikbaar.
+                      </p>
+                    ) : (
+                      <table className="kop-modal-table">
+                        <thead>
+                          <tr>
+                            <th>Aanvoerder</th>
+                            <th>Datum</th>
+                            <th>Prijs per bloem (EUR)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {historyData.laatste10Alle.map((row, idx) => (
+                            <tr key={`${row.datum ?? row.Datum}-${idx}`}>
+                              <td>
+                                {row.aanvoerderNaam ??
+                                  row.AanvoerderNaam ??
+                                  "-"}
+                              </td>
+                              <td>{fmtDate(row.datum ?? row.Datum)}</td>
+                              <td>
+                                {fmtCurrency(
+                                  row.prijsPerBloem ?? row.PrijsPerBloem
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                    <p className="kop-modal-summary">
+                      Gemiddelde prijs (alle aanvoerders): EUR{" "}
+                      {fmtCurrency(historyData.gemiddeldeAlle)}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
