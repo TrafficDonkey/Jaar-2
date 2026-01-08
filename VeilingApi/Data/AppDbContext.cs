@@ -44,7 +44,7 @@ public class AppDbContext : DbContext
         // VeilingProduct ↔ Veiling
         mb.Entity<VeilingProduct>()
           .HasOne(vp => vp.Veiling)
-          .WithMany(v => v.Kavels)
+          .HasMany(v => v.VeilingProducten)
           .HasForeignKey(vp => vp.VeilingId)
           .OnDelete(DeleteBehavior.Cascade);
 
