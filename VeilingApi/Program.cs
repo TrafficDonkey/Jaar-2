@@ -1,29 +1,38 @@
 // Program.cs
-// Startpunt van de VeilingApi-backend.
-// Stelt services, database, authenticatie en middleware in voor de ASP.NET Core-applicatie.
-
-using Microsoft.EntityFrameworkCore;
-using VeilingApi.Data;
-using VeilingApi.Services;
-using VeilingApi.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using VeilingApi.Data;
+using VeilingApi.Models;
+using VeilingApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ────────────────────────────── Services ──────────────────────────────
 
-// Controllers en Swagger voor API-documentatie
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Databaseconfiguratie (SQL Server) via connection string in appsettings.json
-builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+// ✅ DB: lokaal via appsettings.json, Azure via "Connection strings" => DefaultConnection
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? builder.Configuration.GetConnectionString("Default") // fallback als je lokaal nog "Default" hebt
+    ?? builder.Configuration["DefaultConnection"];          // fallback als iemand 'm als appsetting zet
 
-// Registratie van servicelaag voor dependency injection
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    // Je wilt liever een duidelijke fout dan vage SQL errors
+    throw new InvalidOperationException(
+        "Geen connection string gevonden. Zet ConnectionStrings:DefaultConnection in appsettings.json of in Azure (Verbindingsreeksen) met naam DefaultConnection."
+    );
+}
+
+builder.Services.AddDbContext<AppDbContext>(opt =>
+    opt.UseSqlServer(connectionString));
+
+// Dependency Injection services
 builder.Services.AddScoped<IGebruikerService, GebruikerService>();
 builder.Services.AddScoped<IAanmeldingService, AanmeldingService>();
 builder.Services.AddScoped<IVeilingService, VeilingService>();
@@ -32,21 +41,30 @@ builder.Services.AddScoped<IBiedingService, BiedingService>();
 builder.Services.AddScoped<IToewijzingService, ToewijzingService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
-// CORS-beleid: sta frontend toe vanaf localhost
+// CORS (lokaal + voeg later je echte frontend domain toe)
 builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("web", p => p
-        .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+        .WithOrigins(
+            "http://localhost:5173",
+            "http://127.0.0.1:5173"
+            // Voeg je Azure frontend toe als je die hebt, bv:
+            // "https://jouw-frontend.azurestaticapps.net",
+            // "https://jouw-frontend-domain.nl"
+        )
         .AllowAnyHeader()
         .AllowAnyMethod()
-        .AllowCredentials());
+        .AllowCredentials()
+    );
 });
 
-// JWT-authenticatie configuratie
+// JWT-auth
 var jwt = builder.Configuration.GetSection("Jwt");
-var signingKey = new SymmetricSecurityKey(
-    Encoding.UTF8.GetBytes(jwt["Key"] ?? throw new InvalidOperationException("Jwt:Key ontbreekt"))
-);
+var jwtKey = jwt["Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+    throw new InvalidOperationException("Jwt:Key ontbreekt (appsettings of Azure app settings).");
+
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -60,10 +78,10 @@ builder.Services
             ValidIssuer = jwt["Issuer"],
             ValidAudience = jwt["Audience"],
             IssuerSigningKey = signingKey,
-            ClockSkew = TimeSpan.Zero // Geen vertraging bij token-verval
+            ClockSkew = TimeSpan.Zero
         };
 
-        // Haal token op uit HttpOnly cookie ("access_token") als header-token ontbreekt
+        // Token uit HttpOnly cookie als header ontbreekt
         opts.Events = new JwtBearerEvents
         {
             OnMessageReceived = ctx =>
@@ -78,63 +96,71 @@ builder.Services
         };
     });
 
-// Autorisatie toevoegen
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
 // ────────────────────────────── Pipeline ──────────────────────────────
 
-// Activeer Swagger alleen in ontwikkelmodus
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// ✅ Swagger ook op Azure (handig voor test). Wil je alleen dev? Zet terug in if (IsDevelopment)
+app.UseSwagger();
+app.UseSwaggerUI();
 
-// Ensure DB & migrations exist + seed admin-account
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    Console.WriteLine("DB ConnString = " + db.Database.GetDbConnection().ConnectionString);
-    db.Database.Migrate();
-
-    // Hardcoded admin-account: wordt alleen aangemaakt als hij nog niet bestaat
-    const string adminEmail = "admin@floraflow.nl";
-    const string adminPassword = "Admin123!";
-
-    var adminBestaat = db.Gebruikers.Any(g => g.Email == adminEmail);
-    if (!adminBestaat)
-    {
-        var admin = new Gebruiker
-        {
-            Naam = "Beheerder",
-            Email = adminEmail,
-            Rol = "Admin",
-            WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword)
-        };
-
-        db.Gebruikers.Add(admin);
-        db.SaveChanges();
-        Console.WriteLine("Admin-account aangemaakt: " + adminEmail);
-    }
-}
-
-// Forceer HTTPS-omleiding
+// HTTPS
 app.UseHttpsRedirection();
 
-// Pas CORS toe vóór authenticatie en routing
+// CORS vóór auth
 app.UseCors("web");
 
-// Pas authenticatie en autorisatie toe in juiste volgorde
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Koppel alle controllers aan hun routes
 app.MapControllers();
 
-// Redirect root ("/") naar Swagger
+// Root naar Swagger
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
-// Start de applicatie
+// ────────────────────────────── DB migrate + seed ──────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    // Log welke connstring hij pakt (handig in Azure logstream)
+    Console.WriteLine("DB ConnString = " + db.Database.GetDbConnection().ConnectionString);
+
+    try
+    {
+        // ✅ Alleen uitvoeren als je echt migrations hebt.
+        // Als je nog GEEN migrations hebt, crasht dit anders.
+        db.Database.Migrate();
+
+        // Seed admin-account (alleen als DB bereikbaar is)
+        const string adminEmail = "admin@floraflow.nl";
+        const string adminPassword = "Admin123!";
+
+        var adminBestaat = db.Gebruikers.Any(g => g.Email == adminEmail);
+        if (!adminBestaat)
+        {
+            var admin = new Gebruiker
+            {
+                Naam = "Beheerder",
+                Email = adminEmail,
+                Rol = "Admin",
+                WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword)
+            };
+
+            db.Gebruikers.Add(admin);
+            db.SaveChanges();
+            Console.WriteLine("Admin-account aangemaakt: " + adminEmail);
+        }
+    }
+    catch (Exception ex)
+    {
+        // ✅ Laat app NIET doodgaan op Azure.
+        Console.WriteLine("DB init (Migrate/Seed) failed: " + ex);
+        // In dev wil je wel hard falen zodat je het merkt:
+        if (app.Environment.IsDevelopment()) throw;
+    }
+}
+
 app.Run();
