@@ -11,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ────────────────────────────── Services ──────────────────────────────
 
-builder.Services.AddControllers();
+//builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -108,7 +108,7 @@ app.UseCors("web");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
+//app.MapControllers();
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
 // ────────────────────────────── DB INIT (VEILIG) ──────────────────────────────
