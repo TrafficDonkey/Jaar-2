@@ -5,8 +5,9 @@ on:
     branches:
       - fullproject-abel
     paths:
-      - 'VeilingApi/**'
-      - '.github/workflows/**'
+      - "VeilingApi/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -19,7 +20,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: "8.0.x"
 
       - name: Restore
         run: dotnet restore VeilingApi/VeilingApi.csproj
@@ -29,6 +30,16 @@ jobs:
 
       - name: Publish
         run: dotnet publish VeilingApi/VeilingApi.csproj -c Release -o publish
+
+      - name: Check publish profile secret is present
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}" ]; then
+            echo "Publish profile secret is MISSING/EMPTY in this run"
+            exit 1
+          else
+            echo "Publish profile secret is PRESENT in this run"
+          fi
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
