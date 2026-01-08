@@ -113,7 +113,7 @@ app.MapGet("/", () => Results.Redirect("/swagger"));
 
 // ────────────────────────────── DB INIT (VEILIG) ──────────────────────────────
 
-/*using (var scope = app.Services.CreateScope())
+using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
@@ -135,6 +135,6 @@ app.MapGet("/", () => Results.Redirect("/swagger"));
         if (app.Environment.IsDevelopment())
             throw;
     }
-}*/
+}
 
 app.Run();
