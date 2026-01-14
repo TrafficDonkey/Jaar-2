@@ -171,6 +171,12 @@ select#catFilter:hover {
   margin: 0.2rem 0 1rem 0;
 }
 
+.kop-min-price {
+  margin: 0 0 0.8rem 0;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
 /* Data-lijst met eigenschappen */
 .kop-prod-dl {
   margin: 1rem 0;

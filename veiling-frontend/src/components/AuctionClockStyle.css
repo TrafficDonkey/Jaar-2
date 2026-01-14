@@ -38,7 +38,7 @@
 }
 
 /* ===========================================================
-   Layout van balk + prijs- en tijd-as
+   Layout van balk + prijs-as
    =========================================================== */
 
 .auction-rectangle-container {
@@ -52,9 +52,8 @@
   padding: 0.8rem 1rem;
 }
 
-/* kolommen links en rechts van de balk */
-.price-axis,
-.time-axis {
+/* kolom links van de balk */
+.price-axis {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -63,8 +62,7 @@
   color: var(--color-muted);
 }
 
-.price-axis span,
-.time-axis span {
+.price-axis span {
   display: block; /* elke waarde op eigen regel */
 }
 
@@ -122,8 +120,7 @@
     height: 200px;
   }
 
-  .price-axis,
-  .time-axis {
+  .price-axis {
     height: 200px;
   }
 }

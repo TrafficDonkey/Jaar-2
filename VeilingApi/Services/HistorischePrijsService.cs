@@ -50,6 +50,7 @@ public class HistorischePrijsService : IHistorischePrijsService
         SqlConnection conn,
         int veilingProductId)
     {
+        // Haal categorie + aanvoerder op voor het gekozen veilingproduct (nodig voor filters en labels).
         const string sql = @"
 SELECT TOP 1
     vp.Categorie,
@@ -81,6 +82,7 @@ WHERE vp.VeilingProductId = @VeilingProductId;";
         string categorie,
         int? aanvoerderId)
     {
+        // Laatste 10 toewijzingen voor deze categorie; optioneel gefilterd op aanvoerder.
         var sql = @"
 SELECT TOP 10
     g.Naam,
@@ -94,9 +96,11 @@ WHERE vp.Categorie = @Categorie";
 
         if (aanvoerderId.HasValue)
         {
+            // Filter alleen op de huidige aanvoerder wanneer een ID is meegegeven.
             sql += " AND a.GebruikerId = @AanvoerderId";
         }
 
+        // Nieuwste toewijzingen eerst.
         sql += " ORDER BY t.Datum DESC;";
 
         await using var cmd = new SqlCommand(sql, conn);
@@ -126,6 +130,7 @@ WHERE vp.Categorie = @Categorie";
         string categorie,
         int? aanvoerderId)
     {
+        // Gemiddelde eindprijs over alle toewijzingen; optioneel gefilterd op aanvoerder.
         var sql = @"
 SELECT AVG(CAST(t.EindPrijs AS decimal(10,2)))
 FROM Toewijzingen t
@@ -135,6 +140,7 @@ WHERE vp.Categorie = @Categorie";
 
         if (aanvoerderId.HasValue)
         {
+            // Filter alleen op de huidige aanvoerder wanneer een ID is meegegeven.
             sql += " AND a.GebruikerId = @AanvoerderId";
         }
 

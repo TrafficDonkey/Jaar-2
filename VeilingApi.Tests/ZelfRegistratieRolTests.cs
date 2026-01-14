@@ -10,6 +10,7 @@ public class ZelfRegistratieRolTests{
 [Fact]
 public async Task RegisterAsync_AlwaysSetsRoleToKlant()
 {
+    // Test: Zelfregistratie forceert rol "Klant", ook bij misbruik.
     // Arrange
     // Unieke databasenaam per test-run om cache/old data (met Admin-rol) te vermijden
     var options = new DbContextOptionsBuilder<AppDbContext>()

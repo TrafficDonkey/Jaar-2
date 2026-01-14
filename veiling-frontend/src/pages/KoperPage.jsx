@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import apiFetch from "../api";
 import "./KoperPageStyle.css";
 import AuctionClock from "../components/AuctionClock";
@@ -46,6 +46,7 @@ export default function KoperPage() {
 
   const [myPurchases, setMyPurchases] = useState([]);
 
+  // Popup: state voor historische prijzen (open, loading, error, data)
   const [showHistory, setShowHistory] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyErr, setHistoryErr] = useState("");
@@ -62,9 +63,14 @@ export default function KoperPage() {
       ? window.sessionStorage.getItem("gebruikerId")
       : null;
   const koperId = koperIdRaw ? Number(koperIdRaw) : null;
+  const role =
+    typeof window !== "undefined"
+      ? window.sessionStorage.getItem("role") ?? ""
+      : "";
+  const hideMinPrice = role === "Klant" || role === "Koper";
 
   useEffect(() => {
-    document.title = "Koper — FloraFlow";
+    document.title = "Koper â€” FloraFlow";
     (async () => {
       setLoading(true);
       setErr("");
@@ -213,6 +219,7 @@ export default function KoperPage() {
     setKoopMsg("De klok is gestopt. Wacht op de volgende ronde of veiling.");
   }
 
+  // Popup: sluit met ESC
   useEffect(() => {
     if (!showHistory) return;
     function onKeyDown(e) {
@@ -268,9 +275,9 @@ export default function KoperPage() {
       });
 
       setKoopMsg(
-        `Je hebt ${qty}× "${product.productBeschrijving}" gekocht voor €${fmtCurrency(
+        `Je hebt ${qty}Ã— "${product.productBeschrijving}" gekocht voor â‚¬${fmtCurrency(
           currentPrice
-        )} per stuk (totaal €${fmtCurrency(totaal)}).`
+        )} per stuk (totaal â‚¬${fmtCurrency(totaal)}).`
       );
 
       if (remainingQty != null) {
@@ -303,7 +310,7 @@ export default function KoperPage() {
     const qty = Number(String(koopAantal).replace(",", "."));
     if (!product || currentPrice == null || !qty || qty <= 0) return null;
     const totaal = currentPrice * qty;
-    return `Totaal: € ${fmtCurrency(totaal)} (${qty} × € ${fmtCurrency(
+    return `Totaal: â‚¬ ${fmtCurrency(totaal)} (${qty} Ã— â‚¬ ${fmtCurrency(
       currentPrice
     )})`;
   }, [koopAantal, product, currentPrice]);
@@ -321,6 +328,7 @@ export default function KoperPage() {
     return actieveVeilingen.filter((v) => v.categorie === categoryFilter);
   }, [actieveVeilingen, categoryFilter]);
 
+  // Popup: laad historische prijzen wanneer geopend
   useEffect(() => {
     if (!showHistory || !product?.veilingProductId) return;
     setHistoryLoading(true);
@@ -365,12 +373,12 @@ export default function KoperPage() {
         </p>
         {err && (
           <p className="kop-error" role="alert">
-            ❌ {err}
+            âŒ {err}
           </p>
         )}
       </header>
 
-      {/* TABBAR – zelfde stijl als Veilingbeheer */}
+      {/* TABBAR â€“ zelfde stijl als Veilingbeheer */}
       <div className="vm-tabs kop-tabs">
         <button
           type="button"
@@ -393,7 +401,7 @@ export default function KoperPage() {
       </div>
 
       {loading ? (
-        <p>Gegevens laden…</p>
+        <p>Gegevens ladenâ€¦</p>
       ) : activeTab === "veilingen" ? (
         <>
           <main className="kop-layout">
@@ -424,7 +432,7 @@ export default function KoperPage() {
                       padding: "0.35rem 0.5rem",
                     }}
                   >
-                    <option value="ALL">Alle categorieën</option>
+                    <option value="ALL">Alle categorieÃ«n</option>
                     {categoryOptions.map((c) => (
                       <option key={c} value={c}>
                         {c}
@@ -484,7 +492,7 @@ export default function KoperPage() {
             {/* Rechter kolom: details + klok + koopformulier */}
             <section className="kop-right">
               {loadingVeiling ? (
-                <p>Veiling laden…</p>
+                <p>Veiling ladenâ€¦</p>
               ) : !veiling || !product ? (
                 <p className="kop-extra-text">
                   Kies links een veiling om de details te zien en te kunnen
@@ -495,14 +503,19 @@ export default function KoperPage() {
                   {/* Product-informatie */}
                   <div className="kop-detail-left">
                     <p className="kop-extra-text">
-                      Veiling #{veiling.veilingId} ·{" "}
-                      {veiling.naam ?? "Veiling"} · gestart op{" "}
+                      Veiling #{veiling.veilingId} Â·{" "}
+                      {veiling.naam ?? "Veiling"} Â· gestart op{" "}
                       {fmtDateTime(veiling.startTijd)}
                     </p>
 
                     <h2 className="kop-prod-title">
                       {product.productBeschrijving}
                     </h2>
+                    {!hideMinPrice && (
+                      <p className="kop-min-price">
+                        Minimale prijs: EUR {fmtCurrency(product.minimumPrijs)}
+                      </p>
+                    )}
 
                     {product.fotoUrl && (
                       <img
@@ -524,11 +537,6 @@ export default function KoperPage() {
                       </div>
 
                       <div>
-                        <dt>Minimale prijs</dt>
-                        <dd>€ {fmtCurrency(product.minimumPrijs)}</dd>
-                      </div>
-
-                      <div>
                         <dt>Beschikbare hoeveelheid</dt>
                         <dd>
                           {remainingQty != null
@@ -543,6 +551,7 @@ export default function KoperPage() {
                       </div>
                     </div>
 
+                    {/* Popup: knop om historische prijzen te openen */}
                     <button
                       type="button"
                       className="kop-koop-btn"
@@ -554,7 +563,7 @@ export default function KoperPage() {
 
                     <p className="kop-extra-text">
                       De prijs daalt gedurende de ronde. Koop op het juiste
-                      moment: hoe langer je wacht, hoe lager de prijs – maar
+                      moment: hoe langer je wacht, hoe lager de prijs â€“ maar
                       risico dat iemand anders je voor is of de voorraad op is.
                     </p>
                   </div>
@@ -619,7 +628,7 @@ export default function KoperPage() {
 
                       {currentPrice != null && (
                         <p className="kop-extra-text">
-                          Huidige prijs per stuk: €{" "}
+                          Huidige prijs per stuk: â‚¬{" "}
                           {fmtCurrency(currentPrice)}
                         </p>
                       )}
@@ -658,7 +667,7 @@ export default function KoperPage() {
         >
           <h2 style={{ marginBottom: "0.5rem" }}>Mijn aankopen</h2>
           {loadingPurchases ? (
-            <p>Gegevens laden…</p>
+            <p>Gegevens ladenâ€¦</p>
           ) : !koperId ? (
             <p className="kop-extra-text">
               Je bent niet als koper ingelogd, dus er zijn geen aankopen om te
@@ -741,11 +750,11 @@ export default function KoperPage() {
                           {t.veilingProductId ?? t.VeilingProductId}
                         </td>
                         <td style={{ padding: "0.5rem" }}>
-                          € {fmtCurrency(eindPrijs)}
+                          â‚¬ {fmtCurrency(eindPrijs)}
                         </td>
                         <td style={{ padding: "0.5rem" }}>{aantal}</td>
                         <td style={{ padding: "0.5rem" }}>
-                          € {fmtCurrency(totaal)}
+                          â‚¬ {fmtCurrency(totaal)}
                         </td>
                       </tr>
                     );
@@ -757,6 +766,7 @@ export default function KoperPage() {
         </section>
       )}
 
+      {/* Popup: historische prijzen */}
       {showHistory && (
         <div
           className="kop-modal-backdrop"

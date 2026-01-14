@@ -12,6 +12,7 @@ public class EmailExistsTests
     [Fact]
     public async Task RegisterAsync_ReturnsFalse_WhenEmailAlreadyExists()
     {
+        // Test: Registratie faalt als de email al bestaat.
         // Arrange
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase("Register_EmailExists")

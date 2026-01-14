@@ -1,8 +1,8 @@
-// AuctionClock.jsx
+﻿// AuctionClock.jsx
 // Visuele veilingklok: prijs daalt lineair van maxPrice naar minPrice in durationSeconds.
 // Geen eigen backend-calls meer; volledig aangestuurd door props.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./AuctionClockStyle.css";
 
 export default function AuctionClock({
@@ -23,12 +23,26 @@ export default function AuctionClock({
       ? durationSeconds
       : 60;
 
-  const [timeRemaining, setTimeRemaining] = useState(safeDuration);
+  const windowSpan = Math.max(safeMax * 0.1, 1);
+
+  const segmentTopRef = useRef(safeMax);
+  const segmentBottomRef = useRef(Math.max(safeMax - windowSpan, safeMin));
+
+  const [segmentTop, setSegmentTop] = useState(segmentTopRef.current);
+  const [segmentBottom, setSegmentBottom] = useState(
+    segmentBottomRef.current
+  );
+
   const [currentPrice, setCurrentPrice] = useState(safeMax);
 
   // herstart klok wanneer runId, min, max of duration verandert
   useEffect(() => {
-    setTimeRemaining(safeDuration);
+    const initialTop = safeMax;
+    const initialBottom = Math.max(safeMax - windowSpan, safeMin);
+    segmentTopRef.current = initialTop;
+    segmentBottomRef.current = initialBottom;
+    setSegmentTop(initialTop);
+    setSegmentBottom(initialBottom);
     setCurrentPrice(safeMax);
     onPriceChange?.(safeMax);
 
@@ -39,7 +53,6 @@ export default function AuctionClock({
     const id = setInterval(() => {
       t -= step;
       if (t <= 0) {
-        setTimeRemaining(0);
         setCurrentPrice(safeMin);
         onPriceChange?.(safeMin);
         clearInterval(id);
@@ -47,18 +60,28 @@ export default function AuctionClock({
         return;
       }
 
-      const fraction = (safeDuration - t) / safeDuration; // 0 → 1
-      const price =
-        safeMax - (safeMax - safeMin) * fraction;
+      const fraction = (safeDuration - t) / safeDuration; // 0 -> 1
+      const price = safeMax - (safeMax - safeMin) * fraction;
 
-      setTimeRemaining(t);
       setCurrentPrice(price);
       onPriceChange?.(price);
+
+      if (
+        price <= segmentBottomRef.current &&
+        segmentBottomRef.current > safeMin
+      ) {
+        const newTop = segmentBottomRef.current;
+        const newBottom = Math.max(newTop - windowSpan, safeMin);
+        segmentTopRef.current = newTop;
+        segmentBottomRef.current = newBottom;
+        setSegmentTop(newTop);
+        setSegmentBottom(newBottom);
+      }
     }, intervalMs);
 
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, safeMin, safeMax, safeDuration]);
+  }, [runId, safeMin, safeMax, safeDuration, windowSpan]);
 
   const generateTicks = (min, max, num = 10) => {
     if (!Number.isFinite(min) || !Number.isFinite(max) || num < 2) {
@@ -70,13 +93,16 @@ export default function AuctionClock({
     );
   };
 
-  const priceTicks = generateTicks(safeMin, safeMax, 10);
-  const timeTicks = generateTicks(0, safeDuration, 10);
+  const priceTicks = generateTicks(segmentBottom, segmentTop, 10);
 
   let progressTop = 0;
-  if (safeMax > safeMin) {
+  if (segmentTop > segmentBottom) {
+    const clamped = Math.min(
+      segmentTop,
+      Math.max(currentPrice, segmentBottom)
+    );
     progressTop =
-      ((safeMax - currentPrice) / (safeMax - safeMin)) * 100;
+      ((segmentTop - clamped) / (segmentTop - segmentBottom)) * 100;
   }
 
   return (
@@ -85,17 +111,14 @@ export default function AuctionClock({
         <h2>Veilingklok</h2>
 
         <div className="auction-status">
-          <p>Huidige prijs: €{currentPrice.toFixed(2)}</p>
-          <p>
-            Tijd resterend: {Math.max(0, timeRemaining).toFixed(1)}s
-          </p>
+          <p>Huidige prijs: EUR {currentPrice.toFixed(2)}</p>
         </div>
       </div>
 
       <div className="auction-rectangle-container">
         <div className="price-axis">
           {priceTicks.map((p, idx) => (
-            <span key={idx}>€{p}</span>
+            <span key={idx}>EUR {p}</span>
           ))}
         </div>
 
@@ -114,12 +137,6 @@ export default function AuctionClock({
             className="progress-line"
             style={{ top: `${progressTop}%` }}
           />
-        </div>
-
-        <div className="time-axis">
-          {timeTicks.map((t, idx) => (
-            <span key={idx}>{t}s</span>
-          ))}
         </div>
       </div>
     </div>
