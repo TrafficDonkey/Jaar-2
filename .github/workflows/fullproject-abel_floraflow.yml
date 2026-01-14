@@ -13,38 +13,69 @@ jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up .NET Core
+      - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.x'
 
-      - name: Build with dotnet
-        run: dotnet build --configuration Release
+      # Vind automatisch de juiste solution/project file
+      - name: Detect solution or project
+        id: detect
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
 
-      - name: dotnet publish
-        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+          # 1) Pak eerst een .sln als die bestaat
+          $sln = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter *.sln | Select-Object -First 1
+
+          if ($null -ne $sln) {
+            Write-Host "Found solution: $($sln.FullName)"
+            "buildTarget=$($sln.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            exit 0
+          }
+
+          # 2) Anders: pak een .csproj (probeer test projecten te vermijden)
+          $csproj = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter *.csproj |
+            Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' -and $_.Name -notmatch 'Test|Tests' } |
+            Select-Object -First 1
+
+          if ($null -eq $csproj) {
+            Write-Error "Geen .sln of bruikbare .csproj gevonden in de repo. Check je repo-structuur."
+          }
+
+          Write-Host "Found project: $($csproj.FullName)"
+          "buildTarget=$($csproj.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Restore
+        run: dotnet restore "${{ steps.detect.outputs.buildTarget }}"
+
+      - name: Build
+        run: dotnet build "${{ steps.detect.outputs.buildTarget }}" -c Release --no-restore
+
+      - name: Publish
+        run: dotnet publish "${{ steps.detect.outputs.buildTarget }}" -c Release -o "${{ env.DOTNET_ROOT }}/myapp" --no-build
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+          path: ${{ env.DOTNET_ROOT }}/myapp
 
   deploy:
     runs-on: windows-latest
     needs: build
-    
+
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: .net-app
-      
+
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
