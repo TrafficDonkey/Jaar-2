@@ -60,8 +60,10 @@ public class ToewijzingService : IToewijzingService
         return await _db.Toewijzingen
             .Include(t => t.Koper)
             .Include(t => t.VeilingProduct)
-                .ThenInclude(vp => vp.Aanmelding)
-            .Where(t => t.VeilingProduct!.Aanmelding!.GebruikerId == gebruikerId)
+                .ThenInclude(vp => vp!.Aanmelding)
+            .Where(t => t.VeilingProduct != null
+                && t.VeilingProduct.Aanmelding != null
+                && t.VeilingProduct.Aanmelding.GebruikerId == gebruikerId)
             .OrderByDescending(t => t.Datum)
             .Select(t => MapToDto(t))
             .ToListAsync();
