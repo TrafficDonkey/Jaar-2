@@ -1,25 +1,31 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\tariq\\my-react-app5\\BackendVeiling\\BackendVeiling.csproj": {}
+    "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\BackendVeiling\\BackendVeiling.csproj": {}
   },
   "projects": {
-    "C:\\Users\\tariq\\my-react-app5\\BackendVeiling\\BackendVeiling.csproj": {
+    "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\BackendVeiling\\BackendVeiling.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\tariq\\my-react-app5\\BackendVeiling\\BackendVeiling.csproj",
+        "projectUniqueName": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\BackendVeiling\\BackendVeiling.csproj",
         "projectName": "BackendVeiling",
-        "projectPath": "C:\\Users\\tariq\\my-react-app5\\BackendVeiling\\BackendVeiling.csproj",
-        "packagesPath": "C:\\Users\\tariq\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\tariq\\my-react-app5\\BackendVeiling\\obj\\",
+        "projectPath": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\BackendVeiling\\BackendVeiling.csproj",
+        "packagesPath": "C:\\Users\\huber\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\BackendVeiling\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "C:\\Users\\tariq\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\huber\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -71,7 +77,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.414/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.416/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

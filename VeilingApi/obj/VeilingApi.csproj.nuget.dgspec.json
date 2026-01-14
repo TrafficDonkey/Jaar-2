@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj": {}
+    "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\VeilingApi.csproj": {}
   },
   "projects": {
-    "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj": {
+    "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\VeilingApi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
+        "projectUniqueName": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
         "projectName": "VeilingApi",
-        "projectPath": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
-        "packagesPath": "C:\\Users\\ROG gaming pc\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\ROG gaming pc\\RiderProjects\\Jaar-2\\VeilingApi\\obj\\",
+        "projectPath": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
+        "packagesPath": "C:\\Users\\huber\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\ROG gaming pc\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\huber\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -56,6 +56,10 @@
             "Microsoft.AspNetCore.Authentication.JwtBearer": {
               "target": "Package",
               "version": "[8.0.8, )"
+            },
+            "Microsoft.Data.SqlClient": {
+              "target": "Package",
+              "version": "[5.2.2, )"
             },
             "Microsoft.EntityFrameworkCore": {
               "target": "Package",
@@ -113,7 +117,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.414/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.416/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

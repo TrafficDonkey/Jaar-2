@@ -26,6 +26,8 @@ public class AppDbContext : DbContext
         mb.Entity<Aanmelding>().Property(p => p.MinimumPrijs).HasColumnType("decimal(10,2)");
         mb.Entity<Bieding>().Property(p => p.Bedrag).HasColumnType("decimal(10,2)");
         mb.Entity<Toewijzing>().Property(p => p.EindPrijs).HasColumnType("decimal(10,2)");
+        mb.Entity<Aanmelding>().Property(p => p.Categorie).HasMaxLength(100);
+        mb.Entity<VeilingProduct>().Property(p => p.Categorie).HasMaxLength(100);
 
         // Aanmelding ↔ Gebruiker (aanvoerder-rol)
         mb.Entity<Aanmelding>()
@@ -60,6 +62,10 @@ public class AppDbContext : DbContext
           .HasIndex(vp => new { vp.VeilingId, vp.VolgordeVeiling })
           .IsUnique();
 
+        // Index voor historische prijsqueries
+        mb.Entity<VeilingProduct>()
+          .HasIndex(vp => vp.Categorie);
+
         // Bieding ↔ VeilingProduct
         mb.Entity<Bieding>()
           .HasOne(b => b.VeilingProduct)
@@ -80,6 +86,10 @@ public class AppDbContext : DbContext
           .WithOne(vp => vp.Toewijzing)
           .HasForeignKey<Toewijzing>(t => t.VeilingProductId)
           .OnDelete(DeleteBehavior.Cascade);
+
+        // Index voor sorteren op datum bij historische prijzen
+        mb.Entity<Toewijzing>()
+          .HasIndex(t => t.Datum);
 
         // Toewijzing ↔ Gebruiker (koper)
         mb.Entity<Toewijzing>()

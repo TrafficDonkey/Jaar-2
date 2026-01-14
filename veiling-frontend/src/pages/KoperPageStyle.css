@@ -171,6 +171,12 @@ select#catFilter:hover {
   margin: 0.2rem 0 1rem 0;
 }
 
+.kop-min-price {
+  margin: 0 0 0.8rem 0;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
 /* Data-lijst met eigenschappen */
 .kop-prod-dl {
   margin: 1rem 0;
@@ -260,6 +266,16 @@ select#catFilter:hover {
   transform: translateY(-1px);
 }
 
+.kop-koop-btn--ghost {
+  background: #ffffff;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.kop-koop-btn--ghost:hover {
+  background: #f8fafc;
+}
+
 .kop-koop-btn:disabled {
   opacity: 0.6;
   cursor: default;
@@ -269,6 +285,104 @@ select#catFilter:hover {
   margin-top: 0.8rem;
   font-size: 0.95rem;
   color: var(--color-muted);
+}
+
+/* ============================================================
+   Historische prijzen modal
+   ============================================================ */
+
+.kop-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 50;
+}
+
+.kop-modal {
+  width: min(900px, 100%);
+  max-height: 85vh;
+  overflow: auto;
+  border-radius: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+}
+
+.kop-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.kop-modal-header h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.2rem;
+}
+
+.kop-modal-sub {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-muted);
+}
+
+.kop-modal-body {
+  padding: 1rem 1.2rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.kop-modal-section {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+}
+
+.kop-modal-section h4 {
+  margin: 0 0 0.65rem;
+}
+
+.kop-modal-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.kop-modal-meta span {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.kop-modal-meta strong {
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.kop-modal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.kop-modal-table th,
+.kop-modal-table td {
+  text-align: left;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.kop-modal-summary {
+  margin: 0.75rem 0 0;
+  font-weight: 600;
 }
 
 /* ============================================================
