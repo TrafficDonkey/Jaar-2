@@ -17,7 +17,7 @@ import HomePage from "./pages/HomePage";
 import SettingsPage from "./pages/SettingsPage";
 import KoperPage from "./pages/KoperPage";
 import AanvoerderPage from "./pages/AanvoerderPage";
-import VeilingmeesterPage from "./pages/VeilingMeesterPage";
+import VeilingmeesterPage from "./pages/VeilingmeesterPage";
 import AdminPage from "./pages/AdminPage";
 
 export default function App() {

@@ -35,5 +35,9 @@ public class Veiling
     [JsonIgnore][ValidateNever]
     public Gebruiker? GestartDoor { get; set; }    // Navigatie naar de gebruiker (veilingmeester)
 
+<<<<<<< HEAD
     // Let op: geen tweede navigatie naar VeilingProducten om dubbele relaties te voorkomen.
+=======
+   
+>>>>>>> origin/fullproject-abel
 }
