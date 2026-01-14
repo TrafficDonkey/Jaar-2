@@ -1,5 +1,5 @@
 /* AanvoerderPageStyle.css */
-/* Basisstijl voor AanvoerderPage, in lijn met de rest van FloraFlow */
+/* Aanvoerder-dashboard in lijn met het groene FloraFlow-thema. */
 
 .aanv-shell {
   padding: 1.5rem;
@@ -13,16 +13,28 @@
   margin: 0 auto 2rem;
 }
 
+/* ────────────────────────────── Panels ────────────────────────────── */
+
 .aanv-panel {
   background: var(--color-surface);
   color: var(--color-text);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(12, 60, 90, 0.04);
+  border: 1px solid rgba(15, 23, 42, 0.06);
   padding: 1.6rem 1.4rem;
 }
 
-.aanv-header h1 {
+/* ────────────────────────────── Header & stats ────────────────────────────── */
+
+.aanv-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.25rem;
+  align-items: flex-start;
+  margin-bottom: 0.4rem;
+}
+
+.aanv-header-main h1 {
   margin: 0 0 0.2rem;
 }
 
@@ -36,6 +48,38 @@
   font-size: 0.9rem;
   color: var(--color-muted);
 }
+
+.aanv-header-aside {
+  text-align: right;
+}
+
+/* Kleine statistieken boven het formulier */
+.aanv-stat-row {
+  margin-top: 0.9rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.aanv-stat-card {
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  background: #f9fafb;
+  border: 1px solid var(--color-border);
+}
+
+.aanv-stat-label {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  margin-bottom: 0.1rem;
+}
+
+.aanv-stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+/* ────────────────────────────── Meldingen ────────────────────────────── */
 
 .aanv-alert {
   margin-top: 0.75rem;
@@ -53,8 +97,10 @@
   color: var(--color-muted);
 }
 
+/* ────────────────────────────── Formulier ────────────────────────────── */
+
 .aanv-form {
-  margin-top: 1rem;
+  margin-top: 1.1rem;
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
@@ -86,11 +132,30 @@
   color: var(--color-text);
 }
 
+.aanv-form input:focus,
+.aanv-form select:focus,
+.aanv-form textarea:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.aanv-help {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.aanv-help-inline {
+  margin: 0.1rem 0 0.3rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  margin-top: 0.5rem;
+  margin-top: 0.4rem;
 }
 
 .btn {
@@ -102,8 +167,12 @@
 
 .btn-primary {
   border: none;
-  background: var(--color-accent);
+  background: var(--color-primary);
   color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-dark);
 }
 
 .btn-ghost {
@@ -111,6 +180,12 @@
   background: transparent;
   color: var(--color-text);
 }
+
+.btn-ghost:hover {
+  background: #f9fafb;
+}
+
+/* ────────────────────────────── Tabellen ────────────────────────────── */
 
 .aanv-table {
   width: 100%;
@@ -129,9 +204,57 @@
   text-align: left;
   color: var(--color-muted);
   font-weight: 500;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .aanv-empty {
   margin-top: 0.6rem;
   color: var(--color-muted);
+}
+
+/* Status-pill voor aanmeldingen */
+.aanv-status-pill {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.aanv-status--today {
+  background: rgba(4, 120, 87, 0.12);
+  color: #047857;
+}
+
+.aanv-status--upcoming {
+  background: rgba(21, 128, 61, 0.12);
+  color: #166534;
+}
+
+.aanv-status--past {
+  background: rgba(148, 163, 184, 0.2);
+  color: #4b5563;
+}
+
+.aanv-status--unknown {
+  background: rgba(148, 163, 184, 0.15);
+  color: #6b7280;
+}
+
+/* ────────────────────────────── Responsive ────────────────────────────── */
+
+@media (max-width: 700px) {
+  .aanv-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .aanv-header-aside {
+    text-align: left;
+  }
+
+  .field-row {
+    flex-direction: column;
+  }
 }

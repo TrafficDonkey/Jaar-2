@@ -13,44 +13,57 @@ namespace VeilingApi.Services
             _db = db;
         }
 
-        // ────────────────────────────── HELPERS ──────────────────────────────
+        // ────────────────────────────── Helpers ──────────────────────────────
 
+        /// <summary>
+        /// Hoofdmapper: Veiling entity -> VeilingDto (incl. producten).
+        /// </summary>
         private static VeilingDto MapToDto(Veiling v)
         {
             return new VeilingDto
             {
-                VeilingId   = v.VeilingId,
-                Naam        = v.Naam,
-                Status      = v.Status,
-                StartTijd   = v.StartTijd,
-                EindTijd    = v.EindTijd,
+                VeilingId = v.VeilingId,
+                Naam      = v.Naam,
+                Status    = v.Status,
+                StartTijd = v.StartTijd,
+                EindTijd  = v.EindTijd,
                 VeilingProducten = v.VeilingProducten?
-                    .Select(vp => MapVeilingProductToDto(vp))
+                    .Select(MapVeilingProductToDto)
                     .ToList() ?? new List<VeilingProductDto>()
             };
         }
 
+        /// <summary>
+        /// VeilingProduct entity -> VeilingProductDto.
+        /// Haalt gegevens in principe uit de gekoppelde Aanmelding,
+        /// maar zet Categorie expliciet vanuit VeilingProduct/Aanmelding.
+        /// </summary>
         private static VeilingProductDto MapVeilingProductToDto(VeilingProduct vp)
         {
-            // Aanmelding kan nooit null zijn als je database klopt,
-            // maar voor de zekerheid toch null-checks.
             var a = vp.Aanmelding;
 
             return new VeilingProductDto
             {
-                VeilingProductId    = vp.VeilingProductId,
-                AanmeldingId        = vp.AanmeldingId,
-
-                ProductBeschrijving = a?.ProductBeschrijving ?? string.Empty,
-                Aantal              = a?.Hoeveelheid ?? 0,
-
-                // We gebruiken MinimumPrijs als start- en huidige prijs
-                StartPrijs          = a?.MinimumPrijs ?? 0,
-                HuidigePrijs        = a?.MinimumPrijs ?? 0,
-
-                Kloklocatie         = a?.GewensteKlokLocatie ?? string.Empty,
-                GewensteVeilDatum   = a?.GewensteVeilDatum
+                VeilingProductId     = vp.VeilingProductId,
+                AanmeldingId         = vp.AanmeldingId,
+                ProductBeschrijving  = a?.ProductBeschrijving ?? string.Empty,
+                FotoUrl              = a?.FotoUrl,
+                Aantal               = a?.Hoeveelheid ?? 0,
+                StartPrijs           = a?.MinimumPrijs ?? 0,
+                HuidigePrijs         = a?.MinimumPrijs ?? 0,
+                Kloklocatie          = a?.GewensteKlokLocatie ?? string.Empty,
+                GewensteVeilDatum    = a?.GewensteVeilDatum,
+                Categorie            = string.IsNullOrWhiteSpace(vp.Categorie)? (a?.Categorie ?? "Overig"): vp.Categorie
             };
+        }
+
+        /// <summary>
+        /// Extra helper voor archief e.d.; hergebruikt de hoofdmapper.
+        /// </summary>
+        private static VeilingDto MapToVeilingDto(Veiling v)
+        {
+            if (v == null) throw new ArgumentNullException(nameof(v));
+            return MapToDto(v);
         }
 
         // ────────────────────────────── CRUD ──────────────────────────────
@@ -80,23 +93,17 @@ namespace VeilingApi.Services
         {
             var veiling = new Veiling
             {
-                Naam        = dto.Naam,
-                Status      = dto.Status,
-                StartTijd   = dto.StartTijd,
-                EindTijd    = dto.EindTijd,
-                GestartDoorId = dto.GestartDoorId,
+                Naam            = dto.Naam,
+                Status          = dto.Status,
+                StartTijd       = dto.StartTijd,
+                EindTijd        = dto.EindTijd,
+                GestartDoorId   = dto.GestartDoorId,
                 VeilingProducten = new List<VeilingProduct>()
             };
-
-            // Als je vanuit het scherm al aanmeldingen kiest,
-            // kun je hier een lijst met VeilingProducten aanmaken.
-            // Voor nu doen we hier niets speciaals; koppelen gebeurt
-            // in de VeilingProductService / via een apart endpoint.
 
             _db.Veilingen.Add(veiling);
             await _db.SaveChangesAsync();
 
-            // Nog een keer ophalen inclusief producten voor mapping
             var saved = await _db.Veilingen
                 .Include(v => v.VeilingProducten)
                     .ThenInclude(vp => vp.Aanmelding)
@@ -110,11 +117,10 @@ namespace VeilingApi.Services
             var v = await _db.Veilingen.FindAsync(dto.VeilingId);
             if (v is null) return false;
 
-            v.Naam        = dto.Naam;
-            v.Status      = dto.Status;
-            v.StartTijd   = dto.StartTijd;
-            v.EindTijd    = dto.EindTijd;
-            // GestartDoorId laten we zoals hij is; die komt uit de veilingmeester.
+            v.Naam      = dto.Naam;
+            v.Status    = dto.Status;
+            v.StartTijd = dto.StartTijd;
+            v.EindTijd  = dto.EindTijd;
 
             await _db.SaveChangesAsync();
             return true;
@@ -130,7 +136,7 @@ namespace VeilingApi.Services
             return true;
         }
 
-        // ────────────────────────────── ACTIEVE VEILING VOOR KOPER ──────────────────────
+        // ────────────────────────────── Actieve Veiling ──────────────────────────────
 
         public async Task<ActieveVeilingDto?> GetActieveAsync()
         {
@@ -156,13 +162,14 @@ namespace VeilingApi.Services
                     var a = vp.Aanmelding!;
                     return new ActieveVeilingProductDto
                     {
-                        VeilingProductId    = vp.VeilingProductId,
-                        AanmeldingId        = vp.AanmeldingId,
-                        ProductBeschrijving = a.ProductBeschrijving,
-                        Hoeveelheid         = a.Hoeveelheid,
-                        MinimumPrijs        = a.MinimumPrijs,
-                        FotoUrl             = a.FotoUrl,
-                        Kloklocatie         = a.GewensteKlokLocatie
+                        VeilingProductId     = vp.VeilingProductId,
+                        AanmeldingId         = vp.AanmeldingId,
+                        ProductBeschrijving  = a.ProductBeschrijving,
+                        Hoeveelheid          = a.Hoeveelheid,
+                        MinimumPrijs         = a.MinimumPrijs,
+                        FotoUrl              = a.FotoUrl,
+                        Kloklocatie          = a.GewensteKlokLocatie,
+                        Categorie            = a.Categorie
                     };
                 })
                 .FirstOrDefault();
@@ -176,11 +183,9 @@ namespace VeilingApi.Services
             };
         }
 
-        // ────────────────────────────── START VEILING ──────────────────────────────
-        // Simpele helper om vanuit één Aanmelding direct een nieuwe veiling te starten.
-        // (Wordt gebruikt als je ergens een "Start veiling" knop hebt.)
+        // ────────────────────────────── Start Veiling ──────────────────────────────
 
-        public async Task<VeilingDto?> StartVeilingAsync(StartVeilingDto dto)
+        public async Task<VeilingDto?> StartVeilingAsync(StartVeilingDto dto, int gestartDoorId)
         {
             var aanmelding = await _db.Aanmeldingen
                 .FirstOrDefaultAsync(a => a.AanmeldingId == dto.AanmeldingId);
@@ -190,33 +195,65 @@ namespace VeilingApi.Services
 
             var veiling = new Veiling
             {
-                Naam          = string.IsNullOrWhiteSpace(dto.Naam)
-                                    ? "Veiling"
-                                    : dto.Naam!,
-                Status        = "Actief",
-                StartTijd     = dto.StartTijd ?? DateTime.UtcNow,
-                EindTijd      = null,
+                Naam            = string.IsNullOrWhiteSpace(dto.Naam) ? "Veiling" : dto.Naam!,
+                Status          = "Actief",
+                StartTijd       = dto.StartTijd ?? DateTime.UtcNow,
+                EindTijd        = null,
+                GestartDoorId   = gestartDoorId,
                 VeilingProducten = new List<VeilingProduct>()
             };
 
-            var vp = new VeilingProduct
+            // Eén product aan deze veiling koppelen op basis van de aanmelding.
+            var product = new VeilingProduct
             {
-                AanmeldingId    = aanmelding.AanmeldingId,
-                VolgordeVeiling = 1
+                AanmeldingId   = aanmelding.AanmeldingId,
+                VolgordeVeiling = 1,
+                // BELANGRIJK: nooit NULL naar DB sturen
+                Categorie      = string.IsNullOrWhiteSpace(aanmelding.Categorie)
+                                   ? "Overig"
+                                   : aanmelding.Categorie
             };
 
-            veiling.VeilingProducten.Add(vp);
+            veiling.VeilingProducten.Add(product);
 
             _db.Veilingen.Add(veiling);
             await _db.SaveChangesAsync();
 
-            // opnieuw laden met includes zodat mapping klopt
             var saved = await _db.Veilingen
                 .Include(v => v.VeilingProducten)
                     .ThenInclude(vp => vp.Aanmelding)
                 .FirstAsync(v => v.VeilingId == veiling.VeilingId);
 
             return MapToDto(saved);
+        }
+
+        // ────────────────────────────── Archief & Stoppen ──────────────────────────────
+
+        public async Task<IEnumerable<VeilingDto>> GetArchiefAsync()
+        {
+            var now = DateTime.UtcNow;
+
+            var query = _db.Veilingen
+                .Include(v => v.VeilingProducten)
+                    .ThenInclude(vp => vp.Aanmelding)
+                .Where(v =>
+                    v.Status == "Afgerond" ||
+                    (v.EindTijd != null && v.EindTijd <= now));
+
+            var list = await query.ToListAsync();
+            return list.Select(MapToVeilingDto).ToList();
+        }
+
+        public async Task<bool> StopVeilingAsync(int id)
+        {
+            var veiling = await _db.Veilingen.FindAsync(id);
+            if (veiling == null) return false;
+
+            veiling.Status  = "Afgerond";
+            veiling.EindTijd = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+            return true;
         }
     }
 }

@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VeilingApi.Models;
 using VeilingApi.Services;
+using System.Security.Claims;
+
 
 namespace VeilingApi.Controllers;
 
@@ -33,7 +35,7 @@ public class VeilingenController : ControllerBase
     // ────────────────────────────── Actieve veiling voor kopers ──────────────────────────────
     // GET: api/Veilingen/actief
     [HttpGet("actief")]
-    [Authorize(Roles = "Klant")]         // optioneel, mag je weghalen als je wilt dat iedereen hem kan zien
+    [Authorize(Roles = "Klant, Veilingmeester, Admin")]         // optioneel, mag je weghalen als je wilt dat iedereen hem kan zien
     public async Task<ActionResult<VeilingDto>> GetActief()
     {
         var v = await _svc.GetActieveAsync();
@@ -79,16 +81,41 @@ public class VeilingenController : ControllerBase
     }
 
     [HttpPost("start")]
+        [Authorize(Roles = "Veilingmeester,Admin")]
+        public async Task<ActionResult<VeilingDto>> StartVeiling(StartVeilingDto dto)
+        {
+            var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(idClaim) || !int.TryParse(idClaim, out var gestartDoorId))
+                return Unauthorized("Geen geldig gebruikers-ID in token.");
+
+            var result = await _svc.StartVeilingAsync(dto, gestartDoorId);
+
+            if (result == null)
+                return BadRequest("Kon veiling niet starten.");
+
+            return Ok(result);
+        }
+    
+    // ────────────────────────────── GET: /api/Veilingen/archief ──────────────────────────────
+    // Alle veilingen die NIET meer actief zijn (b.v. Status = "Afgerond")
+    [HttpGet("archief")]
     [Authorize(Roles = "Veilingmeester,Admin")]
-    public async Task<ActionResult<VeilingDto>> StartVeiling(StartVeilingDto dto)
+    public async Task<ActionResult<IEnumerable<VeilingDto>>> GetArchief()
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
-
-        var result = await _svc.StartVeilingAsync(dto);
-        if (result == null) return BadRequest("Kon veiling niet starten.");
-
-        // 201 Created met link naar detail
-        return CreatedAtAction(nameof(Get), new { id = result.VeilingId }, result);
+        var items = await _svc.GetArchiefAsync();
+        return Ok(items);
     }
+
+    // ────────────────────────────── POST: /api/Veilingen/{id}/stop ───────────────────────────
+    // Markeer een veiling als afgerond (handmatig stoppen door veilingmeester)
+    [HttpPost("{id:int}/stop")]
+    [Authorize(Roles = "Veilingmeester,Admin")]
+    public async Task<IActionResult> Stop(int id)
+    {
+        var ok = await _svc.StopVeilingAsync(id);
+        if (!ok) return NotFound();
+        return NoContent();
+    }
+
 
 }

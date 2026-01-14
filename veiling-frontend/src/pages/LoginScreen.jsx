@@ -13,7 +13,7 @@ export default function LoginScreen() {
   const nav = useNavigate();
   const location = useLocation();
 
-  // prefill email
+  // Prefill email (mag rustig in localStorage blijven)
   useEffect(() => {
     document.title = "FloraFlow — Inloggen";
     const last = localStorage.getItem("lastEmail");
@@ -25,58 +25,90 @@ export default function LoginScreen() {
     setMsg("Inloggen…");
 
     try {
-      const res = await fetch(`${API}/auth/login`, {
+            const res = await fetch(`${API}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password: pw }),
+        body: JSON.stringify({
+          email: email.trim(),
+          password: pw,
+        }),
       });
 
-      const text = await res.text();
+      // Probeer JSON te lezen, maar val terug op lege object
+      const errorBody = res.ok ? null : await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        setMsg(
-          `❌ ${res.status} ${res.statusText} — ${
-            text || "Onjuiste inloggegevens"
-          }`
-        );
+        // Backend stuurt nu { Message, Fouten } bij 400-validatie
+        const friendly =
+          errorBody?.Message ||
+          (res.status === 400
+            ? "Het email adres of het wachtwoord zijn niet correct ingevuld."
+            : "Er ging iets mis bij het inloggen.");
+
+        // Combineer veldfouten indien aanwezig
+        let details = "";
+        if (errorBody?.Fouten) {
+          const lines = errorBody.Fouten.flatMap((f) =>
+            f.Errors.map((err) => `- ${f.Field}: ${err}`)
+          );
+          if (lines.length) {
+            details = "\n" + lines.join("\n");
+          }
+        } else if (errorBody?.title) {
+          details = `\n${errorBody.title}`;
+        }
+
+        setMsg(`❌ ${friendly}${details}`);
         return;
       }
 
-      localStorage.setItem("lastEmail", email.trim());
-
+      const text = await res.text();
       let data = {};
       try {
         data = JSON.parse(text || "{}");
-      } catch {}
+      } catch {
+        setMsg("❌ Onverwacht antwoord van de server");
+        return;
+      }
 
       if (!data.token) {
         setMsg("❌ Geen token ontvangen van de server");
         return;
       }
 
-      localStorage.setItem("token", data.token);
-      if (data.role) localStorage.setItem("role", data.role);
-      if (data.gebruikerId) {
-        localStorage.setItem("gebruikerId", String(data.gebruikerId));
-      }
+
+      // E-mail onthouden is prima in localStorage
+      localStorage.setItem("lastEmail", email.trim());
+
+      // Alles wat met de sessie/logins te maken heeft → sessionStorage
+      sessionStorage.setItem("token", data.token);
+      if (data.role) sessionStorage.setItem("role", data.role);
+      if (data.gebruikerId)
+        sessionStorage.setItem("gebruikerId", String(data.gebruikerId));
 
       setMsg("✅ Ingelogd!");
 
-      // standaard doel op basis van rol
-      const finalRole = data.role || localStorage.getItem("role");
+      // Standaard doel op basis van rol
+      const finalRole = data.role || sessionStorage.getItem("role");
       let defaultTarget = "/app";
       if (finalRole === "Aanvoerder") {
         defaultTarget = "/app/aanvoerder";
       } else if (finalRole === "Admin") {
         defaultTarget = "/app/admin";
+      } else if (finalRole === "Veilingmeester") {
+        defaultTarget = "/app/veilingmeester";
+      }else if (finalRole === "Koper") {
+        defaultTarget = "/app/koper";
       }
 
+      // Als je via een ProtectedRoute komt, ga terug naar die pagina
       const from = location.state?.from?.pathname;
       const to =
         from && from !== "/login" && from !== "/" ? from : defaultTarget;
 
       nav(to, { replace: true });
     } catch (err) {
-      setMsg(`❌ Netwerkfout: ${err.message ?? err}`);
+      setMsg(`❌ Netwerkfout: ${err?.message ?? err}`);
     }
   }
 

@@ -12,7 +12,7 @@ export default function Layout() {
     return localStorage.getItem("theme") === "dark";
   });
 
-  const [role] = useState(() => localStorage.getItem("role") || "");
+  const [role] = useState(() => sessionStorage.getItem("role") || "");
 
   // Dark/light theme toepassen op <html> element
   useEffect(() => {
@@ -27,10 +27,10 @@ export default function Layout() {
   }, [dark]);
 
   function handleLogout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("gebruikerId");
-    nav("/login", { replace: true });
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("role");
+    sessionStorage.removeItem("gebruikerId");
+    nav("/", { replace: true });
   }
 
   return (
@@ -44,10 +44,6 @@ export default function Layout() {
         </div>
 
         <nav className="topbar__nav" aria-label="Hoofdmenu">
-          <NavLink to="." end className="topbar__link">
-            Dashboard
-          </NavLink>
-
           {/* Alleen voor rol Klant */}
           {(role === "Klant" || role === "Admin") && (
             <NavLink to="/app/koper" className="topbar__link">
@@ -56,7 +52,7 @@ export default function Layout() {
           )}
 
           {(role === "Veilingmeester" || role === "Admin") && (
-            <NavLink to="/app/veiling" className="topbar__link">
+            <NavLink to="/app/veilingmeester" className="topbar__link">
               Veilingbeheer
             </NavLink>
           )}
@@ -65,7 +61,7 @@ export default function Layout() {
 
           {/* Alleen voor rol Aanvoerder */}
           {(role === "Aanvoerder" || role === "Admin") && (
-            <NavLink to="aanvoerder" className="topbar__link">
+            <NavLink to="/app/aanvoerder" className="topbar__link">
               Aanvoerder
             </NavLink>
           )}

@@ -30,7 +30,16 @@ public class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
+<<<<<<< HEAD
+        // Geldbedragen
+        mb.Entity<Aanmelding>().Property(p => p.MinimumPrijs).HasColumnType("decimal(10,2)");
+        mb.Entity<Bieding>().Property(p => p.Bedrag).HasColumnType("decimal(10,2)");
+        mb.Entity<Toewijzing>().Property(p => p.EindPrijs).HasColumnType("decimal(10,2)");
+        mb.Entity<Aanmelding>().Property(p => p.Categorie).HasMaxLength(100);
+        mb.Entity<VeilingProduct>().Property(p => p.Categorie).HasMaxLength(100);
+=======
         base.OnModelCreating(mb);
+>>>>>>> origin/fullproject-abel
 
         // Decimal configuratie
         mb.Entity<Aanmelding>()
@@ -63,10 +72,17 @@ public class AppDbContext : DbContext
 
         // VeilingProduct → Veiling (N : 1)
         mb.Entity<VeilingProduct>()
+<<<<<<< HEAD
+          .HasOne(vp => vp.Veiling)
+          .WithMany(v => v.VeilingProducten)
+          .HasForeignKey(vp => vp.VeilingId)
+          .OnDelete(DeleteBehavior.Cascade);
+=======
             .HasOne(vp => vp.Veiling)
             .WithMany(v => v.VeilingProducten)
             .HasForeignKey(vp => vp.VeilingId)
             .OnDelete(DeleteBehavior.Cascade);
+>>>>>>> origin/fullproject-abel
 
         // VeilingProduct → Aanmelding (1 : 1)
         mb.Entity<VeilingProduct>()
@@ -80,7 +96,15 @@ public class AppDbContext : DbContext
             .HasIndex(vp => new { vp.VeilingId, vp.VolgordeVeiling })
             .IsUnique();
 
+<<<<<<< HEAD
+        // Index voor historische prijsqueries
+        mb.Entity<VeilingProduct>()
+          .HasIndex(vp => vp.Categorie);
+
+        // Bieding ↔ VeilingProduct
+=======
         // Bieding → VeilingProduct
+>>>>>>> origin/fullproject-abel
         mb.Entity<Bieding>()
             .HasOne(b => b.VeilingProduct)
             .WithMany(vp => vp.Biedingen)
@@ -101,7 +125,15 @@ public class AppDbContext : DbContext
             .HasForeignKey<Toewijzing>(t => t.VeilingProductId)
             .OnDelete(DeleteBehavior.Cascade);
 
+<<<<<<< HEAD
+        // Index voor sorteren op datum bij historische prijzen
+        mb.Entity<Toewijzing>()
+          .HasIndex(t => t.Datum);
+
+        // Toewijzing ↔ Gebruiker (koper)
+=======
         // Toewijzing → Gebruiker (koper)
+>>>>>>> origin/fullproject-abel
         mb.Entity<Toewijzing>()
             .HasOne(t => t.Koper)
             .WithMany(g => g.Aankopen)

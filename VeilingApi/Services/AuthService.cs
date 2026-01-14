@@ -32,11 +32,12 @@ public class AuthService : IAuthService
         if (exists)
             return (false, "E-mailadres is al geregistreerd", null);
 
+        // Zelf-registratie: rol altijd geforceerd naar "Klant" (ongeacht wat binnenkomt)
         var gebruiker = new Gebruiker
         {
             Naam = dto.Naam,
             Email = dto.Email,
-            Rol = dto.Rol, // bij zelf-registratie typisch "Klant"
+            Rol = "Klant",
             WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(dto.Wachtwoord)
         };
 
