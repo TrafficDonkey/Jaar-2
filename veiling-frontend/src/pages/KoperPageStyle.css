@@ -114,13 +114,27 @@
   color: var(--color-muted);
 }
 
-select#catFilter {
+.kop-filter {
+  margin-bottom: 0.75rem;
+}
+
+.kop-filter-label {
+  font-size: 0.85rem;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.kop-filter-select {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  padding: 0.35rem 0.5rem;
   background: #fff;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   transition: box-shadow 0.2s ease;
 }
 
-select#catFilter:hover {
+.kop-filter-select:hover {
   box-shadow: 0 2px 5px rgba(0,0,0,0.10);
 }
 
@@ -285,6 +299,61 @@ select#catFilter:hover {
   margin-top: 0.8rem;
   font-size: 0.95rem;
   color: var(--color-muted);
+}
+
+.kop-quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.kop-quick-label {
+  align-self: center;
+}
+
+.kop-quick-btn {
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.kop-quick-btn:hover {
+  background: #f8fafc;
+}
+
+.kop-extra-text--strong {
+  font-weight: 600;
+}
+
+.kop-history {
+  margin-top: 1.75rem;
+}
+
+.kop-history-title {
+  margin-bottom: 0.5rem;
+}
+
+.kop-history-table-wrap {
+  overflow-x: auto;
+}
+
+.kop-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.kop-history-table th,
+.kop-history-table td {
+  text-align: left;
+  padding: 0.5rem;
+}
+
+.kop-history-table th {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
 }
 
 /* ============================================================

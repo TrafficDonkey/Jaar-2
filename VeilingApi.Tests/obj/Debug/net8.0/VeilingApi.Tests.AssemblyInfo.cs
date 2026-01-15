@@ -13,11 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("VeilingApi.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-<<<<<<< HEAD
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+873255e30e8b6a5c53b3486dea5ca5e1a1f0ba3e")]
-=======
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c5d228336fdb4cf5e79ab45fb4c49de4ef3c368f")]
->>>>>>> origin/fullproject-abel
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1c75cfea2cf27e136caadf29cb30466eaf19ef85")]
 [assembly: System.Reflection.AssemblyProductAttribute("VeilingApi.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("VeilingApi.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

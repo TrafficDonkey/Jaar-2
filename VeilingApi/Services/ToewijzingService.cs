@@ -22,6 +22,7 @@ public class ToewijzingService : IToewijzingService
         KoperId         = t.KoperId,
         KoperNaam       = t.Koper != null ? t.Koper.Naam : string.Empty,
         VeilingProductId= t.VeilingProductId,
+        Aantal          = t.Aantal,
         EindPrijs       = t.EindPrijs,
         Datum           = t.Datum
     };
@@ -89,13 +90,29 @@ public class ToewijzingService : IToewijzingService
         var buyerExists = await _db.Gebruikers.AnyAsync(g => g.GebruikerId == dto.KoperId);
         if (!buyerExists) throw new InvalidOperationException("Koper bestaat niet.");
 
-        var productExists = await _db.VeilingProducts.AnyAsync(vp => vp.VeilingProductId == dto.VeilingProductId);
-        if (!productExists) throw new InvalidOperationException("Veilingproduct bestaat niet.");
+        var product = await _db.VeilingProducten
+            .Include(vp => vp.Aanmelding)
+            .Include(vp => vp.Toewijzingen)
+            .FirstOrDefaultAsync(vp => vp.VeilingProductId == dto.VeilingProductId);
+        if (product is null) throw new InvalidOperationException("Veilingproduct bestaat niet.");
+
+        var totalQty = product.Aanmelding?.Hoeveelheid ?? 0;
+        var soldQty = product.Toewijzingen?.Sum(t => t.Aantal > 0 ? t.Aantal : 1) ?? 0;
+        var remainingQty = Math.Max(0, totalQty - soldQty);
+
+        if (remainingQty <= 0)
+            throw new InvalidOperationException("Dit product is uitverkocht.");
+
+        if (dto.Aantal > remainingQty)
+            throw new InvalidOperationException(
+                $"Er zijn nog maar {remainingQty} stuks beschikbaar voor dit product."
+            );
 
         var t = new Toewijzing
         {
             KoperId         = dto.KoperId,
             VeilingProductId= dto.VeilingProductId,
+            Aantal          = dto.Aantal,
             EindPrijs       = dto.EindPrijs,
             Datum           = dto.Datum
         };

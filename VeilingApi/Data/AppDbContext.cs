@@ -83,8 +83,8 @@ public class AppDbContext : DbContext
 
         mb.Entity<Toewijzing>()
             .HasOne(t => t.VeilingProduct)
-            .WithOne(vp => vp.Toewijzing)
-            .HasForeignKey<Toewijzing>(t => t.VeilingProductId)
+            .WithMany(vp => vp.Toewijzingen)
+            .HasForeignKey(t => t.VeilingProductId)
             .OnDelete(DeleteBehavior.Cascade);
 
         mb.Entity<Toewijzing>()

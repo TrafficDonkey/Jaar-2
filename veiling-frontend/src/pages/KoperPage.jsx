@@ -29,6 +29,47 @@ const fmtCurrency = (v) => {
   });
 };
 
+const mapVeilingDto = (v) => {
+  const vp =
+    v?.veilingProducten && v.veilingProducten.length > 0
+      ? v.veilingProducten[0]
+      : null;
+
+  const resterendAantal =
+    vp?.resterendAantal ?? vp?.ResterendAantal ?? null;
+  const hoeveelheid = vp?.aantal ?? vp?.Aantal ?? null;
+
+  const mappedProduct = vp
+    ? {
+        veilingProductId: vp.veilingProductId,
+        aanmeldingId: vp.aanmeldingId,
+        productBeschrijving: vp.productBeschrijving,
+        hoeveelheid: hoeveelheid ?? 0,
+        resterendAantal,
+        minimumPrijs: vp.startPrijs ?? 0,
+        fotoUrl: vp.fotoUrl ?? null,
+        kloklocatie: vp.kloklocatie ?? "",
+        categorie: vp.categorie ?? "",
+      }
+    : null;
+
+  const mappedVeiling = v
+    ? {
+        veilingId: v.veilingId,
+        naam: v.naam,
+        status: v.status,
+        startTijd: v.startTijd,
+        eindTijd: v.eindTijd,
+        huidigProduct: mappedProduct,
+      }
+    : null;
+
+  const availableQty =
+    mappedProduct?.resterendAantal ?? mappedProduct?.hoeveelheid ?? null;
+
+  return { mappedVeiling, availableQty };
+};
+
 export default function KoperPage() {
   const [loading, setLoading] = useState(true);
   const [loadingVeiling, setLoadingVeiling] = useState(false);
@@ -70,7 +111,7 @@ export default function KoperPage() {
   const hideMinPrice = role === "Klant" || role === "Koper";
 
   useEffect(() => {
-    document.title = "Koper â€” FloraFlow";
+    document.title = "Koper — FloraFlow";
     (async () => {
       setLoading(true);
       setErr("");
@@ -170,36 +211,11 @@ export default function KoperPage() {
         return;
       }
 
-      const vp =
-        v.veilingProducten && v.veilingProducten.length > 0
-          ? v.veilingProducten[0]
-          : null;
-
-      const mappedProduct = vp
-        ? {
-            veilingProductId: vp.veilingProductId,
-            aanmeldingId: vp.aanmeldingId,
-            productBeschrijving: vp.productBeschrijving,
-            hoeveelheid: vp.aantal,
-            minimumPrijs: vp.startPrijs ?? 0,
-            fotoUrl: vp.fotoUrl ?? null,
-            kloklocatie: vp.kloklocatie ?? "",
-            categorie: vp.categorie ?? "",
-          }
-        : null;
-
-      const mappedVeiling = {
-        veilingId: v.veilingId,
-        naam: v.naam,
-        status: v.status,
-        startTijd: v.startTijd,
-        eindTijd: v.eindTijd,
-        huidigProduct: mappedProduct,
-      };
+      const { mappedVeiling, availableQty } = mapVeilingDto(v);
 
       setVeiling(mappedVeiling);
       setSelectedVeilingId(id);
-      setRemainingQty(mappedProduct?.hoeveelheid ?? null);
+      setRemainingQty(availableQty);
       setKoopAantal("");
       setCurrentPrice(null);
       setClockRunId((n) => n + 1);
@@ -229,6 +245,30 @@ export default function KoperPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [showHistory]);
 
+  useEffect(() => {
+    if (activeTab !== "veilingen" || !selectedVeilingId) return;
+    let cancelled = false;
+
+    const refresh = async () => {
+      try {
+        const v = await apiFetch(`/Veilingen/${selectedVeilingId}`);
+        if (!v || cancelled) return;
+        const { mappedVeiling, availableQty } = mapVeilingDto(v);
+        setVeiling(mappedVeiling);
+        setRemainingQty(availableQty);
+      } catch {
+        // stil falen; we proberen het later opnieuw
+      }
+    };
+
+    refresh();
+    const id = setInterval(refresh, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [activeTab, selectedVeilingId]);
+
   async function handleKoop(e) {
     e.preventDefault();
     const product = veiling?.huidigProduct;
@@ -243,6 +283,11 @@ export default function KoperPage() {
 
     if (currentPrice == null) {
       setKoopMsg("Wacht tot de klok loopt voordat je kunt kopen.");
+      return;
+    }
+
+    if (remainingQty != null && remainingQty <= 0) {
+      setKoopMsg("Dit product is uitverkocht.");
       return;
     }
 
@@ -265,6 +310,7 @@ export default function KoperPage() {
       const payload = {
         koperId: koperId,
         veilingProductId: product.veilingProductId,
+        aantal: qty,
         eindPrijs: currentPrice,
         datum: new Date().toISOString(),
       };
@@ -275,13 +321,13 @@ export default function KoperPage() {
       });
 
       setKoopMsg(
-        `Je hebt ${qty}Ã— "${product.productBeschrijving}" gekocht voor â‚¬${fmtCurrency(
+        `Je hebt ${qty}× "${product.productBeschrijving}" gekocht voor €${fmtCurrency(
           currentPrice
-        )} per stuk (totaal â‚¬${fmtCurrency(totaal)}).`
+        )} per stuk (totaal €${fmtCurrency(totaal)}).`
       );
 
       if (remainingQty != null) {
-        setRemainingQty(remainingQty - qty);
+        setRemainingQty(Math.max(0, remainingQty - qty));
       }
 
       setKoopAantal("");
@@ -310,7 +356,7 @@ export default function KoperPage() {
     const qty = Number(String(koopAantal).replace(",", "."));
     if (!product || currentPrice == null || !qty || qty <= 0) return null;
     const totaal = currentPrice * qty;
-    return `Totaal: â‚¬ ${fmtCurrency(totaal)} (${qty} Ã— â‚¬ ${fmtCurrency(
+    return `Totaal: € ${fmtCurrency(totaal)} (${qty} × € ${fmtCurrency(
       currentPrice
     )})`;
   }, [koopAantal, product, currentPrice]);
@@ -373,12 +419,12 @@ export default function KoperPage() {
         </p>
         {err && (
           <p className="kop-error" role="alert">
-            âŒ {err}
+            ❌ {err}
           </p>
         )}
       </header>
 
-      {/* TABBAR â€“ zelfde stijl als Veilingbeheer */}
+      {/* TABBAR – zelfde stijl als Veilingbeheer */}
       <div className="vm-tabs kop-tabs">
         <button
           type="button"
@@ -401,7 +447,7 @@ export default function KoperPage() {
       </div>
 
       {loading ? (
-        <p>Gegevens ladenâ€¦</p>
+        <p>Gegevens laden...</p>
       ) : activeTab === "veilingen" ? (
         <>
           <main className="kop-layout">
@@ -410,29 +456,20 @@ export default function KoperPage() {
               <h2 className="kop-section-title">Actieve veilingen</h2>
 
               {categoryOptions.length > 0 && (
-                <div style={{ marginBottom: "0.75rem" }}>
+                <div className="kop-filter">
                   <label
                     htmlFor="catFilter"
-                    style={{
-                      fontSize: "0.85rem",
-                      display: "block",
-                      marginBottom: "0.25rem",
-                    }}
+                    className="kop-filter-label"
                   >
                     Filter op categorie
                   </label>
                   <select
                     id="catFilter"
+                    className="kop-filter-select"
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
-                    style={{
-                      width: "100%",
-                      borderRadius: "0.75rem",
-                      border: "1px solid rgba(15,23,42,0.1)",
-                      padding: "0.35rem 0.5rem",
-                    }}
                   >
-                    <option value="ALL">Alle categorieÃ«n</option>
+                    <option value="ALL">Alle categorieën</option>
                     {categoryOptions.map((c) => (
                       <option key={c} value={c}>
                         {c}
@@ -492,7 +529,7 @@ export default function KoperPage() {
             {/* Rechter kolom: details + klok + koopformulier */}
             <section className="kop-right">
               {loadingVeiling ? (
-                <p>Veiling ladenâ€¦</p>
+                <p>Veiling laden...</p>
               ) : !veiling || !product ? (
                 <p className="kop-extra-text">
                   Kies links een veiling om de details te zien en te kunnen
@@ -503,8 +540,8 @@ export default function KoperPage() {
                   {/* Product-informatie */}
                   <div className="kop-detail-left">
                     <p className="kop-extra-text">
-                      Veiling #{veiling.veilingId} Â·{" "}
-                      {veiling.naam ?? "Veiling"} Â· gestart op{" "}
+                      Veiling #{veiling.veilingId} ·{" "}
+                      {veiling.naam ?? "Veiling"} · gestart op{" "}
                       {fmtDateTime(veiling.startTijd)}
                     </p>
 
@@ -539,9 +576,13 @@ export default function KoperPage() {
                       <div>
                         <dt>Beschikbare hoeveelheid</dt>
                         <dd>
-                          {remainingQty != null
-                            ? `${remainingQty} stuks`
-                            : `${product.hoeveelheid} stuks`}
+                          {(remainingQty ??
+                            product.resterendAantal ??
+                            product.hoeveelheid) != null
+                            ? `${remainingQty ??
+                                product.resterendAantal ??
+                                product.hoeveelheid} stuks`
+                            : "-"}
                         </dd>
                       </div>
 
@@ -563,7 +604,7 @@ export default function KoperPage() {
 
                     <p className="kop-extra-text">
                       De prijs daalt gedurende de ronde. Koop op het juiste
-                      moment: hoe langer je wacht, hoe lager de prijs â€“ maar
+                      moment: hoe langer je wacht, hoe lager de prijs – maar
                       risico dat iemand anders je voor is of de voorraad op is.
                     </p>
                   </div>
@@ -597,29 +638,14 @@ export default function KoperPage() {
                         placeholder="Bijv. 10"
                       />
 
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: "0.4rem",
-                          fontSize: "0.85rem",
-                        }}
-                      >
-                        <span style={{ alignSelf: "center" }}>
-                          Snel kiezen:
-                        </span>
+                      <div className="kop-quick-row">
+                        <span className="kop-quick-label">Snel kiezen:</span>
                         {quickAmounts.map((a) => (
                           <button
                             key={a}
                             type="button"
                             onClick={() => setKoopAantal(String(a))}
-                            style={{
-                              padding: "0.25rem 0.6rem",
-                              borderRadius: "999px",
-                              border: "1px solid rgba(15,23,42,0.16)",
-                              background: "#ffffff",
-                              cursor: "pointer",
-                            }}
+                            className="kop-quick-btn"
                           >
                             {a}
                           </button>
@@ -628,16 +654,13 @@ export default function KoperPage() {
 
                       {currentPrice != null && (
                         <p className="kop-extra-text">
-                          Huidige prijs per stuk: â‚¬{" "}
+                          Huidige prijs per stuk: €{" "}
                           {fmtCurrency(currentPrice)}
                         </p>
                       )}
 
                       {totalPriceLabel && (
-                        <p
-                          className="kop-extra-text"
-                          style={{ fontWeight: 600 }}
-                        >
+                        <p className="kop-extra-text kop-extra-text--strong">
                           {totalPriceLabel}
                         </p>
                       )}
@@ -663,11 +686,10 @@ export default function KoperPage() {
         <section
           className="kop-history"
           aria-label="Mijn aankopen"
-          style={{ marginTop: "1.75rem" }}
         >
-          <h2 style={{ marginBottom: "0.5rem" }}>Mijn aankopen</h2>
+          <h2 className="kop-history-title">Mijn aankopen</h2>
           {loadingPurchases ? (
-            <p>Gegevens ladenâ€¦</p>
+            <p>Gegevens laden...</p>
           ) : !koperId ? (
             <p className="kop-extra-text">
               Je bent niet als koper ingelogd, dus er zijn geen aankopen om te
@@ -678,83 +700,37 @@ export default function KoperPage() {
               Je hebt nog geen aankopen gedaan op deze veilingen.
             </p>
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: "0.9rem",
-                }}
-              >
+            <div className="kop-history-table-wrap">
+              <table className="kop-history-table">
                 <thead>
                   <tr>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "0.5rem",
-                        borderBottom: "1px solid rgba(15,23,42,0.06)",
-                      }}
-                    >
-                      Datum
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "0.5rem",
-                        borderBottom: "1px solid rgba(15,23,42,0.06)",
-                      }}
-                    >
-                      Product-ID
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "0.5rem",
-                        borderBottom: "1px solid rgba(15,23,42,0.06)",
-                      }}
-                    >
-                      Prijs per stuk
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "0.5rem",
-                        borderBottom: "1px solid rgba(15,23,42,0.06)",
-                      }}
-                    >
-                      Aantal
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "0.5rem",
-                        borderBottom: "1px solid rgba(15,23,42,0.06)",
-                      }}
-                    >
-                      Totaal
-                    </th>
+                    <th>Datum</th>
+                    <th>Product-ID</th>
+                    <th>Prijs per stuk</th>
+                    <th>Aantal</th>
+                    <th>Totaal</th>
                   </tr>
                 </thead>
                 <tbody>
                   {myPurchases.map((t) => {
                     const eindPrijs = t.eindPrijs ?? t.EindPrijs ?? 0;
-                    const aantal = 1; // totdat je ook aantallen gaat opslaan
+                    const aantal = t.aantal ?? t.Aantal ?? 1;
                     const totaal = eindPrijs * aantal;
                     const datum = t.datum ?? t.Datum;
                     return (
                       <tr key={t.toewijzingId ?? t.ToewijzingId}>
-                        <td style={{ padding: "0.5rem" }}>
+                        <td>
                           {fmtDateTime(datum)}
                         </td>
-                        <td style={{ padding: "0.5rem" }}>
+                        <td>
                           {t.veilingProductId ?? t.VeilingProductId}
                         </td>
-                        <td style={{ padding: "0.5rem" }}>
-                          â‚¬ {fmtCurrency(eindPrijs)}
+                        <td>
+                          € {fmtCurrency(eindPrijs)}
                         </td>
-                        <td style={{ padding: "0.5rem" }}>{aantal}</td>
-                        <td style={{ padding: "0.5rem" }}>
-                          â‚¬ {fmtCurrency(totaal)}
+                        <td>{aantal}</td>
+                        <td>
+                          € {fmtCurrency(totaal)}
                         </td>
                       </tr>
                     );

@@ -38,8 +38,29 @@ export default async function apiFetch(path, options = {}) {
 
   // Andere fouten netjes doorgeven
   if (!res.ok) {
+    const contentType = res.headers.get("Content-Type") || "";
     const text = await res.text();
-    throw new Error(text || `${res.status} ${res.statusText}`);
+    const trimmed = text.trim();
+    let message = text;
+
+    if (
+      trimmed &&
+      (contentType.includes("application/json") || trimmed.startsWith("{"))
+    ) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        message =
+          parsed?.message ||
+          parsed?.title ||
+          parsed?.detail ||
+          parsed?.error ||
+          text;
+      } catch {
+        message = text;
+      }
+    }
+
+    throw new Error(message || `${res.status} ${res.statusText}`);
   }
 
   // Geen content

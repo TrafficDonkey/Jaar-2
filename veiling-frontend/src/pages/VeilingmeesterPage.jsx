@@ -544,36 +544,17 @@ export default function VeilingmeesterPage() {
                   </p>
                 ) : (
                   <>
-                    <div
-                      style={{
-                        marginBottom: "0.75rem",
-                        display: "flex",
-                        gap: "0.5rem",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                      }}
-                    >
+                    <div className="vm-filter-row">
                       <input
                         placeholder="Zoek op naam of product…"
                         value={activeSearch}
                         onChange={(e) => setActiveSearch(e.target.value)}
-                        style={{
-                          flex: "1 1 200px",
-                          minWidth: "0",
-                          borderRadius: "0.75rem",
-                          border: "1px solid var(--color-border)",
-                          padding: "0.4rem 0.6rem",
-                        }}
+                        className="vm-filter-input"
                       />
                       <select
                         value={activeSort}
                         onChange={(e) => setActiveSort(e.target.value)}
-                        style={{
-                          flex: "0 0 180px",
-                          borderRadius: "0.75rem",
-                          border: "1px solid var(--color-border)",
-                          padding: "0.4rem 0.6rem",
-                        }}
+                        className="vm-filter-select"
                       >
                         <option value="start-desc">Nieuwste eerst</option>
                         <option value="start-asc">Oudste eerst</option>
@@ -638,7 +619,7 @@ export default function VeilingmeesterPage() {
                                 <div
                                   className="vm-timer-bar-fill"
                                   style={{
-                                    width: `${Math.min(
+                                    "--vm-timer-progress": `${Math.min(
                                       100,
                                       Math.max(0, timer.progress * 100)
                                     ).toFixed(1)}%`,
@@ -679,36 +660,17 @@ export default function VeilingmeesterPage() {
                   </p>
                 ) : (
                   <>
-                    <div
-                      style={{
-                        marginBottom: "0.75rem",
-                        display: "flex",
-                        gap: "0.5rem",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                      }}
-                    >
+                    <div className="vm-filter-row">
                       <input
                         placeholder="Zoek op naam of winnaar…"
                         value={archiveSearch}
                         onChange={(e) => setArchiveSearch(e.target.value)}
-                        style={{
-                          flex: "1 1 200px",
-                          minWidth: "0",
-                          borderRadius: "0.75rem",
-                          border: "1px solid var(--color-border)",
-                          padding: "0.4rem 0.6rem",
-                        }}
+                        className="vm-filter-input"
                       />
                       <select
                         value={archiveSort}
                         onChange={(e) => setArchiveSort(e.target.value)}
-                        style={{
-                          flex: "0 0 200px",
-                          borderRadius: "0.75rem",
-                          border: "1px solid var(--color-border)",
-                          padding: "0.4rem 0.6rem",
-                        }}
+                        className="vm-filter-select vm-filter-select--wide"
                       >
                         <option value="date-desc">Nieuwste eerst</option>
                         <option value="date-asc">Oudste eerst</option>
@@ -783,7 +745,7 @@ export default function VeilingmeesterPage() {
                     </span>
                   </div>
                 </div>
-                <p className="vm-muted" style={{ marginTop: "0.9rem" }}>
+                <p className="vm-muted vm-overview-note">
                   Dit tabblad geeft een snel overzicht van het aantal actieve en
                   afgeronde veilingen en de totale opbrengst.
                 </p>

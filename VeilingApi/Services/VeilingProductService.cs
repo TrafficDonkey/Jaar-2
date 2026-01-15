@@ -12,9 +12,17 @@ public class VeilingProductService : IVeilingProductService
     private readonly AppDbContext _db;
     public VeilingProductService(AppDbContext db) => _db = db;
 
+    private static int CalculateRemaining(VeilingProduct vp)
+    {
+        var total = vp.Aanmelding?.Hoeveelheid ?? 0;
+        var sold = vp.Toewijzingen?.Sum(t => t.Aantal > 0 ? t.Aantal : 1) ?? 0;
+        return Math.Max(0, total - sold);
+    }
+
     private static VeilingProductDto MapToDto(VeilingProduct vp)
     {
         var a = vp.Aanmelding;
+        var remaining = CalculateRemaining(vp);
 
         return new VeilingProductDto
         {
@@ -22,6 +30,7 @@ public class VeilingProductService : IVeilingProductService
             AanmeldingId        = vp.AanmeldingId,
             ProductBeschrijving = a?.ProductBeschrijving ?? string.Empty,
             Aantal              = a?.Hoeveelheid ?? 0,
+            ResterendAantal     = remaining,
             StartPrijs          = a?.MinimumPrijs ?? 0m,
             HuidigePrijs        = a?.MinimumPrijs ?? 0m,
             Kloklocatie         = a?.GewensteKlokLocatie ?? string.Empty,
@@ -34,6 +43,7 @@ public class VeilingProductService : IVeilingProductService
     {
         var entities = await _db.VeilingProducten
             .Include(vp => vp.Aanmelding)
+            .Include(vp => vp.Toewijzingen)
             .ToListAsync();
 
         return entities.Select(MapToDto).ToList();
@@ -44,6 +54,7 @@ public class VeilingProductService : IVeilingProductService
     {
         var entities = await _db.VeilingProducten
             .Include(vp => vp.Aanmelding)
+            .Include(vp => vp.Toewijzingen)
             .Where(vp => vp.VeilingId == veilingId)
             .OrderBy(vp => vp.VolgordeVeiling)
             .ToListAsync();
@@ -55,6 +66,7 @@ public class VeilingProductService : IVeilingProductService
     {
         var entity = await _db.VeilingProducten
             .Include(vp => vp.Aanmelding)
+            .Include(vp => vp.Toewijzingen)
             .FirstOrDefaultAsync(vp => vp.VeilingProductId == id);
 
         return entity is null ? null : MapToDto(entity);

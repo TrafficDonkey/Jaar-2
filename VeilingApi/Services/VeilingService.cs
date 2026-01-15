@@ -38,9 +38,17 @@ namespace VeilingApi.Services
         /// Haalt gegevens in principe uit de gekoppelde Aanmelding,
         /// maar zet Categorie expliciet vanuit VeilingProduct/Aanmelding.
         /// </summary>
+        private static int CalculateRemaining(VeilingProduct vp)
+        {
+            var total = vp.Aanmelding?.Hoeveelheid ?? 0;
+            var sold = vp.Toewijzingen?.Sum(t => t.Aantal > 0 ? t.Aantal : 1) ?? 0;
+            return Math.Max(0, total - sold);
+        }
+
         private static VeilingProductDto MapVeilingProductToDto(VeilingProduct vp)
         {
             var a = vp.Aanmelding;
+            var remaining = CalculateRemaining(vp);
 
             return new VeilingProductDto
             {
@@ -49,6 +57,7 @@ namespace VeilingApi.Services
                 ProductBeschrijving  = a?.ProductBeschrijving ?? string.Empty,
                 FotoUrl              = a?.FotoUrl,
                 Aantal               = a?.Hoeveelheid ?? 0,
+                ResterendAantal      = remaining,
                 StartPrijs           = a?.MinimumPrijs ?? 0,
                 HuidigePrijs         = a?.MinimumPrijs ?? 0,
                 Kloklocatie          = a?.GewensteKlokLocatie ?? string.Empty,
@@ -73,6 +82,8 @@ namespace VeilingApi.Services
             var veilingen = await _db.Veilingen
                 .Include(v => v.VeilingProducten)
                     .ThenInclude(vp => vp.Aanmelding)
+                .Include(v => v.VeilingProducten)
+                    .ThenInclude(vp => vp.Toewijzingen)
                 .OrderByDescending(v => v.StartTijd)
                 .ToListAsync();
 
@@ -84,6 +95,8 @@ namespace VeilingApi.Services
             var v = await _db.Veilingen
                 .Include(v => v.VeilingProducten)
                     .ThenInclude(vp => vp.Aanmelding)
+                .Include(v => v.VeilingProducten)
+                    .ThenInclude(vp => vp.Toewijzingen)
                 .FirstOrDefaultAsync(v => v.VeilingId == id);
 
             return v is null ? null : MapToDto(v);
@@ -145,6 +158,8 @@ namespace VeilingApi.Services
             var veiling = await _db.Veilingen
                 .Include(v => v.VeilingProducten)
                     .ThenInclude(vp => vp.Aanmelding)
+                .Include(v => v.VeilingProducten)
+                    .ThenInclude(vp => vp.Toewijzingen)
                 .Where(v =>
                     v.Status == "Actief" &&
                     v.StartTijd <= now &&
@@ -166,6 +181,7 @@ namespace VeilingApi.Services
                         AanmeldingId         = vp.AanmeldingId,
                         ProductBeschrijving  = a.ProductBeschrijving,
                         Hoeveelheid          = a.Hoeveelheid,
+                        ResterendAantal      = CalculateRemaining(vp),
                         MinimumPrijs         = a.MinimumPrijs,
                         FotoUrl              = a.FotoUrl,
                         Kloklocatie          = a.GewensteKlokLocatie,
@@ -236,6 +252,8 @@ namespace VeilingApi.Services
             var query = _db.Veilingen
                 .Include(v => v.VeilingProducten)
                     .ThenInclude(vp => vp.Aanmelding)
+                .Include(v => v.VeilingProducten)
+                    .ThenInclude(vp => vp.Toewijzingen)
                 .Where(v =>
                     v.Status == "Afgerond" ||
                     (v.EindTijd != null && v.EindTijd <= now));

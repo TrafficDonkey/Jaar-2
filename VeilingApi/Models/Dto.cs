@@ -1,4 +1,4 @@
-// Dto.cs
+﻿// Dto.cs
 // Bevat alle Data Transfer Objects (DTO's) voor requests en responses.
 // DTO's valideren input en bepalen welke velden via de API worden uitgewisseld.
 
@@ -7,8 +7,7 @@ using System.Text.Json.Serialization;
 
 namespace VeilingApi.Models;
 
-// ────────────────────────────── GEBRUIKER ──────────────────────────────
-// Weergave- en mutatie-DTO's voor gebruikersbeheer.
+// ------------------------------ GEBRUIKER ------------------------------
 
 public class GebruikerDto
 {
@@ -48,10 +47,7 @@ public class UpdateGebruikerDto
     public string Rol { get; set; } = string.Empty;
 }
 
-// ────────────────────────────── AANMELDING ──────────────────────────────
-// DTO's voor het registreren en tonen van aanmeldingen.
-
-// ====== AANMELDING ======
+// ------------------------------ AANMELDING -----------------------------
 public class AanmeldingDto
 {
     public int AanmeldingId { get; set; }
@@ -108,8 +104,7 @@ public class UpdateAanmeldingDto : CreateAanmeldingDto
 }
 
 
-// ────────────────────────────── VEILING ──────────────────────────────
-// DTO's voor het plannen en beheren van veilingen.
+// -------------------------------- VEILING ------------------------------
 
 public class VeilingDto
 {
@@ -154,8 +149,7 @@ public class StartVeilingDto
 }
 
 
-// ────────────────────────────── VEILINGPRODUCT ──────────────────────────────
-// DTO's voor kavels/producten binnen een veiling.
+// ----------------------------- VEILINGPRODUCT --------------------------
 
 public class VeilingProductDto
 {
@@ -164,6 +158,7 @@ public class VeilingProductDto
 
     public string ProductBeschrijving { get; set; } = string.Empty;
     public int Aantal { get; set; }
+    public int ResterendAantal { get; set; }
 
     public string? FotoUrl { get; set; }
 
@@ -197,8 +192,7 @@ public class UpdateVeilingProductDto : CreateVeilingProductDto
 }
 
 
-// ────────────────────────────── BIEDING ──────────────────────────────
-// DTO's voor het plaatsen en tonen van biedingen.
+// ------------------------------ BIEDING --------------------------------
 
 public class BiedingDto
 {
@@ -223,8 +217,7 @@ public class CreateBiedingDto
 }
 
 
-// ────────────────────────────── TOEWIJZING ──────────────────────────────
-// DTO's voor het vastleggen van de winnende toewijzing/koop.
+// ------------------------------ TOEWIJZING ------------------------------
 
 public class ToewijzingDto
 {
@@ -232,6 +225,7 @@ public class ToewijzingDto
     public int KoperId { get; set; }
     public string KoperNaam { get; set; } = string.Empty;
     public int VeilingProductId { get; set; }
+    public int Aantal { get; set; }
     public decimal EindPrijs { get; set; }
     public DateTime Datum { get; set; }
 }
@@ -244,6 +238,9 @@ public class CreateToewijzingDto
     [Required]
     public int VeilingProductId { get; set; }
 
+    [Range(1, 100000)]
+    public int Aantal { get; set; }
+
     [Range(0.01, 999999)]
     public decimal EindPrijs { get; set; }
 
@@ -252,8 +249,7 @@ public class CreateToewijzingDto
 }
 
 
-// ────────────────────────────── KOPER (actieve veiling) ──────────────────────────────
-// Deze DTO's worden gebruikt op de koperspagina om de huidige veiling te tonen.
+// ------------------------- KOPER (actieve veiling) ----------------------
 
 public class ActieveVeilingProductDto
 {
@@ -262,6 +258,7 @@ public class ActieveVeilingProductDto
 
     public string ProductBeschrijving { get; set; } = string.Empty;
     public int Hoeveelheid { get; set; }
+    public int ResterendAantal { get; set; }
     public decimal MinimumPrijs { get; set; }
 
     public string Kloklocatie { get; set; } = string.Empty;
@@ -280,12 +277,11 @@ public class ActieveVeilingDto
 }
 
 
-// ────────────────────────────── AUTH ──────────────────────────────
+// --------------------------------- AUTH --------------------------------
 // DTO's voor registratie en inloggen.
 
 
-// �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"? HISTORISCHE PRIJZEN �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
-// DTO's voor historische prijzen per bloemsoort (categorie).
+// --------------------------- HISTORISCHE PRIJZEN ------------------------
 
 public class HistorischePrijsItemDto
 {

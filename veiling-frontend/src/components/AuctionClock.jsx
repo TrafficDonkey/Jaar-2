@@ -128,14 +128,14 @@ export default function AuctionClock({
               key={idx}
               className="tick-line"
               style={{
-                top: `${(idx / (arr.length - 1 || 1)) * 100}%`,
+                "--tick-top": `${(idx / (arr.length - 1 || 1)) * 100}%`,
               }}
             />
           ))}
 
           <div
             className="progress-line"
-            style={{ top: `${progressTop}%` }}
+            style={{ "--progress-top": `${progressTop}%` }}
           />
         </div>
       </div>
