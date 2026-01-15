@@ -15,6 +15,11 @@ public class GebruikerDto
     public string Naam { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Rol { get; set; } = string.Empty;
+    public string? TelefoonLand { get; set; }
+    public string? TelefoonNummer { get; set; }
+    public string? AdresStraat { get; set; }
+    public string? Huisnummer { get; set; }
+    public string? Postcode { get; set; }
 }
 
 public class CreateGebruikerDto
@@ -30,6 +35,21 @@ public class CreateGebruikerDto
 
     [Required]
     public string WachtwoordHash { get; set; } = string.Empty;
+
+    [StringLength(2)]
+    public string? TelefoonLand { get; set; }
+
+    [StringLength(25)]
+    public string? TelefoonNummer { get; set; }
+
+    [StringLength(120)]
+    public string? AdresStraat { get; set; }
+
+    [StringLength(20)]
+    public string? Huisnummer { get; set; }
+
+    [StringLength(16)]
+    public string? Postcode { get; set; }
 }
 
 public class UpdateGebruikerDto
@@ -45,6 +65,21 @@ public class UpdateGebruikerDto
 
     [Required]
     public string Rol { get; set; } = string.Empty;
+
+    [StringLength(2)]
+    public string? TelefoonLand { get; set; }
+
+    [StringLength(25)]
+    public string? TelefoonNummer { get; set; }
+
+    [StringLength(120)]
+    public string? AdresStraat { get; set; }
+
+    [StringLength(20)]
+    public string? Huisnummer { get; set; }
+
+    [StringLength(16)]
+    public string? Postcode { get; set; }
 }
 
 // ------------------------------ AANMELDING -----------------------------
@@ -300,7 +335,9 @@ public class HistorischePrijzenResponseDto
 
     public List<HistorischePrijsItemDto> Laatste10Alle { get; set; } = new();
     public decimal GemiddeldeAlle { get; set; }
-}public class RegisterDto
+}
+
+public class RegisterDto
 {
     [Required, MaxLength(100)]
     public string Naam { get; set; } = string.Empty;
@@ -314,6 +351,21 @@ public class HistorischePrijzenResponseDto
 
     // Wordt genegeerd bij normale registratie; rol wordt in de backend bepaald.
     public string Rol { get; set; } = "Klant";
+
+    [Required, StringLength(2)]
+    public string TelefoonLand { get; set; } = "NL";
+
+    [Required, StringLength(25)]
+    public string TelefoonNummer { get; set; } = string.Empty;
+
+    [StringLength(120)]
+    public string? AdresStraat { get; set; }
+
+    [StringLength(20)]
+    public string? Huisnummer { get; set; }
+
+    [StringLength(16)]
+    public string? Postcode { get; set; }
 }
 
 
@@ -340,4 +392,19 @@ public class AdminCreateUserDto
 
     [Required]
     public string Rol { get; set; } = null!;  // Admin kan hier "Aanvoerder" of "Veilingmeester" kiezen
+
+    [StringLength(2)]
+    public string? TelefoonLand { get; set; }
+
+    [StringLength(25)]
+    public string? TelefoonNummer { get; set; }
+
+    [StringLength(120)]
+    public string? AdresStraat { get; set; }
+
+    [StringLength(20)]
+    public string? Huisnummer { get; set; }
+
+    [StringLength(16)]
+    public string? Postcode { get; set; }
 }

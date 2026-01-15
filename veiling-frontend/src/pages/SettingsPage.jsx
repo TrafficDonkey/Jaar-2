@@ -28,18 +28,47 @@ function getGebruikerIdFromToken() {
   }
 }
 
+const phoneRules = {
+  NL: { min: 9, max: 10, label: "Nederland" },
+  BE: { min: 9, max: 9, label: "Belgie" },
+  DE: { min: 10, max: 11, label: "Duitsland" },
+  FR: { min: 9, max: 9, label: "Frankrijk" },
+  UK: { min: 10, max: 10, label: "Verenigd Koninkrijk" },
+  US: { min: 10, max: 10, label: "Verenigde Staten" },
+};
+
+function validatePhone(country, number) {
+  const trimmedCountry = (country || "").trim().toUpperCase();
+  if (!trimmedCountry) return "Kies het land van het telefoonnummer.";
+
+  const digits = String(number || "").replace(/\D/g, "");
+  if (!digits) return "Telefoonnummer is verplicht.";
+
+  const rule = phoneRules[trimmedCountry] || { min: 8, max: 15, label: trimmedCountry };
+  if (digits.length < rule.min || digits.length > rule.max) {
+    return `Telefoonnummer voor ${rule.label} moet ${rule.min}-${rule.max} cijfers hebben.`;
+  }
+
+  return "";
+}
+
 export default function SettingsPage() {
   // Basisprofielvelden
   const [userId, setUserId] = useState(null);
   const [naam, setNaam] = useState("");
   const [email, setEmail] = useState("");
   const [rol, setRol] = useState(""); // wordt niet bewerkbaar, maar meegestuurd bij update
+  const [telefoonLand, setTelefoonLand] = useState("NL");
+  const [telefoonNummer, setTelefoonNummer] = useState("");
+  const [adresStraat, setAdresStraat] = useState("");
+  const [huisnummer, setHuisnummer] = useState("");
+  const [postcode, setPostcode] = useState("");
 
   // UI-status
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // ────────────────────────────── Effect: init ──────────────────────────────
+  // Effect: init
   useEffect(() => {
     document.title = "FloraFlow — Instellingen";
 
@@ -74,6 +103,11 @@ export default function SettingsPage() {
         setNaam(g.naam || "");
         setEmail(g.email || "");
         setRol(g.rol || "Gebruiker");
+        setTelefoonLand(g.telefoonLand || "NL");
+        setTelefoonNummer(g.telefoonNummer || "");
+        setAdresStraat(g.adresStraat || "");
+        setHuisnummer(g.huisnummer || "");
+        setPostcode(g.postcode || "");
 
         // sessionStorage up-to-date houden
         sessionStorage.setItem("gebruikerId", String(g.gebruikerId));
@@ -94,7 +128,7 @@ export default function SettingsPage() {
     };
   }, []);
 
-  // ────────────────────────────── Opslaan ──────────────────────────────
+  // Opslaan
 
   async function handleSave(e) {
     e.preventDefault();
@@ -113,15 +147,31 @@ export default function SettingsPage() {
       return;
     }
 
+    const phoneError = validatePhone(telefoonLand, telefoonNummer);
+    if (phoneError) {
+      setMsg(phoneError);
+      return;
+    }
+
+    const cleanOptional = (value) => {
+      const trimmed = (value || "").trim();
+      return trimmed ? trimmed : null;
+    };
+
     try {
       setLoading(true);
-      setMsg("Instellingen opslaan…");
+      setMsg("Instellingen opslaan...");
 
       const payload = {
         gebruikerId: userId,
         naam: trimmedName,
         email: trimmedEmail,
         rol: rol || sessionStorage.getItem("role") || "Gebruiker",
+        telefoonLand: telefoonLand.trim().toUpperCase(),
+        telefoonNummer: telefoonNummer.trim(),
+        adresStraat: cleanOptional(adresStraat),
+        huisnummer: cleanOptional(huisnummer),
+        postcode: cleanOptional(postcode),
       };
 
       await apiFetch(`/Gebruikers/${userId}`, {
@@ -135,7 +185,7 @@ export default function SettingsPage() {
         sessionStorage.setItem("role", payload.rol);
       }
 
-      setMsg("✅ Instellingen opgeslagen.");
+      setMsg("Instellingen opgeslagen.");
     } catch (err) {
       setMsg(err?.message ?? "Opslaan van instellingen is mislukt.");
     } finally {
@@ -143,7 +193,7 @@ export default function SettingsPage() {
     }
   }
 
-  // ────────────────────────────── Render ──────────────────────────────
+  // Render
 
   return (
     <div className="page-shell settings-shell">
@@ -184,12 +234,76 @@ export default function SettingsPage() {
               />
             </div>
 
+            <div className="field-row">
+              <div className="field">
+                <label htmlFor="telefoonLand">Land (telefoon)</label>
+                <select
+                  id="telefoonLand"
+                  value={telefoonLand}
+                  onChange={(e) => setTelefoonLand(e.target.value)}
+                  required
+                >
+                  <option value="NL">Nederland</option>
+                  <option value="BE">Belgie</option>
+                  <option value="DE">Duitsland</option>
+                  <option value="FR">Frankrijk</option>
+                  <option value="UK">Verenigd Koninkrijk</option>
+                  <option value="US">Verenigde Staten</option>
+                </select>
+              </div>
+
+              <div className="field">
+                <label htmlFor="telefoonNummer">Telefoonnummer</label>
+                <input
+                  id="telefoonNummer"
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="Bijv. 0612345678"
+                  value={telefoonNummer}
+                  onChange={(e) => setTelefoonNummer(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="field">
+              <label htmlFor="adresStraat">Adres (straat, optioneel)</label>
+              <input
+                id="adresStraat"
+                placeholder="Bijv. Marktstraat"
+                value={adresStraat}
+                onChange={(e) => setAdresStraat(e.target.value)}
+              />
+            </div>
+
+            <div className="field-row">
+              <div className="field">
+                <label htmlFor="huisnummer">Huisnummer (optioneel)</label>
+                <input
+                  id="huisnummer"
+                  placeholder="Bijv. 12A"
+                  value={huisnummer}
+                  onChange={(e) => setHuisnummer(e.target.value)}
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="postcode">Postcode (optioneel)</label>
+                <input
+                  id="postcode"
+                  placeholder="Bijv. 1234 AB"
+                  value={postcode}
+                  onChange={(e) => setPostcode(e.target.value)}
+                />
+              </div>
+            </div>
+
             <button
               type="submit"
               className="primary-btn"
               disabled={loading || !userId}
             >
-              {loading ? "Bezig…" : "Opslaan"}
+              {loading ? "Bezig..." : "Opslaan"}
             </button>
 
             <p className="form-msg" aria-live="polite">

@@ -78,6 +78,17 @@ public class GebruikersController : ControllerBase
         if (!isAdmin && callerId != id)
             return Forbid();
 
+        var isKlant = string.Equals(dto.Rol, "Klant", StringComparison.OrdinalIgnoreCase);
+        var hasPhoneInput =
+            !string.IsNullOrWhiteSpace(dto.TelefoonLand) ||
+            !string.IsNullOrWhiteSpace(dto.TelefoonNummer);
+
+        if (isKlant || hasPhoneInput)
+        {
+            if (!PhoneNumberValidator.TryValidate(dto.TelefoonLand, dto.TelefoonNummer, out var phoneError))
+                return BadRequest(new { message = phoneError });
+        }
+
         var ok = await _svc.UpdateAsync(dto);
         return ok ? NoContent() : NotFound();
     }

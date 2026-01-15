@@ -8,12 +8,40 @@ import "./RegisterStyle.css";
 
 const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
 const emptyErrors = { general: "", fields: {} };
+const phoneRules = {
+  NL: { min: 9, max: 10, label: "Nederland" },
+  BE: { min: 9, max: 9, label: "Belgie" },
+  DE: { min: 10, max: 11, label: "Duitsland" },
+  FR: { min: 9, max: 9, label: "Frankrijk" },
+  UK: { min: 10, max: 10, label: "Verenigd Koninkrijk" },
+  US: { min: 10, max: 10, label: "Verenigde Staten" },
+};
+
+const validatePhone = (country, number) => {
+  const trimmedCountry = (country || "").trim().toUpperCase();
+  if (!trimmedCountry) return "Kies het land van het telefoonnummer.";
+
+  const digits = String(number || "").replace(/\D/g, "");
+  if (!digits) return "Telefoonnummer is verplicht.";
+
+  const rule = phoneRules[trimmedCountry] || { min: 8, max: 15, label: trimmedCountry };
+  if (digits.length < rule.min || digits.length > rule.max) {
+    return `Telefoonnummer voor ${rule.label} moet ${rule.min}-${rule.max} cijfers hebben.`;
+  }
+
+  return "";
+};
 
 export default function RegisterScreen() {
   const [naam, setNaam] = useState("");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
+  const [telefoonLand, setTelefoonLand] = useState("NL");
+  const [telefoonNummer, setTelefoonNummer] = useState("");
+  const [adresStraat, setAdresStraat] = useState("");
+  const [huisnummer, setHuisnummer] = useState("");
+  const [postcode, setPostcode] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [caps, setCaps] = useState(false);
   const [msg, setMsg] = useState("");
@@ -43,6 +71,18 @@ export default function RegisterScreen() {
       return;
     }
 
+    const phoneError = validatePhone(telefoonLand, telefoonNummer);
+    if (phoneError) {
+      const fieldKey = phoneError.includes("land")
+        ? "telefoonland"
+        : "telefoonnummer";
+      setErrors({
+        general: phoneError,
+        fields: { [fieldKey]: phoneError },
+      });
+      return;
+    }
+
     setMsg("Registreren...");
     try {
       const res = await fetch(`${API}/auth/register`, {
@@ -52,6 +92,11 @@ export default function RegisterScreen() {
           naam: naam.trim(),
           email: email.trim(),
           password: pw,
+          telefoonLand: telefoonLand.trim().toUpperCase(),
+          telefoonNummer: telefoonNummer.trim(),
+          adresStraat: adresStraat.trim() || null,
+          huisnummer: huisnummer.trim() || null,
+          postcode: postcode.trim() || null,
           rol: role, // wordt in backend alsnog als 'Klant' gebruikt
         }),
       });
@@ -72,6 +117,11 @@ export default function RegisterScreen() {
           password: "Wachtwoord",
           password2: "Herhaal wachtwoord",
           "herhaal wachtwoord": "Herhaal wachtwoord",
+          telefoonland: "Land (telefoon)",
+          telefoonnummer: "Telefoonnummer",
+          adresstraat: "Adres",
+          huisnummer: "Huisnummer",
+          postcode: "Postcode",
         };
 
         const translateError = (raw, label) => {
@@ -82,7 +132,9 @@ export default function RegisterScreen() {
             "the email field is required.": "E-mailadres is verplicht.",
             "the email field is not a valid e-mail address.": "Voer een geldig e-mailadres in.",
             "the wachtwoord field is required.": "Wachtwoord is verplicht.",
-            "the field wachtwoord must be a string or array type with a minimum length of '6'.": "Wachtwoord moet minstens 6 tekens bevatten."
+            "the field wachtwoord must be a string or array type with a minimum length of '6'.": "Wachtwoord moet minstens 6 tekens bevatten.",
+            "the telefoonland field is required.": "Land (telefoon) is verplicht.",
+            "the telefoonnummer field is required.": "Telefoonnummer is verplicht."
           };
 
           if (translations[lower]) return translations[lower];
@@ -201,6 +253,128 @@ export default function RegisterScreen() {
               )}
             </div>
 
+            <div className="field-row">
+              <div className="field">
+                <label htmlFor="reg-telefoon-land">Land (telefoon)</label>
+                <select
+                  id="reg-telefoon-land"
+                  value={telefoonLand}
+                  onChange={(e) => setTelefoonLand(e.target.value)}
+                  required
+                  aria-invalid={Boolean(errors.fields.telefoonland)}
+                  aria-describedby={
+                    errors.fields.telefoonland ? "telefoonland-error" : undefined
+                  }
+                  className={errors.fields.telefoonland ? "input-error" : ""}
+                >
+                  <option value="NL">Nederland</option>
+                  <option value="BE">Belgie</option>
+                  <option value="DE">Duitsland</option>
+                  <option value="FR">Frankrijk</option>
+                  <option value="UK">Verenigd Koninkrijk</option>
+                  <option value="US">Verenigde Staten</option>
+                </select>
+                {errors.fields.telefoonland && (
+                  <p
+                    className="field-error"
+                    id="telefoonland-error"
+                    role="alert"
+                  >
+                    {errors.fields.telefoonland}
+                  </p>
+                )}
+              </div>
+
+              <div className="field">
+                <label htmlFor="reg-telefoon">Telefoonnummer</label>
+                <input
+                  id="reg-telefoon"
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="Bijv. 0612345678"
+                  value={telefoonNummer}
+                  onChange={(e) => setTelefoonNummer(e.target.value)}
+                  required
+                  aria-invalid={Boolean(errors.fields.telefoonnummer)}
+                  aria-describedby={
+                    errors.fields.telefoonnummer ? "telefoonnummer-error" : undefined
+                  }
+                  className={errors.fields.telefoonnummer ? "input-error" : ""}
+                />
+                {errors.fields.telefoonnummer && (
+                  <p
+                    className="field-error"
+                    id="telefoonnummer-error"
+                    role="alert"
+                  >
+                    {errors.fields.telefoonnummer}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="field">
+              <label htmlFor="reg-adres">Adres (straat, optioneel)</label>
+              <input
+                id="reg-adres"
+                placeholder="Bijv. Marktstraat"
+                value={adresStraat}
+                onChange={(e) => setAdresStraat(e.target.value)}
+                aria-invalid={Boolean(errors.fields.adresstraat)}
+                aria-describedby={
+                  errors.fields.adresstraat ? "adresstraat-error" : undefined
+                }
+                className={errors.fields.adresstraat ? "input-error" : ""}
+              />
+              {errors.fields.adresstraat && (
+                <p className="field-error" id="adresstraat-error" role="alert">
+                  {errors.fields.adresstraat}
+                </p>
+              )}
+            </div>
+
+            <div className="field-row">
+              <div className="field">
+                <label htmlFor="reg-huisnummer">Huisnummer (optioneel)</label>
+                <input
+                  id="reg-huisnummer"
+                  placeholder="Bijv. 12A"
+                  value={huisnummer}
+                  onChange={(e) => setHuisnummer(e.target.value)}
+                  aria-invalid={Boolean(errors.fields.huisnummer)}
+                  aria-describedby={
+                    errors.fields.huisnummer ? "huisnummer-error" : undefined
+                  }
+                  className={errors.fields.huisnummer ? "input-error" : ""}
+                />
+                {errors.fields.huisnummer && (
+                  <p className="field-error" id="huisnummer-error" role="alert">
+                    {errors.fields.huisnummer}
+                  </p>
+                )}
+              </div>
+
+              <div className="field">
+                <label htmlFor="reg-postcode">Postcode (optioneel)</label>
+                <input
+                  id="reg-postcode"
+                  placeholder="Bijv. 1234 AB"
+                  value={postcode}
+                  onChange={(e) => setPostcode(e.target.value)}
+                  aria-invalid={Boolean(errors.fields.postcode)}
+                  aria-describedby={
+                    errors.fields.postcode ? "postcode-error" : undefined
+                  }
+                  className={errors.fields.postcode ? "input-error" : ""}
+                />
+                {errors.fields.postcode && (
+                  <p className="field-error" id="postcode-error" role="alert">
+                    {errors.fields.postcode}
+                  </p>
+                )}
+              </div>
+            </div>
+
             <div className="field password-field">
               <label htmlFor="reg-password">Wachtwoord</label>
               <input
@@ -287,7 +461,7 @@ export default function RegisterScreen() {
       </main>
 
       <footer className="footer">
-        <p>Ac {new Date().getFullYear()} FloraFlow - demo</p>
+        <p>(c) {new Date().getFullYear()} FloraFlow - demo</p>
       </footer>
     </div>
   );

@@ -25,7 +25,12 @@ public class GebruikerService : IGebruikerService
                 GebruikerId = g.GebruikerId,
                 Naam = g.Naam,
                 Email = g.Email,
-                Rol = g.Rol
+                Rol = g.Rol,
+                TelefoonLand = g.TelefoonLand,
+                TelefoonNummer = g.TelefoonNummer,
+                AdresStraat = g.AdresStraat,
+                Huisnummer = g.Huisnummer,
+                Postcode = g.Postcode
             })
             .ToListAsync();
     }
@@ -41,7 +46,12 @@ public class GebruikerService : IGebruikerService
                 GebruikerId = g.GebruikerId,
                 Naam = g.Naam,
                 Email = g.Email,
-                Rol = g.Rol
+                Rol = g.Rol,
+                TelefoonLand = g.TelefoonLand,
+                TelefoonNummer = g.TelefoonNummer,
+                AdresStraat = g.AdresStraat,
+                Huisnummer = g.Huisnummer,
+                Postcode = g.Postcode
             })
             .FirstOrDefaultAsync();
     }
@@ -52,10 +62,15 @@ public class GebruikerService : IGebruikerService
     {
         var g = new Gebruiker
         {
-            Naam = dto.Naam,
-            Email = dto.Email,
-            Rol = dto.Rol,
-            WachtwoordHash = dto.WachtwoordHash
+            Naam = dto.Naam.Trim(),
+            Email = dto.Email.Trim(),
+            Rol = dto.Rol.Trim(),
+            WachtwoordHash = dto.WachtwoordHash,
+            TelefoonLand = dto.TelefoonLand?.Trim().ToUpperInvariant(),
+            TelefoonNummer = dto.TelefoonNummer?.Trim(),
+            AdresStraat = dto.AdresStraat?.Trim(),
+            Huisnummer = dto.Huisnummer?.Trim(),
+            Postcode = dto.Postcode?.Trim()
         };
 
         _db.Gebruikers.Add(g);
@@ -66,7 +81,12 @@ public class GebruikerService : IGebruikerService
             GebruikerId = g.GebruikerId,
             Naam = g.Naam,
             Email = g.Email,
-            Rol = g.Rol
+            Rol = g.Rol,
+            TelefoonLand = g.TelefoonLand,
+            TelefoonNummer = g.TelefoonNummer,
+            AdresStraat = g.AdresStraat,
+            Huisnummer = g.Huisnummer,
+            Postcode = g.Postcode
         };
     }
 
@@ -80,6 +100,11 @@ public class GebruikerService : IGebruikerService
         g.Naam = dto.Naam;
         g.Email = dto.Email;
         g.Rol = dto.Rol;
+        g.TelefoonLand = dto.TelefoonLand?.Trim().ToUpperInvariant();
+        g.TelefoonNummer = dto.TelefoonNummer?.Trim();
+        g.AdresStraat = dto.AdresStraat?.Trim();
+        g.Huisnummer = dto.Huisnummer?.Trim();
+        g.Postcode = dto.Postcode?.Trim();
 
         await _db.SaveChangesAsync();
         return true;

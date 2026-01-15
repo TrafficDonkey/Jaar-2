@@ -32,13 +32,21 @@ public class AuthService : IAuthService
         if (exists)
             return (false, "E-mailadres is al geregistreerd", null);
 
+        if (!PhoneNumberValidator.TryValidate(dto.TelefoonLand, dto.TelefoonNummer, out var phoneError))
+            return (false, phoneError, null);
+
         // Zelf-registratie: rol altijd geforceerd naar "Klant" (ongeacht wat binnenkomt)
         var gebruiker = new Gebruiker
         {
             Naam = dto.Naam,
             Email = dto.Email,
             Rol = "Klant",
-            WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(dto.Wachtwoord)
+            WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(dto.Wachtwoord),
+            TelefoonLand = dto.TelefoonLand?.Trim().ToUpperInvariant(),
+            TelefoonNummer = dto.TelefoonNummer?.Trim(),
+            AdresStraat = dto.AdresStraat?.Trim(),
+            Huisnummer = dto.Huisnummer?.Trim(),
+            Postcode = dto.Postcode?.Trim()
         };
 
         _db.Gebruikers.Add(gebruiker);
@@ -125,12 +133,21 @@ public class AuthService : IAuthService
         if (string.Equals(rol, "Admin", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Admin-rollen kunnen niet via deze route worden aangemaakt.");
 
+        if (string.Equals(rol, "Klant", StringComparison.OrdinalIgnoreCase) &&
+            !PhoneNumberValidator.TryValidate(dto.TelefoonLand, dto.TelefoonNummer, out var adminPhoneError))
+            throw new InvalidOperationException(adminPhoneError);
+
         var gebruiker = new Gebruiker
         {
             Naam = dto.Naam.Trim(),
             Email = email,
             Rol = rol,
-            WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(dto.Wachtwoord)
+            WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(dto.Wachtwoord),
+            TelefoonLand = dto.TelefoonLand?.Trim().ToUpperInvariant(),
+            TelefoonNummer = dto.TelefoonNummer?.Trim(),
+            AdresStraat = dto.AdresStraat?.Trim(),
+            Huisnummer = dto.Huisnummer?.Trim(),
+            Postcode = dto.Postcode?.Trim()
         };
 
         _db.Gebruikers.Add(gebruiker);
@@ -141,7 +158,12 @@ public class AuthService : IAuthService
             GebruikerId = gebruiker.GebruikerId,
             Naam = gebruiker.Naam,
             Email = gebruiker.Email,
-            Rol = gebruiker.Rol
+            Rol = gebruiker.Rol,
+            TelefoonLand = gebruiker.TelefoonLand,
+            TelefoonNummer = gebruiker.TelefoonNummer,
+            AdresStraat = gebruiker.AdresStraat,
+            Huisnummer = gebruiker.Huisnummer,
+            Postcode = gebruiker.Postcode
         };
     }
 }
