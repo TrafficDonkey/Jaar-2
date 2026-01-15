@@ -4,6 +4,8 @@ import "./LoginStyle.css";
 
 const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
 
+const getDefaultTarget = () => "/app";
+
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
@@ -12,6 +14,13 @@ export default function LoginScreen() {
   const [msg, setMsg] = useState("");
   const nav = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const token = sessionStorage.getItem("token");
+    if (!token) return;
+    const role = sessionStorage.getItem("role");
+    nav(getDefaultTarget(role), { replace: true });
+  }, [nav]);
 
   // Prefill email (mag rustig in localStorage blijven)
   useEffect(() => {
@@ -90,16 +99,7 @@ export default function LoginScreen() {
 
       // Standaard doel op basis van rol
       const finalRole = data.role || sessionStorage.getItem("role");
-      let defaultTarget = "/app";
-      if (finalRole === "Aanvoerder") {
-        defaultTarget = "/app/aanvoerder";
-      } else if (finalRole === "Admin") {
-        defaultTarget = "/app/admin";
-      } else if (finalRole === "Veilingmeester") {
-        defaultTarget = "/app/veilingmeester";
-      }else if (finalRole === "Koper") {
-        defaultTarget = "/app/koper";
-      }
+      const defaultTarget = getDefaultTarget(finalRole);
 
       // Als je via een ProtectedRoute komt, ga terug naar die pagina
       const from = location.state?.from?.pathname;

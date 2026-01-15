@@ -17,6 +17,8 @@ const phoneRules = {
   US: { min: 10, max: 10, label: "Verenigde Staten" },
 };
 
+const getDefaultTarget = () => "/app";
+
 const validatePhone = (country, number) => {
   const trimmedCountry = (country || "").trim().toUpperCase();
   if (!trimmedCountry) return "Kies het land van het telefoonnummer.";
@@ -47,6 +49,13 @@ export default function RegisterScreen() {
   const [msg, setMsg] = useState("");
   const [errors, setErrors] = useState(emptyErrors);
   const nav = useNavigate();
+
+  useEffect(() => {
+    const token = sessionStorage.getItem("token");
+    if (!token) return;
+    const role = sessionStorage.getItem("role");
+    nav(getDefaultTarget(role), { replace: true });
+  }, [nav]);
 
   // rol is altijd "Klant" (niet zichtbaar in de UI)
   const [role] = useState("Klant");

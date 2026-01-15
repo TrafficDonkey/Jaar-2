@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import "./HomePageStyle.css";
 
 export default function HomePage() {
+  const isLoggedIn = Boolean(sessionStorage.getItem("token"));
 
   useEffect(() => {
     document.title = "Homepage";
@@ -25,10 +26,12 @@ export default function HomePage() {
           </p>
 
           {/* Toon altijd beide keuzes: registreren of inloggen */}
-          <div className="lp-cta">
-            <Link to="/register" className="btn btn--primary">Account aanmaken</Link>
-            <Link to="/login" className="btn btn--ghost">Inloggen</Link>
-          </div>
+          {!isLoggedIn && (
+            <div className="lp-cta">
+              <Link to="/register" className="btn btn--primary">Account aanmaken</Link>
+              <Link to="/login" className="btn btn--ghost">Inloggen</Link>
+            </div>
+          )}
 
           <p className="lp-trust">Betrouwbaar. Schaalbaar. Ontworpen voor de sierteeltketen.</p>
         </div>
@@ -93,13 +96,23 @@ export default function HomePage() {
       <section className="lp-ctaStrip" aria-label="Call to action">
         <div className="lp-ctaStrip__box">
           <h2 className="lp-ctaStrip__title">Klaar om te starten?</h2>
-          <p className="lp-ctaStrip__sub">Maak gratis een account of log in om verder te gaan.</p>
-
-          {/* Ook hier altijd beide knoppen */}
-          <div className="lp-cta lp-cta--center">
-            <Link to="/register" className="btn btn--primary">Account aanmaken</Link>
-            <Link to="/login" className="btn btn--ghost">Ik heb al een account</Link>
-          </div>
+          {isLoggedIn ? (
+            <>
+              <p className="lp-ctaStrip__sub">Je bent ingelogd. Ga verder naar je instellingen.</p>
+              <div className="lp-cta lp-cta--center">
+                <Link to="/app/instellingen" className="btn btn--primary">Naar instellingen</Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="lp-ctaStrip__sub">Maak gratis een account of log in om verder te gaan.</p>
+              {/* Ook hier altijd beide knoppen */}
+              <div className="lp-cta lp-cta--center">
+                <Link to="/register" className="btn btn--primary">Account aanmaken</Link>
+                <Link to="/login" className="btn btn--ghost">Ik heb al een account</Link>
+              </div>
+            </>
+          )}
         </div>
       </section>
     </div>
