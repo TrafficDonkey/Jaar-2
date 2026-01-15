@@ -45,6 +45,13 @@ namespace VeilingApi.Services
             return Math.Max(0, total - sold);
         }
 
+        private static string? BuildFotoUrl(Aanmelding? a)
+        {
+            if (a == null || string.IsNullOrWhiteSpace(a.FotoContentType))
+                return null;
+            return $"/api/Aanmeldingen/{a.AanmeldingId}/foto";
+        }
+
         private static VeilingProductDto MapVeilingProductToDto(VeilingProduct vp)
         {
             var a = vp.Aanmelding;
@@ -55,7 +62,7 @@ namespace VeilingApi.Services
                 VeilingProductId     = vp.VeilingProductId,
                 AanmeldingId         = vp.AanmeldingId,
                 ProductBeschrijving  = a?.ProductBeschrijving ?? string.Empty,
-                FotoUrl              = a?.FotoUrl,
+                FotoUrl              = BuildFotoUrl(a),
                 Aantal               = a?.Hoeveelheid ?? 0,
                 ResterendAantal      = remaining,
                 StartPrijs           = a?.MinimumPrijs ?? 0,
@@ -183,7 +190,7 @@ namespace VeilingApi.Services
                         Hoeveelheid          = a.Hoeveelheid,
                         ResterendAantal      = CalculateRemaining(vp),
                         MinimumPrijs         = a.MinimumPrijs,
-                        FotoUrl              = a.FotoUrl,
+                        FotoUrl              = BuildFotoUrl(a),
                         Kloklocatie          = a.GewensteKlokLocatie,
                         Categorie            = a.Categorie
                     };

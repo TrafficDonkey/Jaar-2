@@ -36,6 +36,8 @@ public class AppDbContext : DbContext
             .HasColumnType("decimal(10,2)");
 
         mb.Entity<Aanmelding>().Property(p => p.Categorie).HasMaxLength(100);
+        mb.Entity<Aanmelding>().Property(p => p.FotoContentType).HasMaxLength(100);
+        mb.Entity<Aanmelding>().Property(p => p.FotoFileName).HasMaxLength(255);
         mb.Entity<VeilingProduct>().Property(p => p.Categorie).HasMaxLength(100);
         mb.Entity<Gebruiker>().Property(p => p.TelefoonLand).HasMaxLength(2);
         mb.Entity<Gebruiker>().Property(p => p.TelefoonNummer).HasMaxLength(25);

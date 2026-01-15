@@ -19,6 +19,13 @@ public class VeilingProductService : IVeilingProductService
         return Math.Max(0, total - sold);
     }
 
+    private static string? BuildFotoUrl(Aanmelding? a)
+    {
+        if (a == null || string.IsNullOrWhiteSpace(a.FotoContentType))
+            return null;
+        return $"/api/Aanmeldingen/{a.AanmeldingId}/foto";
+    }
+
     private static VeilingProductDto MapToDto(VeilingProduct vp)
     {
         var a = vp.Aanmelding;
@@ -29,6 +36,7 @@ public class VeilingProductService : IVeilingProductService
             VeilingProductId    = vp.VeilingProductId,
             AanmeldingId        = vp.AanmeldingId,
             ProductBeschrijving = a?.ProductBeschrijving ?? string.Empty,
+            FotoUrl             = BuildFotoUrl(a),
             Aantal              = a?.Hoeveelheid ?? 0,
             ResterendAantal     = remaining,
             StartPrijs          = a?.MinimumPrijs ?? 0m,

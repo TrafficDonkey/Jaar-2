@@ -17,10 +17,17 @@ public class AanmeldingService : IAanmeldingService
     public AanmeldingService(AppDbContext db) => _db = db;
 
     // Kleine helper om duplicatie te voorkomen
+    private static string? BuildFotoUrl(Aanmelding a)
+    {
+        if (string.IsNullOrWhiteSpace(a.FotoContentType))
+            return null;
+        return $"/api/Aanmeldingen/{a.AanmeldingId}/foto";
+    }
+
     private static AanmeldingDto MapToDto(Aanmelding a) => new AanmeldingDto
     {
         AanmeldingId         = a.AanmeldingId,
-        FotoUrl              = a.FotoUrl,
+        FotoUrl              = BuildFotoUrl(a),
         ProductBeschrijving  = a.ProductBeschrijving,
         Hoeveelheid          = a.Hoeveelheid,
         MinimumPrijs         = a.MinimumPrijs,
@@ -53,6 +60,19 @@ public class AanmeldingService : IAanmeldingService
         return entity is null ? null : MapToDto(entity);
     }
 
+    public async Task<AanmeldingFotoDto?> GetFotoAsync(int id)
+    {
+        return await _db.Aanmeldingen
+            .Where(a => a.AanmeldingId == id && a.FotoData != null && a.FotoContentType != null)
+            .Select(a => new AanmeldingFotoDto
+            {
+                FotoData = a.FotoData!,
+                FotoContentType = a.FotoContentType!,
+                FotoFileName = a.FotoFileName
+            })
+            .FirstOrDefaultAsync();
+    }
+
     // ────────────────────────────── READ: op basis van gebruiker ──────────────────────────────
     // Haal alle aanmeldingen op die horen bij een specifieke gebruiker (eigenaar).
     // Dit wordt o.a. gebruikt voor "mijn aanmeldingen" in de Aanvoerder/leverancier-omgeving.
@@ -80,7 +100,9 @@ public class AanmeldingService : IAanmeldingService
 
         var entity = new Aanmelding
         {
-            FotoUrl             = dto.FotoUrl ?? string.Empty,
+            FotoData            = dto.FotoData,
+            FotoContentType     = dto.FotoContentType,
+            FotoFileName        = dto.FotoFileName,
             ProductBeschrijving = dto.ProductBeschrijving,
             Hoeveelheid         = dto.Hoeveelheid,
             MinimumPrijs        = dto.MinimumPrijs,
@@ -111,7 +133,12 @@ public class AanmeldingService : IAanmeldingService
         if (entity is null)
             return false;
 
-        entity.FotoUrl             = dto.FotoUrl ?? string.Empty;
+        if (dto.FotoData != null)
+        {
+            entity.FotoData        = dto.FotoData;
+            entity.FotoContentType = dto.FotoContentType;
+            entity.FotoFileName    = dto.FotoFileName;
+        }
         entity.ProductBeschrijving = dto.ProductBeschrijving;
         entity.Hoeveelheid         = dto.Hoeveelheid;
         entity.MinimumPrijs        = dto.MinimumPrijs;
@@ -153,6 +180,9 @@ public class AanmeldingService : IAanmeldingService
         .Select(a => new AanmeldingDto
         {
             AanmeldingId = a.AanmeldingId,
+            FotoUrl = string.IsNullOrWhiteSpace(a.FotoContentType)
+                ? null
+                : $"/api/Aanmeldingen/{a.AanmeldingId}/foto",
             ProductBeschrijving = a.ProductBeschrijving,
             Hoeveelheid = a.Hoeveelheid,
             MinimumPrijs = a.MinimumPrijs,

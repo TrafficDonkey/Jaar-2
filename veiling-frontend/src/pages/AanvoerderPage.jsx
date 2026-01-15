@@ -4,12 +4,21 @@
 // - Overzicht van eigen aanmeldingen
 // - Overzicht van toewijzingen (verkochte kavels) + totale opbrengst
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./AanvoerderPageStyle.css";
 import apiFetch from "../api";
 
 // Vastgestelde kloklocaties
 const KLOK_LOCATIES = ["Naaldwijk", "Aalsmeer", "Rijnsburg", "Eelde"];
+const FOTO_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+const FOTO_CONTENT_TYPES = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+];
+const FOTO_FORMAT_LABEL = "jpg, jpeg, png, gif, webp";
 
 // Probeer gebruikerId uit JWT-token te halen
 function getGebruikerIdFromToken() {
@@ -108,7 +117,7 @@ export default function AanvoerderPage() {
     const [toewijzingen, setToewijzingen] = useState([]);
 
     const [form, setForm] = useState({
-        fotoUrl: "",
+        fotoFile: null,
         productBeschrijving: "",
         hoeveelheid: 1,
         minimumPrijs: 0,
@@ -116,6 +125,8 @@ export default function AanvoerderPage() {
         kloklocatie: "Naaldwijk",
         veilDatum: "",
     });
+
+    const fotoInputRef = useRef(null);
 
     // Eerste init: titel + rol + gebruikerId bepalen
     useEffect(() => {
@@ -291,26 +302,44 @@ export default function AanvoerderPage() {
             return;
         }
 
+        const fotoFile = form.fotoFile;
+        if (fotoFile) {
+            const ext = fotoFile.name
+                ? `.${fotoFile.name.split(".").pop().toLowerCase()}`
+                : "";
+            const isExtAllowed = FOTO_EXTENSIONS.includes(ext);
+            const isTypeAllowed =
+                !fotoFile.type || FOTO_CONTENT_TYPES.includes(fotoFile.type);
+
+            if (!isExtAllowed || !isTypeAllowed) {
+                setError(
+                    `Foto moet een van de volgende formaten zijn: ${FOTO_FORMAT_LABEL}.`
+                );
+                return;
+            }
+        }
+
         try {
             setSaving(true);
             setMsg("Aanmelding opslaan…");
 
             const veilDatumIso = veilDate.toISOString();
 
-            const payload = {
-                fotoUrl: form.fotoUrl.trim() || null,
-                productBeschrijving: form.productBeschrijving.trim(),
-                hoeveelheid: qty,
-                minimumPrijs: minPrice,
-                categorie: form.categorie,
-                gewensteKlokLocatie: form.kloklocatie.trim(),
-                gewensteVeilDatum: veilDatumIso,
-                gebruikerId: gebruikerId,
-            };
+            const data = new FormData();
+            if (fotoFile) {
+                data.append("foto", fotoFile);
+            }
+            data.append("productBeschrijving", form.productBeschrijving.trim());
+            data.append("hoeveelheid", String(qty));
+            data.append("minimumPrijs", String(minPrice));
+            data.append("categorie", form.categorie);
+            data.append("gewensteKlokLocatie", form.kloklocatie.trim());
+            data.append("gewensteVeilDatum", veilDatumIso);
+            data.append("gebruikerId", String(gebruikerId));
 
             const created = await apiFetch("/Aanmeldingen", {
                 method: "POST",
-                body: JSON.stringify(payload),
+                body: data,
             });
 
             // nieuwe aanmelding bovenaan
@@ -318,7 +347,7 @@ export default function AanvoerderPage() {
 
             // formulier resetten
             setForm({
-                fotoUrl: "",
+                fotoFile: null,
                 productBeschrijving: "",
                 hoeveelheid: 1,
                 minimumPrijs: 0,
@@ -326,6 +355,9 @@ export default function AanvoerderPage() {
                 kloklocatie: "Naaldwijk",
                 veilDatum: "",
             });
+            if (fotoInputRef.current) {
+                fotoInputRef.current.value = "";
+            }
 
             setMsg("✅ Aanmelding opgeslagen.");
         } catch (err) {
@@ -337,7 +369,7 @@ export default function AanvoerderPage() {
 
     function handleResetForm() {
         setForm({
-            fotoUrl: "",
+            fotoFile: null,
             productBeschrijving: "",
             hoeveelheid: 1,
             minimumPrijs: 0,
@@ -345,6 +377,9 @@ export default function AanvoerderPage() {
             kloklocatie: "Naaldwijk",
             veilDatum: "",
         });
+        if (fotoInputRef.current) {
+            fotoInputRef.current.value = "";
+        }
         setError("");
         setMsg("");
     }
@@ -435,13 +470,20 @@ export default function AanvoerderPage() {
 
                     <form className="aanv-form" onSubmit={handleSubmit} noValidate>
                         <div className="field">
-                            <label htmlFor="foto">Foto-URL (optioneel)</label>
+                            <label htmlFor="foto">
+                                Foto (optioneel: {FOTO_FORMAT_LABEL})
+                            </label>
                             <input
                                 id="foto"
-                                type="url"
-                                placeholder="https://…"
-                                value={form.fotoUrl}
-                                onChange={(e) => updateField("fotoUrl", e.target.value)}
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                                ref={fotoInputRef}
+                                onChange={(e) =>
+                                    updateField(
+                                        "fotoFile",
+                                        e.target.files ? e.target.files[0] : null
+                                    )
+                                }
                             />
                         </div>
 

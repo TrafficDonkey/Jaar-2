@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
-import apiFetch from "../api";
+import apiFetch, { API_BASE } from "../api";
 import "./KoperPageStyle.css";
 import AuctionClock from "../components/AuctionClock";
 
@@ -29,6 +29,14 @@ const fmtCurrency = (v) => {
   });
 };
 
+const API_BASE_URL = API_BASE.endsWith("/") ? API_BASE : `${API_BASE}/`;
+
+const normalizeFotoUrl = (url) => {
+  if (!url) return null;
+  if (/^(https?:|data:)/i.test(url)) return url;
+  return new URL(url, API_BASE_URL).toString();
+};
+
 const mapVeilingDto = (v) => {
   const vp =
     v?.veilingProducten && v.veilingProducten.length > 0
@@ -47,7 +55,7 @@ const mapVeilingDto = (v) => {
         hoeveelheid: hoeveelheid ?? 0,
         resterendAantal,
         minimumPrijs: vp.startPrijs ?? 0,
-        fotoUrl: vp.fotoUrl ?? null,
+        fotoUrl: normalizeFotoUrl(vp.fotoUrl ?? null),
         kloklocatie: vp.kloklocatie ?? "",
         categorie: vp.categorie ?? "",
       }

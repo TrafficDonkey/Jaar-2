@@ -4,6 +4,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Http;
 
 namespace VeilingApi.Models;
 
@@ -106,7 +107,9 @@ public class AanmeldingDto
 
 public class CreateAanmeldingDto
 {
-    public string? FotoUrl { get; set; }
+    public byte[]? FotoData { get; set; }
+    public string? FotoContentType { get; set; }
+    public string? FotoFileName { get; set; }
 
     [Required, StringLength(200)]
     public string ProductBeschrijving { get; set; } = string.Empty;
@@ -136,6 +139,45 @@ public class UpdateAanmeldingDto : CreateAanmeldingDto
 {
     [Required]
     public int AanmeldingId { get; set; }
+}
+
+public class CreateAanmeldingFormDto
+{
+    public IFormFile? Foto { get; set; }
+
+    [Required, StringLength(200)]
+    public string ProductBeschrijving { get; set; } = string.Empty;
+
+    [Range(1, 100000)]
+    public int Hoeveelheid { get; set; }
+
+    [Range(0, 999999)]
+    public decimal MinimumPrijs { get; set; }
+
+    [Required, StringLength(100)]
+    public string Categorie { get; set; } = string.Empty;
+
+    [Required]
+    public string GewensteKlokLocatie { get; set; } = "Naaldwijk";
+
+    [Required]
+    public DateTime GewensteVeilDatum { get; set; }
+
+    [Required]
+    public int GebruikerId { get; set; }
+}
+
+public class UpdateAanmeldingFormDto : CreateAanmeldingFormDto
+{
+    [Required]
+    public int AanmeldingId { get; set; }
+}
+
+public class AanmeldingFotoDto
+{
+    public byte[] FotoData { get; set; } = Array.Empty<byte>();
+    public string FotoContentType { get; set; } = "application/octet-stream";
+    public string? FotoFileName { get; set; }
 }
 
 

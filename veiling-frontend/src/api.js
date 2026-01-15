@@ -2,18 +2,23 @@
 // Centrale helperfunctie voor API-verzoeken naar de backend.
 // Voegt automatisch het JWT-token toe (indien aanwezig) en handelt fouten en 401-status af.
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
+export const API_BASE =
+  import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
 
 export default async function apiFetch(path, options = {}) {
   const token = sessionStorage.getItem("token");
 
   // Bestaande headers uit options meenemen
   const existingHeaders = options.headers ?? {};
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
 
   // Standaard headers + Authorization
   const headers = {
     ...existingHeaders,
-    "Content-Type": existingHeaders["Content-Type"] || "application/json",
+    ...(isFormData
+      ? {}
+      : { "Content-Type": existingHeaders["Content-Type"] || "application/json" }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
