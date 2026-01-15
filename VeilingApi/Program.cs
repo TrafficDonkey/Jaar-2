@@ -63,14 +63,17 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("web", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "http://localhost:5174",
-                "http://127.0.0.1:5174")
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+       policy.WithOrigins(
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "https://jaar-2frontendsem3.vercel.app",
+    "https://jaar-2frontendsem3-5adthyzyh-khalid3385s-projects.vercel.app")
+.AllowAnyHeader()
+.AllowAnyMethod()
+.AllowCredentials();
+
     });
 });
 
@@ -123,10 +126,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    if (app.Environment.IsDevelopment())
-    {
-        db.Database.Migrate();
-    }
+    db.Database.Migrate();
 
     if (!db.Gebruikers.Any(g => g.Email == "admin@floraflow.nl"))
     {
