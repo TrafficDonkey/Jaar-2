@@ -146,6 +146,12 @@ export default function KoperPage() {
           v.status.toLowerCase() === "actief"
       );
 
+      const now = Date.now();
+      actief = actief.filter((v) => {
+        const endMs = toTimeMs(v.eindTijd);
+        return !Number.isFinite(endMs) || endMs >= now;
+      });
+
       // categorie meenemen vanuit eerste product
       actief = actief.map((v) => {
         const first =
@@ -373,8 +379,15 @@ export default function KoperPage() {
     }
     const min = Number(product.minimumPrijs ?? 0);
     const max = min > 0 ? min * 2 : 100;
-    return { minPrice: min, maxPrice: max, durationSeconds: 60 };
-  }, [product]);
+    const startMs = toTimeMs(veiling?.startTijd);
+    const endMs = toTimeMs(veiling?.eindTijd);
+    const durationFromBackend =
+      Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs
+        ? Math.round((endMs - startMs) / 1000)
+        : 60;
+    const duration = Math.max(1, durationFromBackend);
+    return { minPrice: min, maxPrice: max, durationSeconds: duration };
+  }, [product, veiling?.startTijd, veiling?.eindTijd]);
 
   const quickAmounts = [1, 5, 10, 50, 100];
 
@@ -695,6 +708,7 @@ export default function KoperPage() {
                           minPrice={minPrice}
                           maxPrice={maxPrice}
                           durationSeconds={durationSeconds}
+                          startTime={veiling?.startTijd}
                           runId={clockRunId}
                           onPriceChange={handleClockPriceChange}
                           onFinished={handleClockFinished}

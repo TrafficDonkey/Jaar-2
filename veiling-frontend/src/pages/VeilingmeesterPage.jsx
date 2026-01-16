@@ -149,12 +149,18 @@ export default function VeilingmeesterPage() {
       const lijst = Array.isArray(alle) ? alle : [];
 
       // Filter status "Actief"
-      const actief = lijst.filter(
+      let actief = lijst.filter(
         (v) =>
           v.status &&
           typeof v.status === "string" &&
           v.status.toLowerCase() === "actief"
       );
+
+      const now = Date.now();
+      actief = actief.filter((v) => {
+        const endMs = toTimeMs(v.eindTijd);
+        return !Number.isFinite(endMs) || endMs >= now;
+      });
 
       // Map naar vereenvoudigd object met 1 "huidigProduct"
       const mapped = actief.map((v) => {

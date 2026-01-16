@@ -4,11 +4,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import "./AuctionClockStyle.css";
+import { toTimeMs } from "../utils/date";
 
 export default function AuctionClock({
   minPrice,
   maxPrice,
   durationSeconds = 60,
+  startTime, // ISO string van backend; bepaalt "waar" de klok nu is
   runId, // verander dit getal om de klok opnieuw te starten
   onPriceChange,
   onFinished,
@@ -34,8 +36,20 @@ export default function AuctionClock({
   );
 
   const [currentPrice, setCurrentPrice] = useState(safeMax);
+  const [nowMs, setNowMs] = useState(Date.now());
+  const finishedRef = useRef(false);
+  const fallbackStartRef = useRef(Date.now());
 
-  // herstart klok wanneer runId, min, max of duration verandert
+  const startMs = toTimeMs(startTime);
+  const totalMs = safeDuration * 1000;
+
+  useEffect(() => {
+    const intervalMs = 100; // elke 0.1 seconde updaten
+    const id = setInterval(() => setNowMs(Date.now()), intervalMs);
+    return () => clearInterval(id);
+  }, []);
+
+  // Reset venster/ticks wanneer inputs veranderen
   useEffect(() => {
     const initialTop = safeMax;
     const initialBottom = Math.max(safeMax - windowSpan, safeMin);
@@ -43,45 +57,45 @@ export default function AuctionClock({
     segmentBottomRef.current = initialBottom;
     setSegmentTop(initialTop);
     setSegmentBottom(initialBottom);
-    setCurrentPrice(safeMax);
-    onPriceChange?.(safeMax);
+    finishedRef.current = false;
+    fallbackStartRef.current = Date.now();
+  }, [runId, safeMin, safeMax, safeDuration, windowSpan, startTime]);
 
-    const intervalMs = 100; // elke 0.1 seconde updaten
-    const step = intervalMs / 1000;
+  // Sync prijs op basis van backend starttijd + client klok.
+  useEffect(() => {
+    if (finishedRef.current) {
+      setCurrentPrice(safeMin);
+      return;
+    }
 
-    let t = safeDuration;
-    const id = setInterval(() => {
-      t -= step;
-      if (t <= 0) {
-        setCurrentPrice(safeMin);
-        onPriceChange?.(safeMin);
-        clearInterval(id);
-        onFinished?.();
-        return;
-      }
+    const hasStart = Number.isFinite(startMs);
+    const effectiveStartMs = hasStart ? startMs : fallbackStartRef.current;
 
-      const fraction = (safeDuration - t) / safeDuration; // 0 -> 1
-      const price = safeMax - (safeMax - safeMin) * fraction;
+    const elapsedMs = nowMs - effectiveStartMs;
+    const fraction =
+      totalMs <= 0 ? 1 : Math.min(1, Math.max(0, elapsedMs / totalMs));
+    const price = safeMax - (safeMax - safeMin) * fraction;
 
-      setCurrentPrice(price);
-      onPriceChange?.(price);
+    setCurrentPrice(price);
+    onPriceChange?.(price);
 
-      if (
-        price <= segmentBottomRef.current &&
-        segmentBottomRef.current > safeMin
-      ) {
-        const newTop = segmentBottomRef.current;
-        const newBottom = Math.max(newTop - windowSpan, safeMin);
-        segmentTopRef.current = newTop;
-        segmentBottomRef.current = newBottom;
-        setSegmentTop(newTop);
-        setSegmentBottom(newBottom);
-      }
-    }, intervalMs);
+    if (
+      price <= segmentBottomRef.current &&
+      segmentBottomRef.current > safeMin
+    ) {
+      const newTop = segmentBottomRef.current;
+      const newBottom = Math.max(newTop - windowSpan, safeMin);
+      segmentTopRef.current = newTop;
+      segmentBottomRef.current = newBottom;
+      setSegmentTop(newTop);
+      setSegmentBottom(newBottom);
+    }
 
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, safeMin, safeMax, safeDuration, windowSpan]);
+    if (fraction >= 1 && !finishedRef.current) {
+      finishedRef.current = true;
+      onFinished?.();
+    }
+  }, [nowMs, safeMax, safeMin, totalMs, startMs, windowSpan, onPriceChange, onFinished]);
 
   const generateTicks = (min, max, num = 10) => {
     if (!Number.isFinite(min) || !Number.isFinite(max) || num < 2) {

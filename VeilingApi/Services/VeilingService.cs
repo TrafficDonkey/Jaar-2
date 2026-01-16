@@ -216,12 +216,24 @@ namespace VeilingApi.Services
             if (aanmelding is null)
                 throw new InvalidOperationException("Aanmelding bestaat niet.");
 
+            var start = dto.StartTijd ?? DateTime.UtcNow;
+            if (start.Kind == DateTimeKind.Unspecified)
+            {
+                start = DateTime.SpecifyKind(start, DateTimeKind.Utc);
+            }
+            else
+            {
+                start = start.ToUniversalTime();
+            }
+
+            var end = start.AddSeconds(60);
+
             var veiling = new Veiling
             {
                 Naam            = string.IsNullOrWhiteSpace(dto.Naam) ? "Veiling" : dto.Naam!,
                 Status          = "Actief",
-                StartTijd       = dto.StartTijd ?? DateTime.UtcNow,
-                EindTijd        = null,
+                StartTijd       = start,
+                EindTijd        = end,
                 GestartDoorId   = gestartDoorId,
                 VeilingProducten = new List<VeilingProduct>()
             };
