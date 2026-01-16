@@ -20,6 +20,52 @@ namespace VeilingApi.Services
         /// </summary>
         private static VeilingDto MapToDto(Veiling v)
         {
+            var toewijzingen = v.VeilingProducten?
+                .SelectMany(vp => vp.Toewijzingen ?? Enumerable.Empty<Toewijzing>())
+                .ToList() ?? new List<Toewijzing>();
+
+            var koperSamenvattingen = toewijzingen
+                .GroupBy(t => t.KoperId)
+                .Select(g =>
+                {
+                    var prijsRegels = g
+                        .GroupBy(t => t.EindPrijs)
+                        .Select(pg =>
+                        {
+                            var qty = pg.Sum(t => t.Aantal > 0 ? t.Aantal : 0);
+                            var total = pg.Sum(t => (t.Aantal > 0 ? t.Aantal : 0) * t.EindPrijs);
+                            return new VeilingKoperPrijsRegelDto
+                            {
+                                PrijsPerStuk = pg.Key,
+                                Hoeveelheid = qty,
+                                TotaalBedrag = total
+                            };
+                        })
+                        .Where(r => r.Hoeveelheid > 0)
+                        .OrderByDescending(r => r.PrijsPerStuk)
+                        .ToList();
+
+                    var totalQty = prijsRegels.Sum(r => r.Hoeveelheid);
+                    var totalAmount = prijsRegels.Sum(r => r.TotaalBedrag);
+
+                    return new VeilingKoperSamenvattingDto
+                    {
+                        KoperId = g.Key,
+                        KoperNaam = g.Select(t => t.Koper != null ? t.Koper.Naam : string.Empty)
+                            .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? string.Empty,
+                        Hoeveelheid = totalQty,
+                        TotaalBedrag = totalAmount,
+                        PrijsRegels = prijsRegels
+                    };
+                })
+                .Where(k => k.Hoeveelheid > 0)
+                .OrderByDescending(k => k.TotaalBedrag)
+                .ThenBy(k => k.KoperId)
+                .ToList();
+
+            var totaleHoeveelheid = koperSamenvattingen.Sum(k => k.Hoeveelheid);
+            var totaleOpbrengst = koperSamenvattingen.Sum(k => k.TotaalBedrag);
+
             return new VeilingDto
             {
                 VeilingId = v.VeilingId,
@@ -27,6 +73,9 @@ namespace VeilingApi.Services
                 Status    = v.Status,
                 StartTijd = v.StartTijd,
                 EindTijd  = v.EindTijd,
+                TotaleHoeveelheid = totaleHoeveelheid,
+                TotaleOpbrengst = totaleOpbrengst,
+                KoperSamenvattingen = koperSamenvattingen,
                 VeilingProducten = v.VeilingProducten?
                     .Select(MapVeilingProductToDto)
                     .ToList() ?? new List<VeilingProductDto>()
@@ -91,6 +140,7 @@ namespace VeilingApi.Services
                     .ThenInclude(vp => vp.Aanmelding)
                 .Include(v => v.VeilingProducten)
                     .ThenInclude(vp => vp.Toewijzingen)
+                        .ThenInclude(t => t.Koper)
                 .OrderByDescending(v => v.StartTijd)
                 .ToListAsync();
 
@@ -104,6 +154,7 @@ namespace VeilingApi.Services
                     .ThenInclude(vp => vp.Aanmelding)
                 .Include(v => v.VeilingProducten)
                     .ThenInclude(vp => vp.Toewijzingen)
+                        .ThenInclude(t => t.Koper)
                 .FirstOrDefaultAsync(v => v.VeilingId == id);
 
             return v is null ? null : MapToDto(v);
@@ -273,6 +324,7 @@ namespace VeilingApi.Services
                     .ThenInclude(vp => vp.Aanmelding)
                 .Include(v => v.VeilingProducten)
                     .ThenInclude(vp => vp.Toewijzingen)
+                        .ThenInclude(t => t.Koper)
                 .Where(v =>
                     v.Status == "Afgerond" ||
                     (v.EindTijd != null && v.EindTijd <= now));

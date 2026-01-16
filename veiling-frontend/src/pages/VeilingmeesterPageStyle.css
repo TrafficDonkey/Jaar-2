@@ -417,6 +417,125 @@
   color: var(--color-muted);
 }
 
+.vm-archief-row {
+  cursor: pointer;
+}
+
+.vm-archief-row:hover {
+  background: rgba(22, 101, 52, 0.06);
+}
+
+.vm-archief-row:focus {
+  outline: 2px solid rgba(22, 101, 52, 0.55);
+  outline-offset: -2px;
+}
+
+.vm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.2rem;
+  z-index: 80;
+}
+
+.vm-modal {
+  width: min(860px, 100%);
+  max-height: 85vh;
+  overflow: auto;
+  border-radius: 1rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.35);
+}
+
+.vm-modal-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  position: sticky;
+  top: 0;
+  background: var(--color-surface);
+  z-index: 1;
+}
+
+.vm-modal-title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.vm-modal-body {
+  padding: 1rem 1.2rem 1.3rem;
+}
+
+.vm-modal-stats {
+  margin-bottom: 0.85rem;
+}
+
+.vm-winners {
+  font-size: 0.85rem;
+}
+
+.vm-winners summary {
+  cursor: pointer;
+  color: var(--color-text);
+  list-style: none;
+}
+
+.vm-winners summary::-webkit-details-marker {
+  display: none;
+}
+
+.vm-winners summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 0.35rem;
+  color: var(--color-muted);
+}
+
+.vm-winners[open] summary::before {
+  content: "▾";
+}
+
+.vm-winners-body {
+  margin-top: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.vm-winner {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: rgba(15, 23, 42, 0.02);
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.6rem;
+}
+
+.vm-winner-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-weight: 600;
+}
+
+.vm-winner-lines {
+  margin-top: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  color: var(--color-muted);
+}
+
+.vm-winner-line {
+  font-size: 0.82rem;
+}
+
 /* Responsive tweaks */
 
 @media (max-width: 780px) {

@@ -186,6 +186,21 @@ export default function AanvoerderPage() {
         setForm((prev) => ({ ...prev, [name]: value }));
     }
 
+    const [categorieInput, setCategorieInput] = useState(form.categorie);
+    const [showCategorieSuggest, setShowCategorieSuggest] = useState(false);
+    const [categorieSuggestIndex, setCategorieSuggestIndex] = useState(-1);
+    const categorieSuggestRef = useRef(null);
+
+    const filteredCategorieen = useMemo(() => {
+        const q = String(categorieInput ?? "").trim().toLowerCase();
+        const list = PLANTEN_CATEGORIEEN.categories ?? [];
+        return q ? list.filter((c) => c.toLowerCase().includes(q)) : list;
+    }, [categorieInput]);
+
+    useEffect(() => {
+        setCategorieInput(form.categorie);
+    }, [form.categorie]);
+
     const beschikbareProductNamen = useMemo(() => {
         const cat = form.categorie;
         return PLANTEN_CATEGORIEEN.plantsByCategory?.[cat] ?? [];
@@ -224,6 +239,19 @@ export default function AanvoerderPage() {
         document.addEventListener("mousedown", onDocMouseDown);
         return () => document.removeEventListener("mousedown", onDocMouseDown);
     }, []);
+
+    useEffect(() => {
+        function onDocMouseDown(e) {
+            if (!categorieSuggestRef.current) return;
+            if (!categorieSuggestRef.current.contains(e.target)) {
+                setShowCategorieSuggest(false);
+                setCategorieSuggestIndex(-1);
+                setCategorieInput(form.categorie);
+            }
+        }
+        document.addEventListener("mousedown", onDocMouseDown);
+        return () => document.removeEventListener("mousedown", onDocMouseDown);
+    }, [form.categorie]);
 
     // Stats voor bovenaan de pagina
     const stats = useMemo(() => {
@@ -563,22 +591,112 @@ export default function AanvoerderPage() {
                         <div className="field-row">
                             <div className="field">
                                 <label htmlFor="categorie">Categorie</label>
-                                <select
-                                    id="categorie"
-                                    value={form.categorie}
-                                    onChange={(e) => {
-                                        const next = e.target.value;
-                                        updateField("categorie", next);
-                                        updateField("productNaam", "");
-                                    }}
-                                    required
+                                <div
+                                    className="aanv-autocomplete"
+                                    ref={categorieSuggestRef}
                                 >
-                                    {PLANTEN_CATEGORIEEN.categories.map((c) => (
-                                        <option key={c} value={c}>
-                                            {c}
-                                        </option>
-                                    ))}
-                                </select>
+                                    <input
+                                        id="categorie"
+                                        value={categorieInput}
+                                        onChange={(e) => {
+                                            setCategorieInput(e.target.value);
+                                            setShowCategorieSuggest(true);
+                                            setCategorieSuggestIndex(-1);
+                                        }}
+                                        onFocus={() => setShowCategorieSuggest(true)}
+                                        onBlur={() => {
+                                            window.setTimeout(() => {
+                                                setShowCategorieSuggest(false);
+                                                setCategorieSuggestIndex(-1);
+                                                setCategorieInput(form.categorie);
+                                            }, 120);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (!showCategorieSuggest) return;
+
+                                            if (e.key === "ArrowDown") {
+                                                e.preventDefault();
+                                                setCategorieSuggestIndex((i) =>
+                                                    Math.min(i + 1, filteredCategorieen.length - 1)
+                                                );
+                                            } else if (e.key === "ArrowUp") {
+                                                e.preventDefault();
+                                                setCategorieSuggestIndex((i) => Math.max(i - 1, 0));
+                                            } else if (e.key === "Escape") {
+                                                setShowCategorieSuggest(false);
+                                                setCategorieSuggestIndex(-1);
+                                                setCategorieInput(form.categorie);
+                                            } else if (e.key === "Enter") {
+                                                const picked =
+                                                    categorieSuggestIndex >= 0
+                                                        ? filteredCategorieen[categorieSuggestIndex]
+                                                        : null;
+
+                                                if (picked) {
+                                                    e.preventDefault();
+                                                    updateField("categorie", picked);
+                                                    updateField("productNaam", "");
+                                                    setCategorieInput(picked);
+                                                    setShowCategorieSuggest(false);
+                                                    setCategorieSuggestIndex(-1);
+                                                    setShowProductSuggest(false);
+                                                } else {
+                                                    const exact = filteredCategorieen.find(
+                                                        (c) =>
+                                                            c.toLowerCase() ===
+                                                            String(categorieInput ?? "").trim().toLowerCase()
+                                                    );
+                                                    if (exact) {
+                                                        e.preventDefault();
+                                                        updateField("categorie", exact);
+                                                        updateField("productNaam", "");
+                                                        setCategorieInput(exact);
+                                                        setShowCategorieSuggest(false);
+                                                        setCategorieSuggestIndex(-1);
+                                                        setShowProductSuggest(false);
+                                                    }
+                                                }
+                                            }
+                                        }}
+                                        placeholder="Typ om te zoeken..."
+                                        autoComplete="off"
+                                        required
+                                    />
+                                    {showCategorieSuggest && filteredCategorieen.length > 0 && (
+                                        <div
+                                            className="aanv-autocomplete-list"
+                                            role="listbox"
+                                            aria-label="Categorieën"
+                                        >
+                                            {filteredCategorieen.map((c, idx) => (
+                                                <button
+                                                    key={c}
+                                                    type="button"
+                                                    className={
+                                                        "aanv-autocomplete-item" +
+                                                        (idx === categorieSuggestIndex
+                                                            ? " aanv-autocomplete-item--active"
+                                                            : "")
+                                                    }
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault();
+                                                        updateField("categorie", c);
+                                                        updateField("productNaam", "");
+                                                        setCategorieInput(c);
+                                                        setShowCategorieSuggest(false);
+                                                        setCategorieSuggestIndex(-1);
+                                                        setShowProductSuggest(false);
+                                                    }}
+                                                    onMouseEnter={() =>
+                                                        setCategorieSuggestIndex(idx)
+                                                    }
+                                                >
+                                                    {c}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

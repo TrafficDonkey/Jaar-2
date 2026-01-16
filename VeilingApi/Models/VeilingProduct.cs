@@ -29,10 +29,10 @@ public class VeilingProduct
     // ────────────────────────────── Relaties ──────────────────────────────
 
     [JsonIgnore][ValidateNever]
-    public ICollection<Bieding>? Biedingen { get; set; } = [];
+    public ICollection<Bieding> Biedingen { get; set; } = [];
     // Lijst met biedingen op dit veilingproduct
 
     [JsonIgnore][ValidateNever]
-    public ICollection<Toewijzing>? Toewijzingen { get; set; } = [];
+    public ICollection<Toewijzing> Toewijzingen { get; set; } = [];
     // Toewijzingen (verkopen) voor dit veilingproduct
 }

@@ -17,11 +17,183 @@ import {
 
 function formatCurrency(value) {
   const nr = Number(value);
-  if (Number.isNaN(nr)) return "-";
+  if (!Number.isFinite(nr)) return "-";
   return nr.toLocaleString("nl-NL", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    style: "currency",
+    currency: "EUR",
   });
+}
+
+function getVeilingId(veiling) {
+  return veiling?.veilingId ?? veiling?.VeilingId ?? veiling?.id;
+}
+
+function getVeilingProductIds(veiling) {
+  const producten =
+    veiling?.veilingProducten ?? veiling?.VeilingProducten ?? [];
+  if (!Array.isArray(producten)) return [];
+  return producten
+    .map((p) => p?.veilingProductId ?? p?.VeilingProductId ?? p?.id)
+    .filter((id) => Number.isFinite(Number(id)))
+    .map((id) => Number(id));
+}
+
+function normalizeToewijzing(raw) {
+  const veilingProductId = Number(
+    raw?.veilingProductId ?? raw?.VeilingProductId
+  );
+  const koperId = Number(raw?.koperId ?? raw?.KoperId);
+  const aantal = Number(raw?.aantal ?? raw?.Aantal);
+  const eindPrijs = Number(raw?.eindPrijs ?? raw?.EindPrijs);
+
+  if (!Number.isFinite(veilingProductId) || veilingProductId <= 0) return null;
+  if (!Number.isFinite(koperId) || koperId <= 0) return null;
+  if (!Number.isFinite(aantal) || aantal <= 0) return null;
+  if (!Number.isFinite(eindPrijs) || eindPrijs < 0) return null;
+
+  return {
+    veilingProductId,
+    koperId,
+    koperNaam: raw?.koperNaam ?? raw?.KoperNaam ?? "",
+    aantal,
+    eindPrijs,
+    productBeschrijving:
+      raw?.productBeschrijving ?? raw?.ProductBeschrijving ?? "",
+    categorie: raw?.categorie ?? raw?.Categorie ?? "",
+  };
+}
+
+function buildSummaryFromToewijzingen(toewijzingen) {
+  const koperMap = new Map();
+  let totaleHoeveelheid = 0;
+  let totaleOpbrengst = 0;
+
+  for (const item of toewijzingen) {
+    const t = normalizeToewijzing(item);
+    if (!t) continue;
+
+    const lineAmount = t.aantal * t.eindPrijs;
+    totaleHoeveelheid += t.aantal;
+    totaleOpbrengst += lineAmount;
+
+    const existing = koperMap.get(t.koperId) ?? {
+      koperId: t.koperId,
+      koperNaam: t.koperNaam,
+      hoeveelheid: 0,
+      totaalBedrag: 0,
+      _prijsRegels: new Map(),
+    };
+
+    existing.hoeveelheid += t.aantal;
+    existing.totaalBedrag += lineAmount;
+
+    const regelKey = `${t.productBeschrijving}@@${t.eindPrijs}`;
+    const regel = existing._prijsRegels.get(regelKey) ?? {
+      prijsPerStuk: t.eindPrijs,
+      hoeveelheid: 0,
+      totaalBedrag: 0,
+      productBeschrijving: t.productBeschrijving,
+    };
+
+    regel.hoeveelheid += t.aantal;
+    regel.totaalBedrag += lineAmount;
+    existing._prijsRegels.set(regelKey, regel);
+
+    koperMap.set(t.koperId, existing);
+  }
+
+  const koperSamenvattingen = [...koperMap.values()]
+    .map((k) => ({
+      koperId: k.koperId,
+      koperNaam: k.koperNaam,
+      hoeveelheid: k.hoeveelheid,
+      totaalBedrag: k.totaalBedrag,
+      prijsRegels: [...k._prijsRegels.values()].sort(
+        (a, b) => Number(b.prijsPerStuk) - Number(a.prijsPerStuk)
+      ),
+    }))
+    .sort((a, b) => Number(b.totaalBedrag) - Number(a.totaalBedrag));
+
+  return {
+    kopersCount: koperSamenvattingen.length,
+    totaleHoeveelheid,
+    totaleOpbrengst,
+    koperSamenvattingen,
+  };
+}
+
+function getBackendKopers(veiling) {
+  const kopers =
+    veiling?.koperSamenvattingen ?? veiling?.KoperSamenvattingen;
+  return Array.isArray(kopers) ? kopers : [];
+}
+
+function getKopersSearchText(veiling, summary) {
+  const kopers =
+    summary?.koperSamenvattingen?.length > 0
+      ? summary.koperSamenvattingen
+      : getBackendKopers(veiling);
+
+  if (!Array.isArray(kopers) || kopers.length === 0) {
+    return String(veiling?.winnaarNaam ?? veiling?.koperNaam ?? "");
+  }
+
+  return kopers
+    .map((k) => {
+      const koperId = k.koperId ?? k.KoperId ?? "";
+      const koperNaam = k.koperNaam ?? k.KoperNaam ?? "";
+      return `#${koperId} ${koperNaam}`.trim();
+    })
+    .join(" ");
+}
+
+function _renderKopersCell(veiling) {
+  const kopers =
+    veiling?.koperSamenvattingen ?? veiling?.KoperSamenvattingen;
+  if (!Array.isArray(kopers) || kopers.length === 0) {
+    return veiling?.winnaarNaam ?? veiling?.koperNaam ?? "-";
+  }
+
+  const summary = kopers
+    .map((k) => `#${k.koperId} (x${k.hoeveelheid ?? 0})`)
+    .join(", ");
+
+  return (
+    <details className="vm-winners">
+      <summary>{summary}</summary>
+      <div className="vm-winners-body">
+        {kopers.map((k) => {
+          const regels = Array.isArray(k.prijsRegels) ? k.prijsRegels : [];
+          return (
+            <div key={k.koperId} className="vm-winner">
+              <div className="vm-winner-head">
+                <span>
+                  #{k.koperId}
+                  {k.koperNaam ? ` (${k.koperNaam})` : ""} — x
+                  {k.hoeveelheid ?? 0}
+                </span>
+                <span>{formatCurrency(k.totaalBedrag ?? 0)}</span>
+              </div>
+              {regels.length > 0 && (
+                <div className="vm-winner-lines">
+                  {regels.map((r) => (
+                    <div
+                      key={`${k.koperId}-${r.prijsPerStuk}`}
+                      className="vm-winner-line"
+                    >
+                      {formatCurrency(r.prijsPerStuk ?? 0)} ×{" "}
+                      {r.hoeveelheid ?? 0} ={" "}
+                      {formatCurrency(r.totaalBedrag ?? 0)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </details>
+  );
 }
 
 // Timer-info: vaste duur = 60 seconden vanaf startTijd,
@@ -84,6 +256,11 @@ export default function VeilingmeesterPage() {
   const [openAanmeldingen, setOpenAanmeldingen] = useState([]);
   const [actieveVeilingen, setActieveVeilingen] = useState([]); // eigen vorm
   const [archiefVeilingen, setArchiefVeilingen] = useState([]); // VeilingDto's uit backend
+  const [archiefToewijzingen, setArchiefToewijzingen] = useState([]);
+  const [loadingToewijzingen, setLoadingToewijzingen] = useState(false);
+
+  const [detailVeiling, setDetailVeiling] = useState(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   // Form voor nieuwe veiling
   const [selectedAanmeldingId, setSelectedAanmeldingId] = useState("");
@@ -108,9 +285,60 @@ export default function VeilingmeesterPage() {
   }, []);
 
   useEffect(() => {
+    if (!detailOpen) return;
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setDetailOpen(false);
+        setDetailVeiling(null);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [detailOpen]);
+
+  useEffect(() => {
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "archief") return;
+    let cancelled = false;
+
+    const refresh = async () => {
+      try {
+        const [archiefRes, toewijzingRes] = await Promise.allSettled([
+          apiFetch("/Veilingen/archief"),
+          apiFetch("/Toewijzingen"),
+        ]);
+
+        if (cancelled) return;
+
+        if (archiefRes.status === "fulfilled") {
+          setArchiefVeilingen(
+            Array.isArray(archiefRes.value) ? archiefRes.value : []
+          );
+        }
+
+        if (toewijzingRes.status === "fulfilled") {
+          setArchiefToewijzingen(
+            Array.isArray(toewijzingRes.value) ? toewijzingRes.value : []
+          );
+        }
+      } catch {
+        // stil falen; we proberen het later opnieuw
+      }
+    };
+
+    refresh();
+    const id = setInterval(refresh, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [activeTab]);
 
   async function loadAll() {
     setLoading(true);
@@ -121,6 +349,7 @@ export default function VeilingmeesterPage() {
         loadOpenAanmeldingen(),
         loadActieveVeilingen(),
         loadArchief(),
+        loadToewijzingen(),
       ]);
     } finally {
       setLoading(false);
@@ -213,18 +442,93 @@ export default function VeilingmeesterPage() {
     }
   }
 
+  async function loadToewijzingen() {
+    setLoadingToewijzingen(true);
+    try {
+      const res = await apiFetch("/Toewijzingen");
+      setArchiefToewijzingen(Array.isArray(res) ? res : []);
+    } catch (err) {
+      setArchiefToewijzingen([]);
+
+      const message = err?.message ?? "";
+      if (message && !message.includes("404")) {
+        setError(message);
+      }
+    } finally {
+      setLoadingToewijzingen(false);
+    }
+  }
+
+  const archiefSummaryByVeilingId = useMemo(() => {
+    const byProductId = new Map();
+    const toewijzingen = Array.isArray(archiefToewijzingen)
+      ? archiefToewijzingen
+      : [];
+
+    for (const raw of toewijzingen) {
+      const t = normalizeToewijzing(raw);
+      if (!t) continue;
+      const existing = byProductId.get(t.veilingProductId) ?? [];
+      existing.push(t);
+      byProductId.set(t.veilingProductId, existing);
+    }
+
+    const map = new Map();
+    for (const veiling of archiefVeilingen) {
+      const veilingId = Number(getVeilingId(veiling));
+      if (!Number.isFinite(veilingId)) continue;
+
+      const productIds = getVeilingProductIds(veiling);
+      const sales = [];
+      for (const pid of productIds) {
+        const items = byProductId.get(pid);
+        if (items?.length) sales.push(...items);
+      }
+
+      const backendKopers = getBackendKopers(veiling);
+      const backendSummary = {
+        kopersCount: backendKopers.length,
+        totaleHoeveelheid:
+          veiling?.totaleHoeveelheid ??
+          veiling?.TotaleHoeveelheid ??
+          veiling?.hoeveelheid,
+        totaleOpbrengst:
+          veiling?.totaleOpbrengst ??
+          veiling?.TotaleOpbrengst ??
+          veiling?.eindPrijs ??
+          veiling?.eindBedrag,
+        koperSamenvattingen: backendKopers,
+      };
+
+      const computedSummary =
+        sales.length > 0 ? buildSummaryFromToewijzingen(sales) : null;
+
+      map.set(veilingId, computedSummary ?? backendSummary);
+    }
+
+    return map;
+  }, [archiefVeilingen, archiefToewijzingen]);
+
   // Kleine samenvatting voor tab "Overzicht"
   const stats = useMemo(() => {
     const totaalActief = actieveVeilingen.length;
     const totaalArchief = archiefVeilingen.length;
 
     const totaalOpbrengst = archiefVeilingen.reduce((sum, v) => {
-      const nr = Number(v.totaleOpbrengst ?? v.eindPrijs ?? v.eindBedrag);
+      const summary = archiefSummaryByVeilingId.get(
+        Number(getVeilingId(v))
+      );
+      const nr = Number(
+        summary?.totaleOpbrengst ??
+          v.totaleOpbrengst ??
+          v.eindPrijs ??
+          v.eindBedrag
+      );
       return sum + (Number.isNaN(nr) ? 0 : nr);
     }, 0);
 
     return { totaalActief, totaalArchief, totaalOpbrengst };
-  }, [actieveVeilingen, archiefVeilingen]);
+  }, [actieveVeilingen, archiefVeilingen, archiefSummaryByVeilingId]);
 
   // Gefilterde & gesorteerde lijsten (actief)
   const gefilterdeActieve = useMemo(() => {
@@ -271,19 +575,36 @@ export default function VeilingmeesterPage() {
       const q = archiveSearch.trim().toLowerCase();
       list = list.filter((v) => {
         const naam = (v.naam ?? "").toLowerCase();
-        const winnaar = (v.winnaarNaam ?? v.koperNaam ?? "").toLowerCase();
-        return naam.includes(q) || winnaar.includes(q);
+        const summary = archiefSummaryByVeilingId.get(
+          Number(getVeilingId(v))
+        );
+        const kopers = getKopersSearchText(v, summary).toLowerCase();
+        return naam.includes(q) || kopers.includes(q);
       });
     }
 
     list.sort((a, b) => {
       const dateA = toTimeMs(a.eindTijd ?? a.datum ?? 0);
       const dateB = toTimeMs(b.eindTijd ?? b.datum ?? 0);
+      const summaryA = archiefSummaryByVeilingId.get(
+        Number(getVeilingId(a))
+      );
+      const summaryB = archiefSummaryByVeilingId.get(
+        Number(getVeilingId(b))
+      );
       const amountA = Number(
-        a.totaleOpbrengst ?? a.eindPrijs ?? a.eindBedrag ?? 0
+        summaryA?.totaleOpbrengst ??
+          a.totaleOpbrengst ??
+          a.eindPrijs ??
+          a.eindBedrag ??
+          0
       );
       const amountB = Number(
-        b.totaleOpbrengst ?? b.eindPrijs ?? b.eindBedrag ?? 0
+        summaryB?.totaleOpbrengst ??
+          b.totaleOpbrengst ??
+          b.eindPrijs ??
+          b.eindBedrag ??
+          0
       );
 
       switch (archiveSort) {
@@ -300,7 +621,32 @@ export default function VeilingmeesterPage() {
     });
 
     return list;
-  }, [archiefVeilingen, archiveSearch, archiveSort]);
+  }, [archiefVeilingen, archiveSearch, archiveSort, archiefSummaryByVeilingId]);
+
+  const detailSummary = useMemo(() => {
+    if (!detailVeiling) return null;
+
+    const productIds = getVeilingProductIds(detailVeiling);
+    if (productIds.length === 0) {
+      return (
+        archiefSummaryByVeilingId.get(Number(getVeilingId(detailVeiling))) ??
+        null
+      );
+    }
+
+    const toewijzingen = Array.isArray(archiefToewijzingen)
+      ? archiefToewijzingen
+      : [];
+
+    const sales = [];
+    for (const raw of toewijzingen) {
+      const t = normalizeToewijzing(raw);
+      if (!t) continue;
+      if (productIds.includes(t.veilingProductId)) sales.push(t);
+    }
+
+    return sales.length > 0 ? buildSummaryFromToewijzingen(sales) : null;
+  }, [detailVeiling, archiefToewijzingen, archiefSummaryByVeilingId]);
 
   // Nieuwe veiling starten (vanuit een aanmelding)
   async function handleStartVeiling(e) {
@@ -428,6 +774,28 @@ export default function VeilingmeesterPage() {
       await Promise.all([loadActieveVeilingen(), loadArchief()]);
     } catch (err) {
       setError(err?.message ?? "Kon veiling niet stoppen.");
+    }
+  }
+
+  function closeDetail() {
+    setDetailOpen(false);
+    setDetailVeiling(null);
+  }
+
+  async function openDetail(veiling) {
+    setDetailVeiling(veiling);
+    setDetailOpen(true);
+
+    const id = Number(getVeilingId(veiling));
+    if (!Number.isFinite(id) || getVeilingProductIds(veiling).length > 0) {
+      return;
+    }
+
+    try {
+      const full = await apiFetch(`/Veilingen/${id}`);
+      setDetailVeiling(full ?? veiling);
+    } catch {
+      // stil falen; we tonen de info die we al hebben
     }
   }
 
@@ -559,7 +927,7 @@ export default function VeilingmeesterPage() {
                               value={a.aanmeldingId}
                             >
                               #{a.aanmeldingId} · {a.productBeschrijving} · min
-                              € {formatCurrency(a.minimumPrijs)}
+                              {formatCurrency(a.minimumPrijs)}
                             </option>
                           ))}
                         </select>
@@ -606,7 +974,7 @@ export default function VeilingmeesterPage() {
                               <tr key={a.aanmeldingId}>
                                 <td>{a.aanmeldingId}</td>
                                 <td>{a.productBeschrijving}</td>
-                                <td>€ {formatCurrency(a.minimumPrijs)}</td>
+                                <td>{formatCurrency(a.minimumPrijs)}</td>
                                 <td>{formatDate(a.gewensteVeilDatum)}</td>
                               </tr>
                             ))}
@@ -688,8 +1056,7 @@ export default function VeilingmeesterPage() {
                                   {p.productBeschrijving}
                                 </h3>
                                 <p className="vm-product-meta">
-                                  Min. prijs: €{" "}
-                                  {formatCurrency(p.minimumPrijs ?? 0)}
+                                  Min. prijs: {formatCurrency(p.minimumPrijs ?? 0)}
                                   {typeof p.hoeveelheid !== "undefined" && (
                                     <>
                                       {" · "}Hoeveelheid: {p.hoeveelheid}
@@ -738,7 +1105,7 @@ export default function VeilingmeesterPage() {
             {/* Archief tab */}
             {activeTab === "archief" && (
               <section aria-label="Archief van veilingen">
-                {loading || loadingArchive ? (
+                {loading || loadingArchive || loadingToewijzingen ? (
                   <p>Gegevens laden…</p>
                 ) : gefilterdeArchief.length === 0 ? (
                   <p className="vm-muted">
@@ -771,37 +1138,75 @@ export default function VeilingmeesterPage() {
                           <tr>
                             <th>ID</th>
                             <th>Naam</th>
-                            <th>Winnaar</th>
+                            <th>Kopers</th>
                             <th>Hoeveelheid</th>
                             <th>Eindprijs / opbrengst</th>
                             <th>Afgerond op</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {gefilterdeArchief.map((v) => (
-                            <tr key={v.veilingId ?? v.id}>
-                              <td>{v.veilingId ?? v.id}</td>
-                              <td>{v.naam ?? "Veiling"}</td>
-                              <td>{v.winnaarNaam ?? v.koperNaam ?? "-"}</td>
-                              <td>
-                                {typeof v.totaleHoeveelheid !== "undefined"
+                          {gefilterdeArchief.map((v) => {
+                            const id = Number(getVeilingId(v));
+                            const summary = archiefSummaryByVeilingId.get(id);
+
+                            const kopersCount =
+                              typeof summary?.kopersCount === "number"
+                                ? summary.kopersCount
+                                : getBackendKopers(v).length;
+
+                            const totaleHoeveelheid =
+                              typeof summary?.totaleHoeveelheid === "number"
+                                ? summary.totaleHoeveelheid
+                                : typeof v.totaleHoeveelheid !== "undefined"
                                   ? v.totaleHoeveelheid
-                                  : v.hoeveelheid ?? "-"}
+                                  : typeof v.TotaleHoeveelheid !== "undefined"
+                                    ? v.TotaleHoeveelheid
+                                    : v.hoeveelheid;
+
+                            const totaleOpbrengst =
+                              typeof summary?.totaleOpbrengst !== "undefined"
+                                ? summary.totaleOpbrengst
+                                : v.totaleOpbrengst ??
+                                  v.TotaleOpbrengst ??
+                                  v.eindPrijs ??
+                                  v.eindBedrag ??
+                                  0;
+
+                            return (
+                              <tr
+                                key={id || v.veilingId || v.id}
+                                className="vm-archief-row"
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => openDetail(v)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    openDetail(v);
+                                  }
+                                }}
+                              >
+                              <td>{id || v.veilingId || v.id}</td>
+                              <td>{v.naam ?? "Veiling"}</td>
+                              <td>
+                                {Number.isFinite(kopersCount)
+                                  ? kopersCount
+                                  : "-"}
                               </td>
                               <td>
-                                €{" "}
-                                {formatCurrency(
-                                  v.totaleOpbrengst ??
-                                    v.eindPrijs ??
-                                    v.eindBedrag ??
-                                    0
-                                )}
+                                {typeof totaleHoeveelheid !== "undefined"
+                                  ? totaleHoeveelheid
+                                  : "-"}
+                              </td>
+                              <td>
+                                {formatCurrency(totaleOpbrengst)}
                               </td>
                               <td>
                                 {formatDateTime(v.eindTijd ?? v.datum)}
                               </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -827,7 +1232,7 @@ export default function VeilingmeesterPage() {
                   <div className="vm-stat">
                     <span className="vm-stat-label">Totale opbrengst</span>
                     <span className="vm-stat-value">
-                      € {formatCurrency(stats.totaalOpbrengst)}
+                      {formatCurrency(stats.totaalOpbrengst)}
                     </span>
                   </div>
                 </div>
@@ -838,6 +1243,123 @@ export default function VeilingmeesterPage() {
               </section>
             )}
           </div>
+
+          {detailOpen && detailVeiling && (
+            <div className="vm-modal-backdrop" onMouseDown={closeDetail}>
+              <div
+                className="vm-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Veilingdetails"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <header className="vm-modal-header">
+                  <div>
+                    <h2 className="vm-modal-title">
+                      Veiling #{getVeilingId(detailVeiling) ?? "-"}{" "}
+                      {detailVeiling?.naam ? `– ${detailVeiling.naam}` : ""}
+                    </h2>
+                    <p className="vm-muted">
+                      Afgerond op{" "}
+                      {formatDateTime(detailVeiling?.eindTijd ?? detailVeiling?.datum)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={closeDetail}
+                  >
+                    Sluiten
+                  </button>
+                </header>
+
+                <div className="vm-modal-body">
+                  <div className="vm-header-stats vm-modal-stats">
+                    <div className="vm-stat">
+                      <span className="vm-stat-label">Kopers</span>
+                      <span className="vm-stat-value">
+                        {detailSummary?.kopersCount ?? "-"}
+                      </span>
+                    </div>
+                    <div className="vm-stat">
+                      <span className="vm-stat-label">Verkocht</span>
+                      <span className="vm-stat-value">
+                        {typeof detailSummary?.totaleHoeveelheid === "number"
+                          ? detailSummary.totaleHoeveelheid
+                          : "-"}
+                      </span>
+                    </div>
+                    <div className="vm-stat">
+                      <span className="vm-stat-label">Opbrengst</span>
+                      <span className="vm-stat-value">
+                        {formatCurrency(detailSummary?.totaleOpbrengst ?? 0)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {!detailSummary ||
+                  !Array.isArray(detailSummary.koperSamenvattingen) ||
+                  detailSummary.koperSamenvattingen.length === 0 ? (
+                    <p className="vm-muted">
+                      Geen aankoopgegevens gevonden voor deze veiling.
+                    </p>
+                  ) : (
+                    <div className="vm-winners-body">
+                      {detailSummary.koperSamenvattingen.map((k) => {
+                        const koperId = k.koperId ?? k.KoperId;
+                        const koperNaam = k.koperNaam ?? k.KoperNaam ?? "";
+                        const hoeveelheid = k.hoeveelheid ?? k.Hoeveelheid ?? 0;
+                        const totaalBedrag = k.totaalBedrag ?? k.TotaalBedrag ?? 0;
+                        const regels = Array.isArray(k.prijsRegels)
+                          ? k.prijsRegels
+                          : Array.isArray(k.PrijsRegels)
+                            ? k.PrijsRegels
+                            : [];
+
+                        return (
+                          <div key={koperId} className="vm-winner">
+                            <div className="vm-winner-head">
+                              <span>
+                                #{koperId}
+                                {koperNaam ? ` (${koperNaam})` : ""} x
+                                {hoeveelheid}
+                              </span>
+                              <span>
+                                {formatCurrency(totaalBedrag)}
+                              </span>
+                            </div>
+                            {regels.length > 0 && (
+                              <div className="vm-winner-lines">
+                                {regels.map((r) => {
+                                  const prijsPerStuk = r.prijsPerStuk ?? r.PrijsPerStuk ?? 0;
+                                  const regelHoeveelheid = r.hoeveelheid ?? r.Hoeveelheid ?? 0;
+                                  const regelTotaal = r.totaalBedrag ?? r.TotaalBedrag ?? 0;
+                                  const product = r.productBeschrijving ?? r.ProductBeschrijving ?? "";
+                                  const left = product
+                                    ? `${product} – ${formatCurrency(prijsPerStuk)}`
+                                    : `${formatCurrency(prijsPerStuk)}`;
+
+                                  return (
+                                    <div
+                                      key={`${koperId}-${product}-${prijsPerStuk}`}
+                                      className="vm-winner-line"
+                                    >
+                                      {left} x {regelHoeveelheid} ={" "}
+                                      {formatCurrency(regelTotaal)}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       </main>
     </div>

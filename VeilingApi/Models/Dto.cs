@@ -191,8 +191,29 @@ public class VeilingDto
     public DateTime StartTijd { get; set; }
     public DateTime? EindTijd { get; set; }
 
+    // Extra (archief/overzicht): totaal verkocht + opbrengst + kopers-breakdown
+    public int TotaleHoeveelheid { get; set; }
+    public decimal TotaleOpbrengst { get; set; }
+    public List<VeilingKoperSamenvattingDto> KoperSamenvattingen { get; set; } = new();
+
     // De producten (kavels) die bij deze veiling horen
     public List<VeilingProductDto> VeilingProducten { get; set; } = new();
+}
+
+public class VeilingKoperPrijsRegelDto
+{
+    public decimal PrijsPerStuk { get; set; }
+    public int Hoeveelheid { get; set; }
+    public decimal TotaalBedrag { get; set; }
+}
+
+public class VeilingKoperSamenvattingDto
+{
+    public int KoperId { get; set; }
+    public string KoperNaam { get; set; } = string.Empty;
+    public int Hoeveelheid { get; set; }
+    public decimal TotaalBedrag { get; set; }
+    public List<VeilingKoperPrijsRegelDto> PrijsRegels { get; set; } = new();
 }
 
 public class CreateVeilingDto
