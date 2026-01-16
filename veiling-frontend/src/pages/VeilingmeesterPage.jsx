@@ -8,23 +8,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./VeilingmeesterPageStyle.css";
 import apiFetch from "../api";
-
-function formatDateTime(iso) {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  return new Intl.DateTimeFormat("nl-NL", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(d);
-}
-
-function formatDate(iso) {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  return new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" }).format(d);
-}
+import {
+  formatDate,
+  formatDateTime,
+  parseApiDate,
+  toTimeMs,
+} from "../utils/date";
 
 function formatCurrency(value) {
   const nr = Number(value);
@@ -42,14 +31,14 @@ function getTimerInfo(veiling, nowMs) {
     return { progress: 0, remainingLabel: "Nog niet gestart" };
   }
 
-  const start = new Date(veiling.startTijd);
-  if (Number.isNaN(start.getTime())) {
+  const start = parseApiDate(veiling.startTijd);
+  if (!start) {
     return { progress: 0, remainingLabel: "Onbekende starttijd" };
   }
 
   const startMs = start.getTime();
   const endMs = veiling.eindTijd
-    ? new Date(veiling.eindTijd).getTime()
+    ? toTimeMs(veiling.eindTijd)
     : startMs + 60 * 1000;
 
   if (!Number.isFinite(endMs) || endMs <= startMs) {
@@ -240,8 +229,7 @@ export default function VeilingmeesterPage() {
       case "start-asc":
         list.sort(
           (a, b) =>
-            new Date(a.startTijd).getTime() -
-            new Date(b.startTijd).getTime()
+            toTimeMs(a.startTijd) - toTimeMs(b.startTijd)
         );
         break;
       case "naam":
@@ -251,8 +239,7 @@ export default function VeilingmeesterPage() {
       default:
         list.sort(
           (a, b) =>
-            new Date(b.startTijd).getTime() -
-            new Date(a.startTijd).getTime()
+            toTimeMs(b.startTijd) - toTimeMs(a.startTijd)
         );
         break;
     }
@@ -274,8 +261,8 @@ export default function VeilingmeesterPage() {
     }
 
     list.sort((a, b) => {
-      const dateA = new Date(a.eindTijd ?? a.datum ?? 0).getTime();
-      const dateB = new Date(b.eindTijd ?? b.datum ?? 0).getTime();
+      const dateA = toTimeMs(a.eindTijd ?? a.datum ?? 0);
+      const dateB = toTimeMs(b.eindTijd ?? b.datum ?? 0);
       const amountA = Number(
         a.totaleOpbrengst ?? a.eindPrijs ?? a.eindBedrag ?? 0
       );

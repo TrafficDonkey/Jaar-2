@@ -7,6 +7,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./AanvoerderPageStyle.css";
 import apiFetch from "../api";
+import { formatDate, parseApiDate, toTimeMs } from "../utils/date";
 
 // Vastgestelde kloklocaties
 const KLOK_LOCATIES = ["Naaldwijk", "Aalsmeer", "Rijnsburg", "Eelde"];
@@ -65,13 +66,6 @@ function getRoleFromToken() {
     }
 }
 
-function formatDate(iso) {
-    if (!iso) return "-";
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "-";
-    return new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" }).format(d);
-}
-
 function formatCurrency(value) {
     const nr = Number(value);
     if (Number.isNaN(nr)) return "-";
@@ -85,9 +79,10 @@ function formatCurrency(value) {
 function getAanmeldingStatus(iso) {
     if (!iso) return { label: "Onbekend", className: "aanv-status--unknown" };
 
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime()))
+    const d = parseApiDate(iso);
+    if (!d) {
         return { label: "Onbekend", className: "aanv-status--unknown" };
+    }
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -198,8 +193,8 @@ export default function AanvoerderPage() {
 
         const geplandeAanmeldingen = aanmeldingen.filter((a) => {
             if (!a.gewensteVeilDatum) return false;
-            const d = new Date(a.gewensteVeilDatum);
-            if (Number.isNaN(d.getTime())) return false;
+            const d = parseApiDate(a.gewensteVeilDatum);
+            if (!d) return false;
             d.setHours(0, 0, 0, 0);
             return d >= today;
         }).length;
@@ -221,8 +216,8 @@ export default function AanvoerderPage() {
     const sortedAanmeldingen = useMemo(
         () =>
             [...aanmeldingen].sort((a, b) => {
-                const da = new Date(a.gewensteVeilDatum ?? 0).getTime();
-                const db = new Date(b.gewensteVeilDatum ?? 0).getTime();
+                const da = toTimeMs(a.gewensteVeilDatum ?? 0);
+                const db = toTimeMs(b.gewensteVeilDatum ?? 0);
                 return da - db;
             }),
         [aanmeldingen]
@@ -231,8 +226,8 @@ export default function AanvoerderPage() {
     const sortedToewijzingen = useMemo(
         () =>
             [...toewijzingen].sort((a, b) => {
-                const da = new Date(a.datum ?? 0).getTime();
-                const db = new Date(b.datum ?? 0).getTime();
+                const da = toTimeMs(a.datum ?? 0);
+                const db = toTimeMs(b.datum ?? 0);
                 return db - da;
             }),
         [toewijzingen]

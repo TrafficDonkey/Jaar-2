@@ -2,23 +2,11 @@
 import apiFetch, { API_BASE } from "../api";
 import "./KoperPageStyle.css";
 import AuctionClock from "../components/AuctionClock";
-
-const fmtDateTime = (iso) => {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  return new Intl.DateTimeFormat("nl-NL", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(d);
-};
-
-const fmtDate = (iso) => {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  return new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" }).format(d);
-};
+import {
+  formatDate as fmtDate,
+  formatDateTime as fmtDateTime,
+  toTimeMs,
+} from "../utils/date";
 
 const fmtCurrency = (v) => {
   const nr = Number(v);
@@ -163,8 +151,7 @@ export default function KoperPage() {
       });
 
       actief.sort(
-        (a, b) =>
-          new Date(b.startTijd).getTime() - new Date(a.startTijd).getTime()
+        (a, b) => toTimeMs(b.startTijd) - toTimeMs(a.startTijd)
       );
 
       setActieveVeilingen(actief);
@@ -193,8 +180,7 @@ export default function KoperPage() {
 
       mine.sort(
         (a, b) =>
-          new Date(b.datum ?? b.Datum).getTime() -
-          new Date(a.datum ?? a.Datum).getTime()
+          toTimeMs(b.datum ?? b.Datum) - toTimeMs(a.datum ?? a.Datum)
       );
 
       setMyPurchases(mine);
