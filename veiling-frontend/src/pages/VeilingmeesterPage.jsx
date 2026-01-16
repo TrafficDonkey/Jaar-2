@@ -45,6 +45,14 @@ function getTimerInfo(veiling, nowMs) {
     return { progress: 0, remainingLabel: "Onbekende looptijd" };
   }
 
+  if (nowMs < startMs) {
+    const seconds = Math.ceil((startMs - nowMs) / 1000);
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    const countdown = m > 0 ? `${m}m ${s}s` : `${s}s`;
+    return { progress: 0, remainingLabel: `Start over ${countdown}` };
+  }
+
   const total = endMs - startMs;
   const elapsed = Math.max(0, Math.min(total, nowMs - startMs));
   const remainingMs = Math.max(0, endMs - nowMs);
@@ -80,6 +88,7 @@ export default function VeilingmeesterPage() {
   // Form voor nieuwe veiling
   const [selectedAanmeldingId, setSelectedAanmeldingId] = useState("");
   const [titel, setTitel] = useState("");
+  const [startTime, setStartTime] = useState(""); // "HH:MM" (lokaal)
 
   // Zoeken & sorteren
   const [activeSearch, setActiveSearch] = useState("");
@@ -100,6 +109,7 @@ export default function VeilingmeesterPage() {
 
   useEffect(() => {
     loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadAll() {
@@ -306,12 +316,66 @@ export default function VeilingmeesterPage() {
         (a) => a.aanmeldingId === Number(selectedAanmeldingId)
       );
 
+      if (!chosen) {
+        setError("Kon de gekozen aanmelding niet vinden. Probeer opnieuw.");
+        return;
+      }
+
+      let startTijd = undefined;
+      const timeValue = startTime.trim();
+      if (timeValue) {
+        const [hhRaw, mmRaw] = timeValue.split(":");
+        const hh = Number(hhRaw);
+        const mm = Number(mmRaw);
+
+        if (!Number.isInteger(hh) || !Number.isInteger(mm)) {
+          setError("Ongeldige starttijd. Gebruik bijvoorbeeld 16:00.");
+          return;
+        }
+
+        const baseDate = chosen?.gewensteVeilDatum
+          ? parseApiDate(chosen.gewensteVeilDatum)
+          : new Date();
+
+        if (!baseDate) {
+          setError("Kon veildatum niet bepalen voor deze aanmelding.");
+          return;
+        }
+
+        const localStart = new Date(
+          baseDate.getFullYear(),
+          baseDate.getMonth(),
+          baseDate.getDate(),
+          hh,
+          mm,
+          0,
+          0
+        );
+
+        if (Number.isNaN(localStart.getTime())) {
+          setError("Ongeldige starttijd.");
+          return;
+        }
+
+        if (localStart.getTime() < Date.now()) {
+          setError(
+            `Starttijd ligt in het verleden (${formatDateTime(
+              localStart.toISOString()
+            )}).`
+          );
+          return;
+        }
+
+        startTijd = localStart.toISOString();
+      }
+
       const payload = {
         // PAS AAN ALS JOUW StartVeilingDto ANDERE VELDEN HEEFT
         naam:
           trimmedTitel ||
           chosen?.productBeschrijving ||
           `Veiling #${selectedAanmeldingId}`,
+        startTijd,
         aanmeldingId: Number(selectedAanmeldingId),
       };
 
@@ -320,9 +384,20 @@ export default function VeilingmeesterPage() {
         body: JSON.stringify(payload),
       });
 
+      if (startTijd) {
+        setMsg(`Veiling ingepland voor ${formatDateTime(startTijd)}.`);
+        setSelectedAanmeldingId("");
+        setTitel("");
+        setStartTime("");
+
+        await Promise.all([loadOpenAanmeldingen(), loadActieveVeilingen()]);
+        return;
+      }
+
       setMsg("✅ Veiling gestart.");
       setSelectedAanmeldingId("");
       setTitel("");
+      setStartTime("");
 
       await Promise.all([loadOpenAanmeldingen(), loadActieveVeilingen()]);
     } catch (err) {
@@ -442,6 +517,24 @@ export default function VeilingmeesterPage() {
                           onChange={(e) => setTitel(e.target.value)}
                           placeholder="Bijv. Ochtendveiling kamerplanten"
                         />
+                      </div>
+
+                      <div className="field">
+                        <label htmlFor="starttijd">
+                          Starttijd (optioneel)
+                        </label>
+                        <input
+                          id="starttijd"
+                          type="time"
+                          step="60"
+                          value={startTime}
+                          onChange={(e) => setStartTime(e.target.value)}
+                          placeholder="16:00"
+                        />
+                        <p className="vm-muted">
+                          Als je een starttijd invult, is de veiling zichtbaar
+                          voor kopers maar niet live tot dat moment.
+                        </p>
                       </div>
 
                       <div className="field">

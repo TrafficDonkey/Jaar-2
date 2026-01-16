@@ -78,6 +78,8 @@ export default function KoperPage() {
   const [err, setErr] = useState("");
   const [koopMsg, setKoopMsg] = useState("");
 
+  const [nowMs, setNowMs] = useState(Date.now());
+
   const [actieveVeilingen, setActieveVeilingen] = useState([]);
   const [selectedVeilingId, setSelectedVeilingId] = useState(null);
   const [veiling, setVeiling] = useState(null);
@@ -85,6 +87,7 @@ export default function KoperPage() {
   const [remainingQty, setRemainingQty] = useState(null);
   const [clockRunId, setClockRunId] = useState(1);
   const [currentPrice, setCurrentPrice] = useState(null);
+  const [showStartInfo, setShowStartInfo] = useState(false);
 
   const [myPurchases, setMyPurchases] = useState([]);
 
@@ -124,6 +127,11 @@ export default function KoperPage() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
   }, []);
 
   async function loadActieveVeilingen() {
@@ -218,6 +226,7 @@ export default function KoperPage() {
       setRemainingQty(availableQty);
       setKoopAantal("");
       setCurrentPrice(null);
+      setShowStartInfo(false);
       setClockRunId((n) => n + 1);
     } catch (e) {
       setErr(e?.message ?? "Kon veiling niet laden.");
@@ -275,6 +284,16 @@ export default function KoperPage() {
     if (!product || !veiling) return;
 
     setKoopMsg("");
+
+    const startMs = toTimeMs(veiling.startTijd);
+    if (Number.isFinite(startMs) && nowMs < startMs) {
+      setKoopMsg(
+        `Deze veiling is nog niet live. Start op ${fmtDateTime(
+          veiling.startTijd
+        )}.`
+      );
+      return;
+    }
 
     if (!koperId) {
       setKoopMsg("Je moet ingelogd zijn als koper om te kunnen kopen.");
@@ -340,6 +359,13 @@ export default function KoperPage() {
   }
 
   const product = veiling?.huidigProduct ?? null;
+  const selectedStartMs = toTimeMs(veiling?.startTijd);
+  const isVeilingLive = Number.isFinite(selectedStartMs)
+    ? selectedStartMs <= nowMs
+    : true;
+  const veilingStartLabel = veiling?.startTijd
+    ? fmtDateTime(veiling.startTijd)
+    : "-";
 
   const { minPrice, maxPrice, durationSeconds } = useMemo(() => {
     if (!product) {
@@ -489,6 +515,10 @@ export default function KoperPage() {
                   {filteredAuctions.map((v) => {
                     const id = v.veilingId ?? v.id;
                     const isActive = id === selectedVeilingId;
+                    const startMs = toTimeMs(v.startTijd);
+                    const isLive = Number.isFinite(startMs)
+                      ? startMs <= nowMs
+                      : true;
                     const p =
                       v.veilingProducten && v.veilingProducten.length > 0
                         ? v.veilingProducten[0]
@@ -511,8 +541,16 @@ export default function KoperPage() {
                             Categorie: {v.categorie}
                           </div>
                         )}
-                        <div className="kop-veiling-meta">
-                          Gestart op {fmtDateTime(v.startTijd)}
+                        <div className="kop-veiling-meta kop-veiling-meta--row">
+                          <span>
+                            {isLive ? "Gestart op" : "Start op"}{" "}
+                            {fmtDateTime(v.startTijd)}
+                          </span>
+                          {!isLive && (
+                            <span className="kop-live-pill kop-live-pill--offline">
+                              Niet live
+                            </span>
+                          )}
                         </div>
                         {p && (
                           <div className="kop-veiling-prod">
@@ -541,7 +579,8 @@ export default function KoperPage() {
                   <div className="kop-detail-left">
                     <p className="kop-extra-text">
                       Veiling #{veiling.veilingId} - {veiling.naam ?? "Veiling"}{" "}
-                      - gestart op {fmtDateTime(veiling.startTijd)}
+                      - {isVeilingLive ? "gestart op" : "start op"}{" "}
+                      {veilingStartLabel}
                     </p>
 
                     <h2 className="kop-prod-title">
@@ -610,14 +649,58 @@ export default function KoperPage() {
 
                   {/* Klok + koopformulier */}
                   <div>
-                    <AuctionClock
-                      minPrice={minPrice}
-                      maxPrice={maxPrice}
-                      durationSeconds={durationSeconds}
-                      runId={clockRunId}
-                      onPriceChange={handleClockPriceChange}
-                      onFinished={handleClockFinished}
-                    />
+                    <div className="kop-clock-box">
+                      {!isVeilingLive ? (
+                        <div className="kop-clock-placeholder">
+                          <div className="kop-notlive-row">
+                            <span className="kop-live-pill kop-live-pill--offline">
+                              Niet live
+                            </span>
+                            <button
+                              type="button"
+                              className="kop-info-btn"
+                              aria-label="Toon startmoment"
+                              onClick={() =>
+                                setShowStartInfo((v) => !v)
+                              }
+                            >
+                              i
+                            </button>
+                          </div>
+
+                          {showStartInfo && (
+                            <div
+                              className="kop-startinfo-popover"
+                              role="dialog"
+                              aria-label="Startmoment van de veiling"
+                            >
+                              <p className="kop-startinfo-title">
+                                Deze veiling start op:
+                              </p>
+                              <p className="kop-startinfo-datetime">
+                                {veilingStartLabel}
+                              </p>
+                              <button
+                                type="button"
+                                className="kop-koop-btn kop-koop-btn--ghost kop-startinfo-close"
+                                onClick={() => setShowStartInfo(false)}
+                              >
+                                Sluiten
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <AuctionClock
+                          minPrice={minPrice}
+                          maxPrice={maxPrice}
+                          durationSeconds={durationSeconds}
+                          runId={clockRunId}
+                          onPriceChange={handleClockPriceChange}
+                          onFinished={handleClockFinished}
+                        />
+                      )}
+                    </div>
 
                     <form
                       className="kop-koop-form"
@@ -664,7 +747,11 @@ export default function KoperPage() {
                         </p>
                       )}
 
-                      <button type="submit" className="kop-koop-btn">
+                      <button
+                        type="submit"
+                        className="kop-koop-btn"
+                        disabled={!isVeilingLive || currentPrice == null}
+                      >
                         Koop tegen huidige prijs
                       </button>
 
