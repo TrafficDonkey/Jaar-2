@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./AanvoerderPageStyle.css";
 import apiFetch from "../api";
 import { formatDate, parseApiDate, toTimeMs } from "../utils/date";
+import { PLANTEN_CATEGORIEEN } from "../utils/plantenCategorieen";
 
 // Vastgestelde kloklocaties
 const KLOK_LOCATIES = ["Naaldwijk", "Aalsmeer", "Rijnsburg", "Eelde"];
@@ -113,10 +114,11 @@ export default function AanvoerderPage() {
 
     const [form, setForm] = useState({
         fotoFile: null,
+        productNaam: "",
         productBeschrijving: "",
         hoeveelheid: 1,
         minimumPrijs: 0,
-        categorie: "Snijbloemen",
+        categorie: PLANTEN_CATEGORIEEN.categories[0] ?? PLANTEN_CATEGORIEEN.overigeLabel,
         kloklocatie: "Naaldwijk",
         veilDatum: "",
     });
@@ -184,6 +186,45 @@ export default function AanvoerderPage() {
         setForm((prev) => ({ ...prev, [name]: value }));
     }
 
+    const beschikbareProductNamen = useMemo(() => {
+        const cat = form.categorie;
+        return PLANTEN_CATEGORIEEN.plantsByCategory?.[cat] ?? [];
+    }, [form.categorie]);
+    const [showProductSuggest, setShowProductSuggest] = useState(false);
+    const [productSuggestIndex, setProductSuggestIndex] = useState(-1);
+    const [productSuggestLimit, setProductSuggestLimit] = useState(60);
+    const productSuggestRef = useRef(null);
+
+    const allFilteredProductNamen = useMemo(() => {
+        if (form.categorie === PLANTEN_CATEGORIEEN.overigeLabel) return [];
+        const q = String(form.productNaam ?? "").trim().toLowerCase();
+        const list = beschikbareProductNamen;
+        return q
+            ? list.filter((n) => n.toLowerCase().includes(q))
+            : list;
+    }, [beschikbareProductNamen, form.categorie, form.productNaam]);
+
+    const visibleProductNamen = useMemo(() => {
+        return allFilteredProductNamen.slice(0, productSuggestLimit);
+    }, [allFilteredProductNamen, productSuggestLimit]);
+
+    useEffect(() => {
+        setProductSuggestLimit(60);
+        setProductSuggestIndex(-1);
+    }, [form.categorie, form.productNaam]);
+
+    useEffect(() => {
+        function onDocMouseDown(e) {
+            if (!productSuggestRef.current) return;
+            if (!productSuggestRef.current.contains(e.target)) {
+                setShowProductSuggest(false);
+                setProductSuggestIndex(-1);
+            }
+        }
+        document.addEventListener("mousedown", onDocMouseDown);
+        return () => document.removeEventListener("mousedown", onDocMouseDown);
+    }, []);
+
     // Stats voor bovenaan de pagina
     const stats = useMemo(() => {
         const totaalAanmeldingen = aanmeldingen.length;
@@ -246,9 +287,22 @@ export default function AanvoerderPage() {
             );
             return;
         }
-        if (!form.productBeschrijving.trim()) {
-            setError("Productbeschrijving is verplicht.");
+        if (!String(form.productNaam ?? "").trim()) {
+            setError("Productnaam is verplicht.");
             return;
+        }
+
+        if (form.categorie !== PLANTEN_CATEGORIEEN.overigeLabel) {
+            const chosen = String(form.productNaam ?? "").trim();
+            const ok = beschikbareProductNamen.some(
+                (n) => n.toLowerCase() === chosen.toLowerCase()
+            );
+            if (!ok) {
+                setError(
+                    `Kies een productnaam uit de lijst, of kies categorie ${PLANTEN_CATEGORIEEN.overigeLabel} voor een vrije invoer.`
+                );
+                return;
+            }
         }
         if (!form.veilDatum) {
             setError("Kies een veildatum.");
@@ -320,11 +374,17 @@ export default function AanvoerderPage() {
 
             const veilDatumIso = veilDate.toISOString();
 
+            const productNaam = String(form.productNaam ?? "").trim();
+            const details = String(form.productBeschrijving ?? "").trim();
+            const combinedBeschrijving = details
+                ? `${productNaam} - ${details}`
+                : productNaam;
+
             const data = new FormData();
             if (fotoFile) {
                 data.append("foto", fotoFile);
             }
-            data.append("productBeschrijving", form.productBeschrijving.trim());
+            data.append("productBeschrijving", combinedBeschrijving);
             data.append("hoeveelheid", String(qty));
             data.append("minimumPrijs", String(minPrice));
             data.append("categorie", form.categorie);
@@ -343,10 +403,11 @@ export default function AanvoerderPage() {
             // formulier resetten
             setForm({
                 fotoFile: null,
+                productNaam: "",
                 productBeschrijving: "",
                 hoeveelheid: 1,
                 minimumPrijs: 0,
-                categorie: "Snijbloemen",
+                categorie: PLANTEN_CATEGORIEEN.categories[0] ?? PLANTEN_CATEGORIEEN.overigeLabel,
                 kloklocatie: "Naaldwijk",
                 veilDatum: "",
             });
@@ -365,10 +426,11 @@ export default function AanvoerderPage() {
     function handleResetForm() {
         setForm({
             fotoFile: null,
+            productNaam: "",
             productBeschrijving: "",
             hoeveelheid: 1,
             minimumPrijs: 0,
-            categorie: "Snijbloemen",
+            categorie: PLANTEN_CATEGORIEEN.categories[0] ?? PLANTEN_CATEGORIEEN.overigeLabel,
             kloklocatie: "Naaldwijk",
             veilDatum: "",
         });
@@ -483,7 +545,7 @@ export default function AanvoerderPage() {
                         </div>
 
                         <div className="field">
-                            <label htmlFor="beschrijving">Productbeschrijving</label>
+                            <label htmlFor="beschrijving">Beschrijving (optioneel)</label>
                             <input
                                 id="beschrijving"
                                 type="text"
@@ -491,7 +553,7 @@ export default function AanvoerderPage() {
                                 onChange={(e) =>
                                     updateField("productBeschrijving", e.target.value)
                                 }
-                                required
+                                placeholder="Bijv. rood 60cm, tros, 10 bossen per fust"
                             />
                             <p className="aanv-help">
                                 Bijvoorbeeld: “Rozen rood 60cm, tros, 10 bossen per fust”.
@@ -504,17 +566,157 @@ export default function AanvoerderPage() {
                                 <select
                                     id="categorie"
                                     value={form.categorie}
-                                    onChange={(e) => updateField("categorie", e.target.value)}
+                                    onChange={(e) => {
+                                        const next = e.target.value;
+                                        updateField("categorie", next);
+                                        updateField("productNaam", "");
+                                    }}
                                     required
                                 >
-                                    <option value="Snijbloemen">Snijbloemen</option>
-                                    <option value="Kamerplanten">Kamerplanten</option>
-                                    <option value="Tuinplanten">Tuinplanten</option>
-                                    <option value="Boomkwekerij">Boomkwekerij</option>
-                                    <option value="Decoratiegroen">Decoratiegroen</option>
-                                    <option value="Overig">Overig</option>
+                                    {PLANTEN_CATEGORIEEN.categories.map((c) => (
+                                        <option key={c} value={c}>
+                                            {c}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
+                        </div>
+
+                        <div className="field">
+                            <label htmlFor="productNaam">Productnaam</label>
+                            {form.categorie === PLANTEN_CATEGORIEEN.overigeLabel ? (
+                                <input
+                                    id="productNaam"
+                                    type="text"
+                                    value={form.productNaam}
+                                    onChange={(e) =>
+                                        updateField("productNaam", e.target.value)
+                                    }
+                                    placeholder="Bijv. Roos"
+                                    required
+                                />
+                            ) : (
+                                <div
+                                    className="aanv-autocomplete"
+                                    ref={productSuggestRef}
+                                >
+                                    <input
+                                        id="productNaam"
+                                        value={form.productNaam}
+                                        onChange={(e) => {
+                                            updateField("productNaam", e.target.value);
+                                            setShowProductSuggest(true);
+                                            setProductSuggestIndex(-1);
+                                            setProductSuggestLimit(60);
+                                        }}
+                                        onFocus={() => setShowProductSuggest(true)}
+                                        onKeyDown={(e) => {
+                                            if (!showProductSuggest) return;
+                                            if (e.key === "Escape") {
+                                                setShowProductSuggest(false);
+                                                setProductSuggestIndex(-1);
+                                                return;
+                                            }
+                                            if (e.key === "ArrowDown") {
+                                                e.preventDefault();
+                                                if (
+                                                    productSuggestIndex >=
+                                                        visibleProductNamen.length - 1 &&
+                                                    visibleProductNamen.length <
+                                                        allFilteredProductNamen.length
+                                                ) {
+                                                    setProductSuggestLimit((n) =>
+                                                        Math.min(
+                                                            n + 60,
+                                                            allFilteredProductNamen.length
+                                                        )
+                                                    );
+                                                }
+                                                setProductSuggestIndex((i) =>
+                                                    Math.min(
+                                                        visibleProductNamen.length - 1,
+                                                        i + 1
+                                                    )
+                                                );
+                                                return;
+                                            }
+                                            if (e.key === "ArrowUp") {
+                                                e.preventDefault();
+                                                setProductSuggestIndex((i) =>
+                                                    Math.max(-1, i - 1)
+                                                );
+                                                return;
+                                            }
+                                            if (e.key === "Enter" && productSuggestIndex >= 0) {
+                                                e.preventDefault();
+                                                const chosen =
+                                                    visibleProductNamen[productSuggestIndex];
+                                                if (chosen) {
+                                                    updateField("productNaam", chosen);
+                                                    setShowProductSuggest(false);
+                                                    setProductSuggestIndex(-1);
+                                                }
+                                            }
+                                        }}
+                                        placeholder="Typ om te zoeken..."
+                                        autoComplete="off"
+                                        required
+                                    />
+                                    {showProductSuggest && visibleProductNamen.length > 0 && (
+                                        <div
+                                            className="aanv-autocomplete-list"
+                                            role="listbox"
+                                            aria-label="Productnamen"
+                                            onScroll={(e) => {
+                                                const el = e.currentTarget;
+                                                const nearBottom =
+                                                    el.scrollTop + el.clientHeight >=
+                                                    el.scrollHeight - 40;
+                                                if (
+                                                    nearBottom &&
+                                                    visibleProductNamen.length <
+                                                        allFilteredProductNamen.length
+                                                ) {
+                                                    setProductSuggestLimit((n) =>
+                                                        Math.min(
+                                                            n + 60,
+                                                            allFilteredProductNamen.length
+                                                        )
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            {visibleProductNamen.map((naam, idx) => (
+                                                <button
+                                                    key={naam}
+                                                    type="button"
+                                                    className={
+                                                        "aanv-autocomplete-item" +
+                                                        (idx === productSuggestIndex
+                                                            ? " aanv-autocomplete-item--active"
+                                                            : "")
+                                                    }
+                                                    onMouseEnter={() =>
+                                                        setProductSuggestIndex(idx)
+                                                    }
+                                                    onClick={() => {
+                                                        updateField("productNaam", naam);
+                                                        setShowProductSuggest(false);
+                                                        setProductSuggestIndex(-1);
+                                                    }}
+                                                >
+                                                    {naam}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            <p className="aanv-help">
+                                Zoek door te typen. Staat jouw product er niet bij? Kies dan
+                                categorie{" "}
+                                <strong>{PLANTEN_CATEGORIEEN.overigeLabel}</strong>.
+                            </p>
                         </div>
 
                         <div className="field-row">
