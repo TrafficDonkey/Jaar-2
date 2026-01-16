@@ -114,11 +114,41 @@ public class GebruikerService : IGebruikerService
     // Verwijder een gebruiker; retourneer false als niet gevonden
     public async Task<bool> DeleteAsync(int id)
     {
-        var g = await _db.Gebruikers.FindAsync(id);
-        if (g == null) return false;
+        var (success, _) = await DeleteOrAnonymizeAsync(id);
+        return success;
+    }
 
-        _db.Gebruikers.Remove(g);
+    public async Task<(bool Success, bool HardDeleted)> DeleteOrAnonymizeAsync(int id)
+    {
+        var g = await _db.Gebruikers.FindAsync(id);
+        if (g == null) return (false, false);
+
+        var hasReferences =
+            await _db.Aanmeldingen.AnyAsync(a => a.GebruikerId == id) ||
+            await _db.Veilingen.AnyAsync(v => v.GestartDoorId == id) ||
+            await _db.Biedingen.AnyAsync(b => b.GebruikerId == id) ||
+            await _db.Toewijzingen.AnyAsync(t => t.KoperId == id);
+
+        if (!hasReferences)
+        {
+            _db.Gebruikers.Remove(g);
+            await _db.SaveChangesAsync();
+            return (true, true);
+        }
+
+        // Door FK-restricties kunnen we accounts met historie niet hard verwijderen.
+        // We anonimiseren dan de persoonsgegevens en maken inloggen onmogelijk.
+        g.Naam = "Verwijderd account";
+        g.Email = $"deleted-{id}@deleted.invalid";
+        g.WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N"));
+        g.Rol = "Klant";
+        g.TelefoonLand = null;
+        g.TelefoonNummer = null;
+        g.AdresStraat = null;
+        g.Huisnummer = null;
+        g.Postcode = null;
+
         await _db.SaveChangesAsync();
-        return true;
+        return (true, false);
     }
 }

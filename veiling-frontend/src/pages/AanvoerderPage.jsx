@@ -613,15 +613,18 @@ export default function AanvoerderPage() {
                                         }}
                                         onKeyDown={(e) => {
                                             if (!showCategorieSuggest) return;
+                                            const maxIdx = filteredCategorieen.length - 1;
 
                                             if (e.key === "ArrowDown") {
                                                 e.preventDefault();
                                                 setCategorieSuggestIndex((i) =>
-                                                    Math.min(i + 1, filteredCategorieen.length - 1)
+                                                    maxIdx >= 0 ? Math.min(i + 1, maxIdx) : -1
                                                 );
                                             } else if (e.key === "ArrowUp") {
                                                 e.preventDefault();
-                                                setCategorieSuggestIndex((i) => Math.max(i - 1, 0));
+                                                setCategorieSuggestIndex((i) =>
+                                                    maxIdx >= 0 ? Math.max(i - 1, 0) : -1
+                                                );
                                             } else if (e.key === "Escape") {
                                                 setShowCategorieSuggest(false);
                                                 setCategorieSuggestIndex(-1);
@@ -666,7 +669,7 @@ export default function AanvoerderPage() {
                                         <div
                                             className="aanv-autocomplete-list"
                                             role="listbox"
-                                            aria-label="Categorieën"
+                                            aria-label="Categorieen"
                                         >
                                             {filteredCategorieen.map((c, idx) => (
                                                 <button

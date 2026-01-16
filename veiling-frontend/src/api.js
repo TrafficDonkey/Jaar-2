@@ -65,7 +65,9 @@ export default async function apiFetch(path, options = {}) {
       }
     }
 
-    throw new Error(message || `${res.status} ${res.statusText}`);
+    const err = new Error(message || `${res.status} ${res.statusText}`);
+    err.status = res.status;
+    throw err;
   }
 
   // Geen content

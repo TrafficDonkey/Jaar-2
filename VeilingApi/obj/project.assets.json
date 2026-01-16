@@ -4677,11 +4677,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
+      "projectUniqueName": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
       "projectName": "VeilingApi",
-      "projectPath": "c:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
+      "projectPath": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
       "packagesPath": "C:\\Users\\huber\\.nuget\\packages\\",
-      "outputPath": "c:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\obj\\",
+      "outputPath": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -4710,7 +4710,7 @@
         ]
       },
       "restoreAuditProperties": {
-        "enableAudit": "true",
+        "enableAudit": "false",
         "auditLevel": "low",
         "auditMode": "direct"
       }
@@ -4790,13 +4790,5 @@
         "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.416/PortableRuntimeIdentifierGraph.json"
       }
     }
-  },
-  "logs": [
-    {
-      "code": "NU1900",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "Error occurred while getting package vulnerability data: Unable to load the service index for source https://api.nuget.org/v3/index.json."
-    }
-  ]
+  }
 }

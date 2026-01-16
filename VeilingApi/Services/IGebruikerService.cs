@@ -22,4 +22,7 @@ public interface IGebruikerService
 
     // Verwijder een gebruiker via ID
     Task<bool> DeleteAsync(int id);
+
+    // Verwijder je eigen account (hard delete als mogelijk, anders anonimiseren)
+    Task<(bool Success, bool HardDeleted)> DeleteOrAnonymizeAsync(int id);
 }

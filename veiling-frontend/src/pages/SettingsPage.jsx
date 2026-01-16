@@ -67,10 +67,13 @@ export default function SettingsPage() {
   // UI-status
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleteMsg, setDeleteMsg] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   // Effect: init
   useEffect(() => {
-    document.title = "FloraFlow — Instellingen";
+    document.title = "FloraFlow - Instellingen";
 
     // 2) gebruiker-profiel laden
     let cancelled = false;
@@ -79,12 +82,12 @@ export default function SettingsPage() {
       setLoading(true);
       setMsg("");
       try {
-        // bepaal gebruikerId
-        let id = sessionStorage.getItem("gebruikerId");
-        if (id) {
-          id = Number(id);
-        } else {
-          id = getGebruikerIdFromToken();
+        // bepaal gebruikerId (altijd token leidend; sessionStorage kan verouderen)
+        const tokenId = getGebruikerIdFromToken();
+        let id = tokenId;
+        if (!id) {
+          const stored = sessionStorage.getItem("gebruikerId");
+          id = stored ? Number(stored) : null;
         }
 
         if (!id) {
@@ -98,6 +101,13 @@ export default function SettingsPage() {
 
         const g = await apiFetch(`/Gebruikers/${id}`);
         if (cancelled) return;
+
+        if (tokenId && g?.gebruikerId && tokenId !== g.gebruikerId) {
+          setMsg(
+            "Je sessiegegevens komen niet overeen met je token. Log opnieuw in en probeer het opnieuw."
+          );
+          return;
+        }
 
         setUserId(g.gebruikerId);
         setNaam(g.naam || "");
@@ -190,6 +200,51 @@ export default function SettingsPage() {
       setMsg(err?.message ?? "Opslaan van instellingen is mislukt.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setDeleteMsg("");
+
+    const confirmOk = deleteConfirm.trim().toLowerCase() === "delete";
+    if (!confirmOk) {
+      setDeleteMsg('Typ eerst "Delete" om te bevestigen.');
+      return;
+    }
+
+    const ok = window.confirm(
+      "Weet je zeker dat je je account wilt verwijderen? Dit kan niet ongedaan worden gemaakt."
+    );
+    if (!ok) return;
+
+    try {
+      setDeleting(true);
+      // Token-based endpoint (geen last van verouderde sessionStorage ids)
+      const res = await apiFetch("/Gebruikers/me", { method: "DELETE" });
+
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("role");
+      sessionStorage.removeItem("gebruikerId");
+
+      setDeleteMsg(res?.message ?? "Account verwijderd.");
+      window.location.href = "/login";
+    } catch (err) {
+      const status = err?.status;
+      if (status === 404) {
+        setDeleteMsg(
+          "404 Not Found: je backend ondersteunt `DELETE /api/Gebruikers/me` nog niet. Stop/Start de API (VeilingApi) en probeer opnieuw."
+        );
+        return;
+      }
+      if (status === 403) {
+        setDeleteMsg(
+          "403 Forbidden: de API weigert deze actie. Stop en start je backend opnieuw en log opnieuw in. (Controleer in Swagger of `DELETE /api/Gebruikers/me` bestaat.)"
+        );
+        return;
+      }
+      setDeleteMsg(err?.message ?? "Account verwijderen is mislukt.");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -311,18 +366,42 @@ export default function SettingsPage() {
             </p>
           </form>
 
-          <section className="danger-zone" aria-label="Geavanceerde instellingen">
-            <h2>Geavanceerd</h2>
+          <section className="danger-zone" aria-label="Account verwijderen">
+            <h2>Account verwijderen</h2>
             <p>
-              (Optioneel) Hier kun je later zaken toevoegen zoals taalkeuze,
-              notificaties of een knop om dit apparaat uit te loggen.
+              Dit verwijdert je account permanent. Type <strong>Delete</strong>{" "}
+              om te bevestigen.
+            </p>
+
+            <div className="danger-row">
+              <input
+                className="danger-input"
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder='Type "Delete"'
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                className="danger-btn"
+                disabled={
+                  deleting || deleteConfirm.trim().toLowerCase() !== "delete"
+                }
+                onClick={handleDeleteAccount}
+              >
+                {deleting ? "Bezig..." : "Account verwijderen"}
+              </button>
+            </div>
+
+            <p className="danger-msg" aria-live="polite">
+              {deleteMsg}
             </p>
           </section>
         </section>
       </main>
 
       <footer className="footer">
-        <p>© {new Date().getFullYear()} FloraFlow — demo</p>
+        <p>© {new Date().getFullYear()} FloraFlow demo</p>
       </footer>
     </div>
   );

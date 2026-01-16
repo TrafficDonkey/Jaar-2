@@ -46,17 +46,29 @@ export default function AdminPage() {
 
   // Stats uit users berekenen
   const stats = useMemo(() => {
-    const totaal = users.length;
-    const klanten = users.filter((u) => u.rol === "Klant").length;
-    const aanvoerders = users.filter((u) => u.rol === "Aanvoerder").length;
-    const veilingmeesters = users.filter((u) => u.rol === "Veilingmeester").length;
+    const visibleUsers = users.filter((u) => {
+      const email = String(u.email ?? "").toLowerCase();
+      const naam = String(u.naam ?? "").toLowerCase();
+      return !email.endsWith("@deleted.invalid") && naam !== "verwijderd account";
+    });
+
+    const totaal = visibleUsers.length;
+    const klanten = visibleUsers.filter((u) => u.rol === "Klant").length;
+    const aanvoerders = visibleUsers.filter((u) => u.rol === "Aanvoerder").length;
+    const veilingmeesters = visibleUsers.filter((u) => u.rol === "Veilingmeester").length;
     return { totaal, klanten, aanvoerders, veilingmeesters };
   }, [users]);
 
   const filteredUsers = useMemo(() => {
+    const visibleUsers = users.filter((u) => {
+      const email = String(u.email ?? "").toLowerCase();
+      const naam = String(u.naam ?? "").toLowerCase();
+      return !email.endsWith("@deleted.invalid") && naam !== "verwijderd account";
+    });
+
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter((u) => {
+    if (!q) return visibleUsers;
+    return visibleUsers.filter((u) => {
       const id = String(u.gebruikerId ?? "");
       const naam = String(u.naam ?? "").toLowerCase();
       const email = String(u.email ?? "").toLowerCase();
