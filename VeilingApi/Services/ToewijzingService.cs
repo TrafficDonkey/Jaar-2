@@ -8,6 +8,7 @@
 using Microsoft.EntityFrameworkCore;
 using VeilingApi.Data;
 using VeilingApi.Models;
+using System.Data;
 
 namespace VeilingApi.Services;
 
@@ -95,14 +96,27 @@ public class ToewijzingService : IToewijzingService
 
     public async Task<ToewijzingDto> CreateAsync(CreateToewijzingDto dto)
     {
+        // Serializable transaction voorkomt "overselling" bij gelijktijdige aankopen.
+        await using var tx = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+
         var buyerExists = await _db.Gebruikers.AnyAsync(g => g.GebruikerId == dto.KoperId);
         if (!buyerExists) throw new InvalidOperationException("Koper bestaat niet.");
 
         var product = await _db.VeilingProducten
+            .Include(vp => vp.Veiling)
             .Include(vp => vp.Aanmelding)
             .Include(vp => vp.Toewijzingen)
             .FirstOrDefaultAsync(vp => vp.VeilingProductId == dto.VeilingProductId);
         if (product is null) throw new InvalidOperationException("Veilingproduct bestaat niet.");
+
+        var veiling = product.Veiling;
+        if (veiling is null) throw new InvalidOperationException("Veiling bestaat niet.");
+
+        var now = DateTime.UtcNow;
+        if (!string.Equals(veiling.Status, "Actief", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Deze veiling is niet (meer) actief.");
+        if (veiling.EindTijd != null && veiling.EindTijd <= now)
+            throw new InvalidOperationException("Deze veiling is al afgelopen.");
 
         var totalQty = product.Aanmelding?.Hoeveelheid ?? 0;
         var soldQty = product.Toewijzingen?.Sum(t => t.Aantal > 0 ? t.Aantal : 1) ?? 0;
@@ -118,18 +132,30 @@ public class ToewijzingService : IToewijzingService
 
         var t = new Toewijzing
         {
-            KoperId         = dto.KoperId,
-            VeilingProductId= dto.VeilingProductId,
-            Aantal          = dto.Aantal,
-            EindPrijs       = dto.EindPrijs,
-            Datum           = dto.Datum
+            KoperId = dto.KoperId,
+            VeilingProductId = dto.VeilingProductId,
+            Aantal = dto.Aantal,
+            EindPrijs = dto.EindPrijs,
+            Datum = dto.Datum
         };
 
         _db.Toewijzingen.Add(t);
         await _db.SaveChangesAsync();
 
+        var remainingAfter = remainingQty - dto.Aantal;
+        if (remainingAfter <= 0)
+        {
+            veiling.Status = "Afgerond";
+            veiling.EindTijd = now;
+            await _db.SaveChangesAsync();
+        }
+
+        await tx.CommitAsync();
+
         var created = await _db.Toewijzingen
             .Include(x => x.Koper)
+            .Include(x => x.VeilingProduct)
+                .ThenInclude(vp => vp!.Aanmelding)
             .FirstAsync(x => x.ToewijzingId == t.ToewijzingId);
 
         return MapToDto(created);

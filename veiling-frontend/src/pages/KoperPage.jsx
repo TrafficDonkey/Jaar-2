@@ -82,6 +82,7 @@ export default function KoperPage() {
 
   const [actieveVeilingen, setActieveVeilingen] = useState([]);
   const [selectedVeilingId, setSelectedVeilingId] = useState(null);
+  const selectedVeilingIdRef = React.useRef(null);
   const [veiling, setVeiling] = useState(null);
   const [koopAantal, setKoopAantal] = useState("");
   const [remainingQty, setRemainingQty] = useState(null);
@@ -134,6 +135,10 @@ export default function KoperPage() {
     return () => clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    selectedVeilingIdRef.current = selectedVeilingId;
+  }, [selectedVeilingId]);
+
   async function loadActieveVeilingen() {
     try {
       const alle = await apiFetch("/Veilingen");
@@ -170,7 +175,19 @@ export default function KoperPage() {
 
       setActieveVeilingen(actief);
 
-      if (!selectedVeilingId && actief.length > 0) {
+      const selectedId = selectedVeilingIdRef.current;
+      if (
+        selectedId &&
+        !actief.some((v) => (v.veilingId ?? v.id) === selectedId)
+      ) {
+        setSelectedVeilingId(null);
+        setVeiling(null);
+        setRemainingQty(null);
+        setCurrentPrice(null);
+        setKoopMsg("De veiling is afgelopen of uitverkocht.");
+      }
+
+      if (!selectedId && actief.length > 0) {
         selectVeilingById(actief[0].veilingId);
       }
     } catch (e) {
@@ -241,6 +258,20 @@ export default function KoperPage() {
     }
   }
 
+  async function refreshSelectedVeiling(id) {
+    if (!id) return;
+    try {
+      const v = await apiFetch(`/Veilingen/${id}`);
+      if (!v) return;
+      const { mappedVeiling, availableQty } = mapVeilingDto(v);
+      setVeiling(mappedVeiling);
+      setRemainingQty(availableQty);
+      return availableQty;
+    } catch {
+      // stil falen
+    }
+  }
+
   function handleClockPriceChange(price) {
     setCurrentPrice(price);
   }
@@ -277,12 +308,19 @@ export default function KoperPage() {
     };
 
     refresh();
-    const id = setInterval(refresh, 5000);
+    const id = setInterval(refresh, 1000);
     return () => {
       cancelled = true;
       clearInterval(id);
     };
   }, [activeTab, selectedVeilingId]);
+
+  useEffect(() => {
+    if (activeTab !== "veilingen") return;
+    const id = setInterval(loadActieveVeilingen, 3000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   async function handleKoop(e) {
     e.preventDefault();
@@ -357,6 +395,14 @@ export default function KoperPage() {
 
       setKoopAantal("");
       await loadMyPurchases();
+
+      const updatedRemaining = await refreshSelectedVeiling(selectedVeilingId);
+      await loadActieveVeilingen();
+      if (updatedRemaining === 0) {
+        setKoopMsg(
+          "Je aankoop is verwerkt. Dit product is nu uitverkocht; de veiling is gestopt."
+        );
+      }
     } catch (e2) {
       setKoopMsg(
         e2?.message ?? "Er ging iets mis bij het registreren van de aankoop."
@@ -365,6 +411,10 @@ export default function KoperPage() {
   }
 
   const product = veiling?.huidigProduct ?? null;
+  const effectiveRemaining =
+    remainingQty ?? product?.resterendAantal ?? product?.hoeveelheid ?? null;
+  const isSoldOut =
+    typeof effectiveRemaining === "number" ? effectiveRemaining <= 0 : false;
   const selectedStartMs = toTimeMs(veiling?.startTijd);
   const isVeilingLive = Number.isFinite(selectedStartMs)
     ? selectedStartMs <= nowMs
@@ -627,12 +677,8 @@ export default function KoperPage() {
                       <div>
                         <dt>Beschikbare hoeveelheid</dt>
                         <dd>
-                          {(remainingQty ??
-                            product.resterendAantal ??
-                            product.hoeveelheid) != null
-                            ? `${remainingQty ??
-                                product.resterendAantal ??
-                                product.hoeveelheid} stuks`
+                          {effectiveRemaining != null
+                            ? `${effectiveRemaining} stuks`
                             : "-"}
                         </dd>
                       </div>
@@ -663,7 +709,18 @@ export default function KoperPage() {
                   {/* Klok + koopformulier */}
                   <div>
                     <div className="kop-clock-box">
-                      {!isVeilingLive ? (
+                      {isSoldOut ? (
+                        <div className="kop-clock-placeholder">
+                          <div className="kop-notlive-row">
+                            <span className="kop-live-pill kop-live-pill--offline">
+                              Uitverkocht
+                            </span>
+                          </div>
+                          <p className="kop-extra-text kop-soldout-text">
+                            Er zijn geen artikelen meer beschikbaar. De veiling is gestopt.
+                          </p>
+                        </div>
+                      ) : !isVeilingLive ? (
                         <div className="kop-clock-placeholder">
                           <div className="kop-notlive-row">
                             <span className="kop-live-pill kop-live-pill--offline">
@@ -764,7 +821,7 @@ export default function KoperPage() {
                       <button
                         type="submit"
                         className="kop-koop-btn"
-                        disabled={!isVeilingLive || currentPrice == null}
+                        disabled={!isVeilingLive || isSoldOut || currentPrice == null}
                       >
                         Koop tegen huidige prijs
                       </button>

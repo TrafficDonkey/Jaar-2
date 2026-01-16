@@ -253,6 +253,10 @@
   color: var(--color-muted);
 }
 
+.kop-soldout-text {
+  margin-top: 0.6rem;
+}
+
 /* Rechterdeel: klok + koopformulier */
 .kop-detail-right {
   display: flex;
