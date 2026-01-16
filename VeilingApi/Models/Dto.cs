@@ -302,6 +302,8 @@ public class ToewijzingDto
     public int KoperId { get; set; }
     public string KoperNaam { get; set; } = string.Empty;
     public int VeilingProductId { get; set; }
+    public string Categorie { get; set; } = string.Empty;
+    public string ProductBeschrijving { get; set; } = string.Empty;
     public int Aantal { get; set; }
     public decimal EindPrijs { get; set; }
     public DateTime Datum { get; set; }

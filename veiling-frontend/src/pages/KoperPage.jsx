@@ -29,6 +29,11 @@ const fmtCurrency = (v) => {
   });
 };
 
+const cleanText = (value) => {
+  const txt = String(value ?? "").replace(/\r?\n/g, " ").trim();
+  return txt || "-";
+};
+
 const API_BASE_URL = API_BASE.endsWith("/") ? API_BASE : `${API_BASE}/`;
 
 const normalizeFotoUrl = (url) => {
@@ -117,9 +122,10 @@ export default function KoperPage() {
       ? window.sessionStorage.getItem("role") ?? ""
       : "";
   const hideMinPrice = role === "Klant" || role === "Koper";
+  const isAdmin = role === "Admin";
 
   useEffect(() => {
-    document.title = "Koper — FloraFlow";
+    document.title = "Koper - FloraFlow";
     (async () => {
       setLoading(true);
       setErr("");
@@ -329,9 +335,9 @@ export default function KoperPage() {
       });
 
       setKoopMsg(
-        `Je hebt ${qty}× "${product.productBeschrijving}" gekocht voor €${fmtCurrency(
+        `Je hebt ${qty}x "${product.productBeschrijving}" gekocht voor EUR ${fmtCurrency(
           currentPrice
-        )} per stuk (totaal €${fmtCurrency(totaal)}).`
+        )} per stuk (totaal EUR ${fmtCurrency(totaal)}).`
       );
 
       if (remainingQty != null) {
@@ -364,7 +370,7 @@ export default function KoperPage() {
     const qty = Number(String(koopAantal).replace(",", "."));
     if (!product || currentPrice == null || !qty || qty <= 0) return null;
     const totaal = currentPrice * qty;
-    return `Totaal: € ${fmtCurrency(totaal)} (${qty} × € ${fmtCurrency(
+    return `Totaal: EUR ${fmtCurrency(totaal)} (${qty} x EUR ${fmtCurrency(
       currentPrice
     )})`;
   }, [koopAantal, product, currentPrice]);
@@ -427,12 +433,12 @@ export default function KoperPage() {
         </p>
         {err && (
           <p className="kop-error" role="alert">
-            ❌ {err}
+            {err}
           </p>
         )}
       </header>
 
-      {/* TABBAR – zelfde stijl als Veilingbeheer */}
+      {/* TABBAR - zelfde stijl als Veilingbeheer */}
       <div className="vm-tabs kop-tabs">
         <button
           type="button"
@@ -477,7 +483,7 @@ export default function KoperPage() {
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
                   >
-                    <option value="ALL">Alle categorieën</option>
+                    <option value="ALL">Alle categorieen</option>
                     {categoryOptions.map((c) => (
                       <option key={c} value={c}>
                         {c}
@@ -548,9 +554,8 @@ export default function KoperPage() {
                   {/* Product-informatie */}
                   <div className="kop-detail-left">
                     <p className="kop-extra-text">
-                      Veiling #{veiling.veilingId} ·{" "}
-                      {veiling.naam ?? "Veiling"} · gestart op{" "}
-                      {fmtDateTime(veiling.startTijd)}
+                      Veiling #{veiling.veilingId} - {veiling.naam ?? "Veiling"}{" "}
+                      - gestart op {fmtDateTime(veiling.startTijd)}
                     </p>
 
                     <h2 className="kop-prod-title">
@@ -612,7 +617,7 @@ export default function KoperPage() {
 
                     <p className="kop-extra-text">
                       De prijs daalt gedurende de ronde. Koop op het juiste
-                      moment: hoe langer je wacht, hoe lager de prijs – maar
+                      moment: hoe langer je wacht, hoe lager de prijs - maar
                       risico dat iemand anders je voor is of de voorraad op is.
                     </p>
                   </div>
@@ -662,7 +667,7 @@ export default function KoperPage() {
 
                       {currentPrice != null && (
                         <p className="kop-extra-text">
-                          Huidige prijs per stuk: €{" "}
+                          Huidige prijs per stuk: EUR{" "}
                           {fmtCurrency(currentPrice)}
                         </p>
                       )}
@@ -712,8 +717,10 @@ export default function KoperPage() {
               <table className="kop-history-table">
                 <thead>
                   <tr>
+                    {isAdmin && <th>ID</th>}
                     <th>Datum</th>
-                    <th>Product-ID</th>
+                    <th>Categorie</th>
+                    <th>Beschrijving</th>
                     <th>Prijs per stuk</th>
                     <th>Aantal</th>
                     <th>Totaal</th>
@@ -725,20 +732,30 @@ export default function KoperPage() {
                     const aantal = t.aantal ?? t.Aantal ?? 1;
                     const totaal = eindPrijs * aantal;
                     const datum = t.datum ?? t.Datum;
+                    const categorie = cleanText(t.categorie ?? t.Categorie);
+                    const beschrijving = cleanText(
+                      t.productBeschrijving ?? t.ProductBeschrijving
+                    );
+                    const toewijzingId =
+                      t.toewijzingId ?? t.ToewijzingId ?? "-";
                     return (
-                      <tr key={t.toewijzingId ?? t.ToewijzingId}>
+                      <tr key={toewijzingId}>
+                        {isAdmin && <td>{toewijzingId}</td>}
                         <td>
                           {fmtDateTime(datum)}
                         </td>
                         <td>
-                          {t.veilingProductId ?? t.VeilingProductId}
+                          {categorie}
                         </td>
                         <td>
-                          € {fmtCurrency(eindPrijs)}
+                          {beschrijving}
+                        </td>
+                        <td>
+                          EUR {fmtCurrency(eindPrijs)}
                         </td>
                         <td>{aantal}</td>
                         <td>
-                          € {fmtCurrency(totaal)}
+                          EUR {fmtCurrency(totaal)}
                         </td>
                       </tr>
                     );

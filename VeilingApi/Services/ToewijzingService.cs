@@ -22,6 +22,11 @@ public class ToewijzingService : IToewijzingService
         KoperId         = t.KoperId,
         KoperNaam       = t.Koper != null ? t.Koper.Naam : string.Empty,
         VeilingProductId= t.VeilingProductId,
+        Categorie       = t.VeilingProduct?.Categorie
+                          ?? t.VeilingProduct?.Aanmelding?.Categorie
+                          ?? string.Empty,
+        ProductBeschrijving = t.VeilingProduct?.Aanmelding?.ProductBeschrijving
+                          ?? string.Empty,
         Aantal          = t.Aantal,
         EindPrijs       = t.EindPrijs,
         Datum           = t.Datum
@@ -34,6 +39,7 @@ public class ToewijzingService : IToewijzingService
         return await _db.Toewijzingen
             .Include(t => t.Koper)
             .Include(t => t.VeilingProduct)
+                .ThenInclude(vp => vp!.Aanmelding)
             .OrderByDescending(t => t.Datum)
             .Select(t => MapToDto(t))
             .ToListAsync();
@@ -46,6 +52,7 @@ public class ToewijzingService : IToewijzingService
         return await _db.Toewijzingen
             .Include(t => t.Koper)
             .Include(t => t.VeilingProduct)
+                .ThenInclude(vp => vp!.Aanmelding)
             .Where(t => t.ToewijzingId == id)
             .Select(t => MapToDto(t))
             .FirstOrDefaultAsync();
@@ -77,6 +84,7 @@ public class ToewijzingService : IToewijzingService
         return await _db.Toewijzingen
             .Include(t => t.Koper)
             .Include(t => t.VeilingProduct)
+                .ThenInclude(vp => vp!.Aanmelding)
             .Where(t => t.KoperId == gebruikerId)
             .OrderByDescending(t => t.Datum)
             .Select(t => MapToDto(t))

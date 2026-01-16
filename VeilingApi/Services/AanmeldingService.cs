@@ -31,6 +31,7 @@ public class AanmeldingService : IAanmeldingService
         ProductBeschrijving  = a.ProductBeschrijving,
         Hoeveelheid          = a.Hoeveelheid,
         MinimumPrijs         = a.MinimumPrijs,
+        Categorie            = a.Categorie,
         GewensteKlokLocatie  = a.GewensteKlokLocatie,
         GewensteVeilDatum    = a.GewensteVeilDatum,
         GebruikerId          = a.GebruikerId,
