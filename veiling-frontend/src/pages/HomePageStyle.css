@@ -101,14 +101,9 @@
   display: grid;
   place-items: center;
 }
-.lp-blob {
-  width: 100%;
+.lp-sphere {
   max-width: 380px;
-  aspect-ratio: 1 / 1;
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 30%, #dcfce7, #bbf7d0 55%, #ecfdf3 100%);
-  filter: blur(0.3px);
-  opacity: 0.9;
+  opacity: 0.95;
 }
 .lp-card {
   position: absolute;
@@ -119,6 +114,7 @@
   box-shadow: var(--lp-sh-sm);
   color: var(--lp-text);
   font-weight: 600;
+  z-index: 1;
 }
 .lp-card--floating {
   top: 14%;

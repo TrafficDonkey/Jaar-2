@@ -5,6 +5,7 @@
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import "./HomePageStyle.css";
+import NeuralSphere from "../components/NeuralSphere";
 
 export default function HomePage() {
   const isLoggedIn = Boolean(sessionStorage.getItem("token"));
@@ -38,7 +39,7 @@ export default function HomePage() {
 
         {/* Decoratieve illustratie (geen functionele content) */}
         <div className="lp-hero__art" aria-hidden="true">
-          <div className="lp-blob" />
+          <NeuralSphere className="lp-sphere" />
           <div className="lp-card lp-card--floating">
             <span className="lp-dot" /> Live veilingen
           </div>

@@ -8,7 +8,7 @@ import "./Layout.css";
 export default function Layout() {
   const nav = useNavigate();
 
-  const [dark, setDark] = useState(() => {
+  const [dark] = useState(() => {
     return localStorage.getItem("theme") === "dark";
   });
 
@@ -44,6 +44,10 @@ export default function Layout() {
         </div>
 
         <nav className="topbar__nav" aria-label="Hoofdmenu">
+          <NavLink to="/app" end className="topbar__link">
+            Home
+          </NavLink>
+
           {/* Alleen voor rol Klant */}
           {(role === "Klant" || role === "Admin") && (
             <NavLink to="/app/koper" className="topbar__link">
