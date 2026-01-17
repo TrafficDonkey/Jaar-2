@@ -2,10 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import "./LoginStyle.css";
 
-// ✅ 1 bron van waarheid voor je API
-// In productie moet VITE_API_BASE bestaan.
-// Lokaal valt hij terug op localhost.
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5146/api";
+// ✅ Base URL zonder /api (dus alleen domain + eventueel poort lokaal)
+const API_BASE =
+  import.meta.env.VITE_API_BASE || "http://localhost:5146";
 
 // helper: veilig JSON lezen (of tekst fallback)
 async function readBody(res) {
@@ -17,10 +16,10 @@ async function readBody(res) {
       return null;
     }
   }
+
   try {
     const text = await res.text();
     if (!text) return null;
-    // soms stuurt backend text die alsnog JSON is
     try {
       return JSON.parse(text);
     } catch {
@@ -46,8 +45,7 @@ export default function LoginScreen() {
     const last = localStorage.getItem("lastEmail");
     if (last) setEmail(last);
 
-    // 🔎 Debug: check welke API_BASE je production build echt gebruikt
-    // (handig tot alles werkt; daarna mag je dit weghalen)
+    // 🔎 Debug (mag je later verwijderen)
     console.log("LoginScreen API_BASE =", API_BASE);
   }, []);
 
@@ -55,7 +53,6 @@ export default function LoginScreen() {
     e.preventDefault();
     setMsg("Inloggen…");
 
-    // basic client-side checks
     const cleanEmail = email.trim();
     if (!cleanEmail || !pw) {
       setMsg("❌ Vul je e-mailadres en wachtwoord in.");
@@ -63,12 +60,13 @@ export default function LoginScreen() {
     }
 
     try {
-      const url = `${API_BASE}/auth/login`;
+      // ✅ Jouw AuthController route is: POST /api/auth/login
+      const url = `${API_BASE}/api/auth/login`;
 
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // ✅ let op: jouw backend gebruikt waarschijnlijk 'wachtwoord'
+        // ✅ LoginDto verwacht: Email + Wachtwoord
         body: JSON.stringify({
           email: cleanEmail,
           wachtwoord: pw,
@@ -78,7 +76,6 @@ export default function LoginScreen() {
       const body = await readBody(res);
 
       if (!res.ok) {
-        // Probeer een nette foutmelding te maken
         const friendly =
           body?.message ||
           body?.Message ||
@@ -88,29 +85,32 @@ export default function LoginScreen() {
             ? "Onjuiste inloggegevens."
             : `Er ging iets mis bij het inloggen (${res.status}).`);
 
-        // Eventuele veldfouten (als backend dat stuurt)
         let details = "";
+
+        // custom format { Fouten: [...] }
         if (body?.Fouten && Array.isArray(body.Fouten)) {
           const lines = body.Fouten.flatMap((f) =>
             (f?.Errors || []).map((err) => `- ${f?.Field}: ${err}`)
           );
           if (lines.length) details = "\n" + lines.join("\n");
-        } else if (body?.errors) {
-          // standaard ASP.NET validation format
+        }
+
+        // standaard ASP.NET validation format: { errors: { field: [..] } }
+        if (!details && body?.errors) {
           const lines = [];
           for (const [field, errs] of Object.entries(body.errors)) {
             for (const err of errs) lines.push(`- ${field}: ${err}`);
           }
           if (lines.length) details = "\n" + lines.join("\n");
-        } else if (body?.raw) {
-          details = `\n${body.raw}`;
         }
+
+        if (!details && body?.raw) details = `\n${body.raw}`;
 
         setMsg(`❌ ${friendly}${details}`);
         return;
       }
 
-      // Succes: verwacht token
+      // ✅ verwacht: { token, role, gebruikerId }
       const token = body?.token || body?.Token;
       const role = body?.role || body?.Role;
       const gebruikerId = body?.gebruikerId || body?.GebruikerId;
@@ -120,10 +120,8 @@ export default function LoginScreen() {
         return;
       }
 
-      // Email onthouden (ok)
       localStorage.setItem("lastEmail", cleanEmail);
 
-      // Sessiedata
       sessionStorage.setItem("token", token);
       if (role) sessionStorage.setItem("role", role);
       if (gebruikerId != null)
@@ -131,7 +129,6 @@ export default function LoginScreen() {
 
       setMsg("✅ Ingelogd!");
 
-      // Default doel op basis van rol
       const finalRole = role || sessionStorage.getItem("role");
       let defaultTarget = "/app";
 
@@ -140,7 +137,6 @@ export default function LoginScreen() {
       else if (finalRole === "Veilingmeester") defaultTarget = "/app/veilingmeester";
       else if (finalRole === "Koper") defaultTarget = "/app/koper";
 
-      // Als je via ProtectedRoute kwam, ga terug
       const from = location.state?.from?.pathname;
       const to = from && from !== "/login" && from !== "/" ? from : defaultTarget;
 
