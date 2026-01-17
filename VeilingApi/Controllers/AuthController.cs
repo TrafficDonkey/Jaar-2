@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace VeilingApi.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("auth")]  // Changed from "api/[controller]" to just "auth"
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _svc;
@@ -25,7 +25,6 @@ public class AuthController : ControllerBase
             return BadRequest(ModelState);
 
         var result = await _svc.RegisterAsync(dto);
-
         if (!result.Success)
             return BadRequest(new { message = result.ErrorMessage });
 
@@ -41,7 +40,6 @@ public class AuthController : ControllerBase
             return BadRequest(ModelState);
 
         var result = await _svc.LoginAsync(dto.Email, dto.Wachtwoord);
-
         if (result.Token == null)
             return Unauthorized(new { message = "Onjuiste inloggegevens" });
 
@@ -54,12 +52,8 @@ public class AuthController : ControllerBase
         });
     }
 
-    //───────────────────── Admin: gebruiker met rol aanmaken ─────────────────────
-    [HttpPost("admin-create")]
-    [Authorize(Roles = "Admin")]
-    
     // ────────────────────────────── Admin: nieuwe gebruiker maken ──────────────────────────────
-    // Route: POST /api/auth/admin/create-user
+    // Route: POST /auth/admin/create-user
     // Alleen bereikbaar voor ingelogde gebruikers met rol "Admin".
     [HttpPost("admin/create-user")]
     [Authorize(Roles = "Admin")]
@@ -69,7 +63,7 @@ public class AuthController : ControllerBase
             return BadRequest(ModelState);
 
         var created = await _svc.AdminCreateUserAsync(dto);
-
+        
         // 201 Created teruggeven; frontend hoeft de Location niet per se te gebruiken.
         return CreatedAtAction(nameof(AdminCreateUser),
             new { id = created.GebruikerId },
