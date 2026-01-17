@@ -126,6 +126,8 @@ export default function KoperPage() {
   const [clockRunId, setClockRunId] = useState(1);
   const [currentPrice, setCurrentPrice] = useState(null);
   const [showStartInfo, setShowStartInfo] = useState(false);
+  const [clockFinished, setClockFinished] = useState(false);
+  const [endedNotice, setEndedNotice] = useState(null);
   const [fotoError, setFotoError] = useState(false);
 
   const [myPurchases, setMyPurchases] = useState([]);
@@ -218,6 +220,21 @@ export default function KoperPage() {
         selectedId &&
         !actief.some((v) => (v.veilingId ?? v.id) === selectedId)
       ) {
+        const last = veiling;
+        const lastName =
+          last?.naam ?? (selectedId ? `Veiling #${selectedId}` : "Veiling");
+        const lastStart = last?.startTijd
+          ? fmtDateTime(last.startTijd)
+          : null;
+        const lastProduct =
+          last?.huidigProduct?.productBeschrijving ?? null;
+
+        setEndedNotice({
+          title: "Veiling is voorbij",
+          name: lastName,
+          startedAt: lastStart,
+          product: lastProduct,
+        });
         setSelectedVeilingId(null);
         setVeiling(null);
         setRemainingQty(null);
@@ -270,6 +287,8 @@ export default function KoperPage() {
 
     setErr("");
     setKoopMsg("");
+    setEndedNotice(null);
+    setClockFinished(false);
     setLoadingVeiling(true);
 
     try {
@@ -288,6 +307,7 @@ export default function KoperPage() {
       setKoopAantal("");
       setCurrentPrice(null);
       setShowStartInfo(false);
+      setClockFinished(false);
       setClockRunId((n) => n + 1);
     } catch (e) {
       setErr(e?.message ?? "Kon veiling niet laden.");
@@ -312,10 +332,14 @@ export default function KoperPage() {
 
   function handleClockPriceChange(price) {
     setCurrentPrice(price);
+    if (clockFinished) {
+      setClockFinished(false);
+    }
   }
 
   function handleClockFinished() {
     setCurrentPrice(null);
+    setClockFinished(true);
     setKoopMsg("De klok is gestopt. Wacht op de volgende ronde of veiling.");
   }
 
@@ -466,6 +490,10 @@ export default function KoperPage() {
   const veilingDatumLabel = product?.gewensteVeilDatum
     ? fmtDate(product.gewensteVeilDatum)
     : fmtDate(veiling?.startTijd);
+  const showEndedPanel = clockFinished || isSoldOut;
+  const endedReason = isSoldOut
+    ? "Alle producten zijn verkocht."
+    : "De klok is gestopt voor deze veiling.";
 
   const productInfo = useMemo(
     () => splitProductDescription(product?.productBeschrijving),
@@ -512,6 +540,15 @@ export default function KoperPage() {
     if (categoryFilter === "ALL") return actieveVeilingen;
     return actieveVeilingen.filter((v) => v.categorie === categoryFilter);
   }, [actieveVeilingen, categoryFilter]);
+
+  const handlePickAnother = () => {
+    setEndedNotice(null);
+    setClockFinished(false);
+    const first = filteredAuctions[0];
+    if (first) {
+      selectVeilingById(first.veilingId ?? first.id);
+    }
+  };
 
   // Popup: laad historische prijzen wanneer geopend
   useEffect(() => {
@@ -692,12 +729,61 @@ export default function KoperPage() {
               {loadingVeiling ? (
                 <p>Veiling laden...</p>
               ) : !veiling || !product ? (
-                <p className="kop-extra-text">
-                  Kies links een veiling om de details te zien en te kunnen
-                  kopen.
-                </p>
+                endedNotice ? (
+                  <div className="kop-end-empty" role="status">
+                    <h3>{endedNotice.title}</h3>
+                    <p className="kop-end-meta">{endedNotice.name}</p>
+                    {endedNotice.product && (
+                      <p className="kop-end-meta">
+                        Product: {endedNotice.product}
+                      </p>
+                    )}
+                    {endedNotice.startedAt && (
+                      <p className="kop-end-meta">
+                        Gestart op {endedNotice.startedAt}
+                      </p>
+                    )}
+                    <p className="kop-end-note">
+                      Dank u voor uw mededeling.
+                    </p>
+                    <div className="kop-end-actions">
+                      <button
+                        type="button"
+                        className="kop-koop-btn kop-koop-btn--ghost"
+                        onClick={handlePickAnother}
+                        disabled={filteredAuctions.length === 0}
+                      >
+                        Kies andere veiling
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="kop-extra-text">
+                    Kies links een veiling om de details te zien en te kunnen
+                    kopen.
+                  </p>
+                )
               ) : (
                 <div className="kop-detail-card">
+                  {showEndedPanel && (
+                    <div className="kop-end-card" role="status">
+                      <h3>Veiling is voorbij</h3>
+                      <p className="kop-end-meta">{endedReason}</p>
+                      <p className="kop-end-note">
+                        Dank u voor uw mededeling.
+                      </p>
+                      <div className="kop-end-actions">
+                        <button
+                          type="button"
+                          className="kop-koop-btn kop-koop-btn--ghost"
+                          onClick={handlePickAnother}
+                          disabled={filteredAuctions.length === 0}
+                        >
+                          Kies andere veiling
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {/* Product-informatie */}
                   <div className="kop-detail-left">
                     <p className="kop-extra-text">

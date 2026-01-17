@@ -202,6 +202,37 @@
   box-shadow: var(--shadow-md);
 }
 
+.kop-end-card {
+  grid-column: 1 / -1;
+  border-radius: 12px;
+  border: 1px solid rgba(21, 128, 61, 0.2);
+  background: rgba(21, 128, 61, 0.08);
+  padding: 0.9rem 1rem;
+}
+
+.kop-end-card h3 {
+  margin: 0 0 0.3rem;
+  font-size: 1.1rem;
+}
+
+.kop-end-meta {
+  margin: 0.1rem 0;
+  color: var(--color-muted);
+  font-size: 0.95rem;
+}
+
+.kop-end-note {
+  margin: 0.35rem 0 0;
+  font-weight: 600;
+}
+
+.kop-end-actions {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
 /* Productzijde */
 .kop-detail-left {
   display: flex;
@@ -284,6 +315,19 @@
   background: rgba(148, 163, 184, 0.08);
   color: var(--color-muted);
   font-weight: 600;
+}
+
+.kop-end-empty {
+  border-radius: 12px;
+  border: 1px solid rgba(21, 128, 61, 0.18);
+  background: rgba(21, 128, 61, 0.08);
+  padding: 1.1rem 1.2rem;
+  max-width: 520px;
+}
+
+.kop-end-empty h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.2rem;
 }
 
 /* Extra uitleg onder de tabel */
