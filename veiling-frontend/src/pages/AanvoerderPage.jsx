@@ -78,13 +78,72 @@ function formatCurrency(value) {
     });
 }
 
-// Bepaal status van een aanmelding op basis van veildatum
-function getAanmeldingStatus(iso) {
-    if (!iso) return { label: "Onbekend", className: "aanv-status--unknown" };
+function getAanmeldingStatus(iso, veilingInfo) {
+    const rawStatus = String(veilingInfo?.status ?? "").trim().toLowerCase();
+    const startMs = toTimeMs(veilingInfo?.startTijd);
+    const endMs = toTimeMs(veilingInfo?.eindTijd);
+    const now = Date.now();
+
+    if (rawStatus) {
+        if (rawStatus === "actief") {
+            if (Number.isFinite(endMs) && endMs <= now) {
+                return {
+                    label: "Verlopen",
+                    className: "aanv-status--past",
+                    code: "VERLOPEN",
+                };
+            }
+            if (Number.isFinite(startMs) && startMs > now) {
+                return {
+                    label: "Gepland",
+                    className: "aanv-status--upcoming",
+                    code: "GEPLAND",
+                };
+            }
+            return {
+                label: "Actief",
+                className: "aanv-status--today",
+                code: "ACTIEF",
+            };
+        }
+
+        if (rawStatus === "gepland" || rawStatus === "concept") {
+            return {
+                label: "Gepland",
+                className: "aanv-status--upcoming",
+                code: "GEPLAND",
+            };
+        }
+
+        if (
+            rawStatus === "afgerond" ||
+            rawStatus === "afgesloten" ||
+            rawStatus === "afgelopen" ||
+            rawStatus === "verlopen"
+        ) {
+            return {
+                label: "Verlopen",
+                className: "aanv-status--past",
+                code: "VERLOPEN",
+            };
+        }
+    }
+
+    if (!iso) {
+        return {
+            label: "Onbekend",
+            className: "aanv-status--unknown",
+            code: "ONBEKEND",
+        };
+    }
 
     const d = parseApiDate(iso);
     if (!d) {
-        return { label: "Onbekend", className: "aanv-status--unknown" };
+        return {
+            label: "Onbekend",
+            className: "aanv-status--unknown",
+            code: "ONBEKEND",
+        };
     }
 
     const today = new Date();
@@ -93,12 +152,45 @@ function getAanmeldingStatus(iso) {
     cmp.setHours(0, 0, 0, 0);
 
     if (cmp.getTime() === today.getTime()) {
-        return { label: "Vandaag", className: "aanv-status--today" };
+        return {
+            label: "Vandaag",
+            className: "aanv-status--today",
+            code: "GEPLAND",
+        };
     }
     if (cmp > today) {
-        return { label: "Gepland", className: "aanv-status--upcoming" };
+        return {
+            label: "Gepland",
+            className: "aanv-status--upcoming",
+            code: "GEPLAND",
+        };
     }
-    return { label: "Verlopen", className: "aanv-status--past" };
+    return {
+        label: "Verlopen",
+        className: "aanv-status--past",
+        code: "VERLOPEN",
+    };
+}
+
+function buildVeilingStatusMap(veilingen) {
+    const map = {};
+    const list = Array.isArray(veilingen) ? veilingen : [];
+
+    list.forEach((veiling) => {
+        const status = veiling?.status ?? veiling?.Status ?? "";
+        const startTijd = veiling?.startTijd ?? veiling?.StartTijd ?? null;
+        const eindTijd = veiling?.eindTijd ?? veiling?.EindTijd ?? null;
+        const producten =
+            veiling?.veilingProducten ?? veiling?.VeilingProducten ?? [];
+
+        producten.forEach((vp) => {
+            const aanmeldingId = vp?.aanmeldingId ?? vp?.AanmeldingId;
+            if (!aanmeldingId) return;
+            map[aanmeldingId] = { status, startTijd, eindTijd };
+        });
+    });
+
+    return map;
 }
 
 export default function AanvoerderPage() {
@@ -118,6 +210,7 @@ export default function AanvoerderPage() {
     const [aanmeldingQuery, setAanmeldingQuery] = useState("");
     const [aanmeldingStatusFilter, setAanmeldingStatusFilter] = useState("ALL");
     const [aanmeldingSort, setAanmeldingSort] = useState("date-asc");
+    const [veilingStatusByAanmeldingId, setVeilingStatusByAanmeldingId] = useState({});
 
     const [form, setForm] = useState({
         fotoFile: null,
@@ -173,13 +266,15 @@ export default function AanvoerderPage() {
                 setGebruikerNaam(g?.naam ?? "");
 
                 // 2) Eigen aanmeldingen + toewijzingen
-                const [aRes, tRes] = await Promise.all([
+                const [aRes, tRes, vRes] = await Promise.all([
                     apiFetch("/Aanmeldingen/mine"),
                     apiFetch("/Toewijzingen/mine"),
+                    apiFetch("/Veilingen").catch(() => []),
                 ]);
 
                 setAanmeldingen(Array.isArray(aRes) ? aRes : []);
                 setToewijzingen(Array.isArray(tRes) ? tRes : []);
+                setVeilingStatusByAanmeldingId(buildVeilingStatusMap(vRes));
             } catch (err) {
                 const message = err?.message ?? "Kon gegevens niet laden.";
                 setError(message);
@@ -356,15 +451,11 @@ export default function AanvoerderPage() {
         const query = aanmeldingQuery.trim().toLowerCase();
         const statusFilter = aanmeldingStatusFilter;
         let list = sortedAanmeldingen.filter((a) => {
-            const status = getAanmeldingStatus(a.gewensteVeilDatum);
-            const statusValue =
-                status?.label === "Vandaag"
-                    ? "ACTIEF"
-                    : status?.label === "Gepland"
-                        ? "GEPLAND"
-                        : status?.label === "Verlopen"
-                            ? "VERLOPEN"
-                            : "ONBEKEND";
+            const status = getAanmeldingStatus(
+                a.gewensteVeilDatum,
+                veilingStatusByAanmeldingId[a.aanmeldingId]
+            );
+            const statusValue = status?.code ?? "ONBEKEND";
 
             if (statusFilter !== "ALL" && statusValue !== statusFilter) {
                 return false;
@@ -416,7 +507,13 @@ export default function AanvoerderPage() {
         }
 
         return list;
-    }, [sortedAanmeldingen, aanmeldingQuery, aanmeldingStatusFilter, aanmeldingSort]);
+    }, [
+        sortedAanmeldingen,
+        aanmeldingQuery,
+        aanmeldingStatusFilter,
+        aanmeldingSort,
+        veilingStatusByAanmeldingId,
+    ]);
 
     const sortedToewijzingen = useMemo(
         () =>
@@ -1292,7 +1389,10 @@ export default function AanvoerderPage() {
                                 </tr>
                             ) : (
                                 filteredAanmeldingen.map((a) => {
-                                    const status = getAanmeldingStatus(a.gewensteVeilDatum);
+                                    const status = getAanmeldingStatus(
+                                        a.gewensteVeilDatum,
+                                        veilingStatusByAanmeldingId[a.aanmeldingId]
+                                    );
                                     return (
                                         <tr key={a.aanmeldingId}>
                                             <td>{a.aanmeldingId}</td>
