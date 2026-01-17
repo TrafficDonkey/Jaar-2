@@ -2,7 +2,34 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import "./LoginStyle.css";
 
-const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
+// ✅ 1 bron van waarheid voor je API
+// In productie moet VITE_API_BASE bestaan.
+// Lokaal valt hij terug op localhost.
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5146/api";
+
+// helper: veilig JSON lezen (of tekst fallback)
+async function readBody(res) {
+  const ct = res.headers.get("content-type") || "";
+  if (ct.includes("application/json")) {
+    try {
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+  try {
+    const text = await res.text();
+    if (!text) return null;
+    // soms stuurt backend text die alsnog JSON is
+    try {
+      return JSON.parse(text);
+    } catch {
+      return { raw: text };
+    }
+  } catch {
+    return null;
+  }
+}
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -10,105 +37,116 @@ export default function LoginScreen() {
   const [showPw, setShowPw] = useState(false);
   const [caps, setCaps] = useState(false);
   const [msg, setMsg] = useState("");
+
   const nav = useNavigate();
   const location = useLocation();
 
-  // Prefill email (mag rustig in localStorage blijven)
   useEffect(() => {
     document.title = "FloraFlow — Inloggen";
     const last = localStorage.getItem("lastEmail");
     if (last) setEmail(last);
+
+    // 🔎 Debug: check welke API_BASE je production build echt gebruikt
+    // (handig tot alles werkt; daarna mag je dit weghalen)
+    console.log("LoginScreen API_BASE =", API_BASE);
   }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setMsg("Inloggen…");
 
+    // basic client-side checks
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !pw) {
+      setMsg("❌ Vul je e-mailadres en wachtwoord in.");
+      return;
+    }
+
     try {
-            const res = await fetch(`${API}/auth/login`, {
+      const url = `${API_BASE}/auth/login`;
+
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // ✅ let op: jouw backend gebruikt waarschijnlijk 'wachtwoord'
         body: JSON.stringify({
-          email: email.trim(),
-          password: pw,
+          email: cleanEmail,
+          wachtwoord: pw,
         }),
       });
 
-      // Probeer JSON te lezen, maar val terug op lege object
-      const errorBody = res.ok ? null : await res.json().catch(() => ({}));
+      const body = await readBody(res);
 
       if (!res.ok) {
-        // Backend stuurt nu { Message, Fouten } bij 400-validatie
+        // Probeer een nette foutmelding te maken
         const friendly =
-          errorBody?.Message ||
+          body?.message ||
+          body?.Message ||
           (res.status === 400
-            ? "Het email adres of het wachtwoord zijn niet correct ingevuld."
-            : "Er ging iets mis bij het inloggen.");
+            ? "Het e-mailadres of het wachtwoord is niet correct ingevuld."
+            : res.status === 401
+            ? "Onjuiste inloggegevens."
+            : `Er ging iets mis bij het inloggen (${res.status}).`);
 
-        // Combineer veldfouten indien aanwezig
+        // Eventuele veldfouten (als backend dat stuurt)
         let details = "";
-        if (errorBody?.Fouten) {
-          const lines = errorBody.Fouten.flatMap((f) =>
-            f.Errors.map((err) => `- ${f.Field}: ${err}`)
+        if (body?.Fouten && Array.isArray(body.Fouten)) {
+          const lines = body.Fouten.flatMap((f) =>
+            (f?.Errors || []).map((err) => `- ${f?.Field}: ${err}`)
           );
-          if (lines.length) {
-            details = "\n" + lines.join("\n");
+          if (lines.length) details = "\n" + lines.join("\n");
+        } else if (body?.errors) {
+          // standaard ASP.NET validation format
+          const lines = [];
+          for (const [field, errs] of Object.entries(body.errors)) {
+            for (const err of errs) lines.push(`- ${field}: ${err}`);
           }
-        } else if (errorBody?.title) {
-          details = `\n${errorBody.title}`;
+          if (lines.length) details = "\n" + lines.join("\n");
+        } else if (body?.raw) {
+          details = `\n${body.raw}`;
         }
 
         setMsg(`❌ ${friendly}${details}`);
         return;
       }
 
-      const text = await res.text();
-      let data = {};
-      try {
-        data = JSON.parse(text || "{}");
-      } catch {
-        setMsg("❌ Onverwacht antwoord van de server");
+      // Succes: verwacht token
+      const token = body?.token || body?.Token;
+      const role = body?.role || body?.Role;
+      const gebruikerId = body?.gebruikerId || body?.GebruikerId;
+
+      if (!token) {
+        setMsg("❌ Geen token ontvangen van de server.");
         return;
       }
 
-      if (!data.token) {
-        setMsg("❌ Geen token ontvangen van de server");
-        return;
-      }
+      // Email onthouden (ok)
+      localStorage.setItem("lastEmail", cleanEmail);
 
-
-      // E-mail onthouden is prima in localStorage
-      localStorage.setItem("lastEmail", email.trim());
-
-      // Alles wat met de sessie/logins te maken heeft → sessionStorage
-      sessionStorage.setItem("token", data.token);
-      if (data.role) sessionStorage.setItem("role", data.role);
-      if (data.gebruikerId)
-        sessionStorage.setItem("gebruikerId", String(data.gebruikerId));
+      // Sessiedata
+      sessionStorage.setItem("token", token);
+      if (role) sessionStorage.setItem("role", role);
+      if (gebruikerId != null)
+        sessionStorage.setItem("gebruikerId", String(gebruikerId));
 
       setMsg("✅ Ingelogd!");
 
-      // Standaard doel op basis van rol
-      const finalRole = data.role || sessionStorage.getItem("role");
+      // Default doel op basis van rol
+      const finalRole = role || sessionStorage.getItem("role");
       let defaultTarget = "/app";
-      if (finalRole === "Aanvoerder") {
-        defaultTarget = "/app/aanvoerder";
-      } else if (finalRole === "Admin") {
-        defaultTarget = "/app/admin";
-      } else if (finalRole === "Veilingmeester") {
-        defaultTarget = "/app/veilingmeester";
-      }else if (finalRole === "Koper") {
-        defaultTarget = "/app/koper";
-      }
 
-      // Als je via een ProtectedRoute komt, ga terug naar die pagina
+      if (finalRole === "Aanvoerder") defaultTarget = "/app/aanvoerder";
+      else if (finalRole === "Admin") defaultTarget = "/app/admin";
+      else if (finalRole === "Veilingmeester") defaultTarget = "/app/veilingmeester";
+      else if (finalRole === "Koper") defaultTarget = "/app/koper";
+
+      // Als je via ProtectedRoute kwam, ga terug
       const from = location.state?.from?.pathname;
-      const to =
-        from && from !== "/login" && from !== "/" ? from : defaultTarget;
+      const to = from && from !== "/login" && from !== "/" ? from : defaultTarget;
 
       nav(to, { replace: true });
     } catch (err) {
-      setMsg(`❌ Netwerkfout: ${err?.message ?? err}`);
+      setMsg(`❌ Netwerkfout: ${err?.message ?? String(err)}`);
     }
   }
 
@@ -117,11 +155,10 @@ export default function LoginScreen() {
       <a href="#main" className="skip-link">
         Ga naar hoofdinhoud
       </a>
+
       <header className="topbar" aria-label="Hoofdnavigatie">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            🌿
-          </span>
+          <span className="brand-mark" aria-hidden="true">🌿</span>
           <span className="brand-name">FloraFlow</span>
         </div>
         <Link to="/register" className="topbar-link">
@@ -160,12 +197,11 @@ export default function LoginScreen() {
                 value={pw}
                 onChange={(e) => setPw(e.target.value)}
                 onKeyUp={(e) =>
-                  setCaps(
-                    e.getModifierState && e.getModifierState("CapsLock")
-                  )
+                  setCaps(e.getModifierState && e.getModifierState("CapsLock"))
                 }
                 required
               />
+
               <button
                 type="button"
                 className="ghost-btn"
@@ -174,6 +210,7 @@ export default function LoginScreen() {
               >
                 {showPw ? "Verberg" : "Toon"}
               </button>
+
               {caps && <p className="caps-hint">⚠️ Caps Lock staat aan</p>}
             </div>
 
