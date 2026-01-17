@@ -80,6 +80,10 @@ export default function Layout() {
           <NavLink to="instellingen" className="topbar__link">
             Instellingen
           </NavLink>
+
+          <NavLink to="hulp" className="topbar__link">
+            Hulp
+          </NavLink>
         </nav>
 
         <div className="topbar__actions">

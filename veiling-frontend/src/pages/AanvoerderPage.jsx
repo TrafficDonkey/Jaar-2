@@ -614,10 +614,10 @@ export default function AanvoerderPage() {
                                 onChange={(e) =>
                                     updateField("productBeschrijving", e.target.value)
                                 }
-                                placeholder="Bijv. rood 60cm, tros, 10 bossen per fust"
+                                placeholder="Bijv. orchidee wit, 2 takken, volle knop"
                             />
                             <p className="aanv-help">
-                                Bijvoorbeeld: “Rozen rood 60cm, tros, 10 bossen per fust”.
+                                Bijvoorbeeld: "Orchidee wit, 2 takken, volle knop".
                             </p>
                         </div>
 
@@ -1148,3 +1148,4 @@ export default function AanvoerderPage() {
         </div>
     );
 }
+

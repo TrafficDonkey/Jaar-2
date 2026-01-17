@@ -5,6 +5,10 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./RegisterStyle.css";
+import {
+  passwordPlaceholder,
+  validatePassword,
+} from "../utils/passwordRules";
 
 const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
 const emptyErrors = { general: "", fields: {} };
@@ -71,11 +75,14 @@ export default function RegisterScreen() {
     setMsg("");
     setErrors(emptyErrors);
 
-    if (pw !== pw2) {
-      const mismatch = "Wachtwoorden komen niet overeen.";
+    const pwError = validatePassword(pw, pw2);
+    if (pwError) {
       setErrors({
-        general: mismatch,
-        fields: { password: mismatch, password2: mismatch },
+        general: pwError,
+        fields: {
+          password: pwError,
+          ...(pwError.includes("gelijk") ? { password2: pwError } : {}),
+        },
       });
       return;
     }
@@ -141,7 +148,7 @@ export default function RegisterScreen() {
             "the email field is required.": "E-mailadres is verplicht.",
             "the email field is not a valid e-mail address.": "Voer een geldig e-mailadres in.",
             "the wachtwoord field is required.": "Wachtwoord is verplicht.",
-            "the field wachtwoord must be a string or array type with a minimum length of '6'.": "Wachtwoord moet minstens 6 tekens bevatten.",
+            "the field wachtwoord must be a string or array type with a minimum length of '8'.": "Wachtwoord moet minstens 8 tekens bevatten.",
             "the telefoonland field is required.": "Land (telefoon) is verplicht.",
             "the telefoonnummer field is required.": "Telefoonnummer is verplicht."
           };
@@ -389,7 +396,7 @@ export default function RegisterScreen() {
               <input
                 id="reg-password"
                 type={showPw ? "text" : "password"}
-                placeholder="Minimaal 8 tekens, combinatie van letters en cijfers"
+                placeholder={passwordPlaceholder}
                 value={pw}
                 onChange={(e) => setPw(e.target.value)}
                 onKeyUp={(e) =>

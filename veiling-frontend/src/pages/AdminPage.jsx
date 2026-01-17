@@ -6,6 +6,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./AdminPageStyle.css";
 import apiFetch from "../api";
+import {
+  passwordHints,
+  passwordPlaceholder,
+  validatePassword,
+} from "../utils/passwordRules";
 
 export default function AdminPage() {
   const [users, setUsers] = useState([]);
@@ -33,16 +38,7 @@ export default function AdminPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  // Heel eenvoudige password check (zelfde idee als registratie)
-  function validatePassword(pw, pw2) {
-    if (!pw) return "Wachtwoord is verplicht.";
-    if (pw.length < 6) return "Wachtwoord moet minstens 6 tekens hebben.";
-    if (!/[A-Z]/.test(pw)) return "Minstens een hoofdletter vereist.";
-    if (!/[a-z]/.test(pw)) return "Minstens een kleine letter vereist.";
-    if (!/[0-9]/.test(pw)) return "Minstens een cijfer vereist.";
-    if (pw !== pw2) return "Beide wachtwoorden moeten gelijk zijn.";
-    return null;
-  }
+  // Password check gelijk aan registratie
 
   // Stats uit users berekenen
   const stats = useMemo(() => {
@@ -289,7 +285,7 @@ export default function AdminPage() {
                       type="password"
                       value={form.pw}
                       onChange={(e) => updateField("pw", e.target.value)}
-                      placeholder="Min. 6 tekens, 1 hoofdletter, 1 cijfer"
+                      placeholder={passwordPlaceholder}
                       autoComplete="new-password"
                       required
                     />
@@ -312,10 +308,9 @@ export default function AdminPage() {
                 <div className="pw-hints">
                   <p className="pw-hints__title">Wachtwoordeisen</p>
                   <ul>
-                    <li>Minimaal 6 tekens lang</li>
-                    <li>Minstens een hoofdletter (A-Z)</li>
-                    <li>Minstens een kleine letter (a-z)</li>
-                    <li>Minstens een cijfer (0-9)</li>
+                    {passwordHints.map((hint) => (
+                      <li key={hint}>{hint}</li>
+                    ))}
                   </ul>
                 </div>
 

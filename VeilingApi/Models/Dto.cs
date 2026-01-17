@@ -430,7 +430,8 @@ public class RegisterDto
     [Required, EmailAddress]
     public string Email { get; set; } = string.Empty;
 
-    [Required, MinLength(6)]
+    [Required, MinLength(8, ErrorMessage = "Wachtwoord moet minstens 8 tekens bevatten.")]
+    [RegularExpression(@"^(?=.*[A-Za-z])(?=.*\d).+$", ErrorMessage = "Wachtwoord moet minstens 1 letter en 1 cijfer bevatten.")]
     [JsonPropertyName("password")]
     public string Wachtwoord { get; set; } = string.Empty;
 
@@ -472,7 +473,8 @@ public class AdminCreateUserDto
     [Required, EmailAddress]
     public string Email { get; set; } = string.Empty;
 
-    [Required, MinLength(6)]
+    [Required, MinLength(8, ErrorMessage = "Wachtwoord moet minstens 8 tekens bevatten.")]
+    [RegularExpression(@"^(?=.*[A-Za-z])(?=.*\d).+$", ErrorMessage = "Wachtwoord moet minstens 1 letter en 1 cijfer bevatten.")]
     public string Wachtwoord { get; set; } = string.Empty;
 
     [Required]
