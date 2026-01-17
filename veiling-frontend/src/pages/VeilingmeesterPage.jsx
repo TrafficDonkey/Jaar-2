@@ -1,4 +1,4 @@
-// src/pages/VeilingmeesterPage.jsx
+﻿// src/pages/VeilingmeesterPage.jsx
 // Veilingmeester-dashboard met tabs:
 // - Nieuwe veiling: aanmeldingen → veiling starten
 // - Actieve veilingen: alle veilingen met Status = "Actief" + live timer
@@ -167,12 +167,25 @@ function _renderKopersCell(veiling) {
           return (
             <div key={k.koperId} className="vm-winner">
               <div className="vm-winner-head">
-                <span>
-                  #{k.koperId}
-                  {k.koperNaam ? ` (${k.koperNaam})` : ""} — x
-                  {k.hoeveelheid ?? 0}
-                </span>
-                <span>{formatCurrency(k.totaalBedrag ?? 0)}</span>
+                <div className="vm-winner-block">
+                  <span className="vm-winner-label">Koper</span>
+                  <span className="vm-winner-value">
+                    #{k.koperId}
+                    {k.koperNaam ? ` - ${k.koperNaam}` : ""}
+                  </span>
+                </div>
+                <div className="vm-winner-block">
+                  <span className="vm-winner-label">Gekochte stuks</span>
+                  <span className="vm-winner-value">
+                    {k.hoeveelheid ?? 0}
+                  </span>
+                </div>
+                <div className="vm-winner-block vm-winner-block--total">
+                  <span className="vm-winner-label">Totaal</span>
+                  <span className="vm-winner-value">
+                    {formatCurrency(k.totaalBedrag ?? 0)}
+                  </span>
+                </div>
               </div>
               {regels.length > 0 && (
                 <div className="vm-winner-lines">
@@ -181,9 +194,13 @@ function _renderKopersCell(veiling) {
                       key={`${k.koperId}-${r.prijsPerStuk}`}
                       className="vm-winner-line"
                     >
-                      {formatCurrency(r.prijsPerStuk ?? 0)} ×{" "}
-                      {r.hoeveelheid ?? 0} ={" "}
-                      {formatCurrency(r.totaalBedrag ?? 0)}
+                      <span>
+                        Prijs/stuk: {formatCurrency(r.prijsPerStuk ?? 0)}
+                      </span>
+                      <span>Stuks: {r.hoeveelheid ?? 0}</span>
+                      <span>
+                        Totaal: {formatCurrency(r.totaalBedrag ?? 0)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -1334,14 +1351,27 @@ export default function VeilingmeesterPage() {
                         return (
                           <div key={koperId} className="vm-winner">
                             <div className="vm-winner-head">
-                              <span>
-                                #{koperId}
-                                {koperNaam ? ` (${koperNaam})` : ""} x
-                                {hoeveelheid}
-                              </span>
-                              <span>
-                                {formatCurrency(totaalBedrag)}
-                              </span>
+                              <div className="vm-winner-block">
+                                <span className="vm-winner-label">Koper</span>
+                                <span className="vm-winner-value">
+                                  #{koperId}
+                                  {koperNaam ? ` - ${koperNaam}` : ""}
+                                </span>
+                              </div>
+                              <div className="vm-winner-block">
+                                <span className="vm-winner-label">
+                                  Gekochte stuks
+                                </span>
+                                <span className="vm-winner-value">
+                                  {hoeveelheid}
+                                </span>
+                              </div>
+                              <div className="vm-winner-block vm-winner-block--total">
+                                <span className="vm-winner-label">Totaal</span>
+                                <span className="vm-winner-value">
+                                  {formatCurrency(totaalBedrag)}
+                                </span>
+                              </div>
                             </div>
                             {regels.length > 0 && (
                               <div className="vm-winner-lines">
@@ -1350,17 +1380,25 @@ export default function VeilingmeesterPage() {
                                   const regelHoeveelheid = r.hoeveelheid ?? r.Hoeveelheid ?? 0;
                                   const regelTotaal = r.totaalBedrag ?? r.TotaalBedrag ?? 0;
                                   const product = r.productBeschrijving ?? r.ProductBeschrijving ?? "";
-                                  const left = product
-                                    ? `${product} – ${formatCurrency(prijsPerStuk)}`
-                                    : `${formatCurrency(prijsPerStuk)}`;
+                                  const labelProduct = product || "Onbekend product";
 
                                   return (
                                     <div
                                       key={`${koperId}-${product}-${prijsPerStuk}`}
                                       className="vm-winner-line"
                                     >
-                                      {left} x {regelHoeveelheid} ={" "}
-                                      {formatCurrency(regelTotaal)}
+                                      <span>
+                                        Product: {labelProduct}
+                                      </span>
+                                      <span>
+                                        Prijs/stuk: {formatCurrency(prijsPerStuk)}
+                                      </span>
+                                      <span>
+                                        Stuks: {regelHoeveelheid}
+                                      </span>
+                                      <span>
+                                        Totaal: {formatCurrency(regelTotaal)}
+                                      </span>
                                     </div>
                                   );
                                 })}
