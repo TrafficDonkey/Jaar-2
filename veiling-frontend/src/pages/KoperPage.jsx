@@ -2,7 +2,6 @@
 import apiFetch, { API_BASE } from "../api";
 import "./KoperPageStyle.css";
 import AuctionClock from "../components/AuctionClock";
-import MessageCenter from "../components/MessageCenter";
 import {
   formatDate as fmtDate,
   formatDateTime as fmtDateTime,
@@ -115,7 +114,6 @@ export default function KoperPage() {
   const [loadingPurchases, setLoadingPurchases] = useState(false);
   const [err, setErr] = useState("");
   const [koopMsg, setKoopMsg] = useState("");
-  const [messages, setMessages] = useState([]);
 
   const [nowMs, setNowMs] = useState(Date.now());
 
@@ -199,19 +197,6 @@ export default function KoperPage() {
         })
       );
     }
-    setMessages((prev) => {
-      const next = [
-        {
-          id: `${Date.now()}-${Math.random()}`,
-          type,
-          text,
-          time,
-          ...(cleanDetails ? { details: cleanDetails } : {}),
-        },
-        ...prev,
-      ];
-      return next.slice(0, 6);
-    });
   }
 
   async function loadActieveVeilingen() {
@@ -689,12 +674,6 @@ export default function KoperPage() {
           </p>
         )}
       </header>
-
-      <MessageCenter
-        title="Berichten"
-        messages={messages}
-        onClear={() => setMessages([])}
-      />
 
       <section className="kop-search-block" aria-label="Zoeken">
         <h3 className="kop-search-title">Zoeken</h3>

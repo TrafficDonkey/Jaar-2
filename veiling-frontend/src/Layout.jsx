@@ -42,6 +42,9 @@ export default function Layout() {
   const [isRinging, setIsRinging] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [notificationsMuted, setNotificationsMuted] = useState(() => {
+    return localStorage.getItem("notificationsMuted") === "true";
+  });
   const [notifLog, setNotifLog] = useState(() => {
     try {
       const raw = sessionStorage.getItem("notifLog");
@@ -74,6 +77,18 @@ export default function Layout() {
   }, [notifLog]);
 
   useEffect(() => {
+    function onMuteChange(event) {
+      if (event?.detail && typeof event.detail.muted === "boolean") {
+        setNotificationsMuted(event.detail.muted);
+      }
+    }
+
+    function onStorageChange(event) {
+      if (event.key === "notificationsMuted") {
+        setNotificationsMuted(event.newValue === "true");
+      }
+    }
+
     function onNotify(event) {
       const text = event?.detail?.text || "Nieuwe melding";
       const type = event?.detail?.type || "info";
@@ -96,8 +111,10 @@ export default function Layout() {
       setNotifLog((prev) =>
         normalizeLog([item, ...prev]).slice(0, 50)
       );
-      triggerRing();
-      playNotificationSound();
+      if (!notificationsMuted) {
+        triggerRing();
+        playNotificationSound();
+      }
     }
 
     function onUpdate(event) {
@@ -107,13 +124,17 @@ export default function Layout() {
       }
     }
 
+    window.addEventListener("floraflow:notifications:mute", onMuteChange);
+    window.addEventListener("storage", onStorageChange);
     window.addEventListener("floraflow:notify", onNotify);
     window.addEventListener("floraflow:notifications:update", onUpdate);
     return () => {
+      window.removeEventListener("floraflow:notifications:mute", onMuteChange);
+      window.removeEventListener("storage", onStorageChange);
       window.removeEventListener("floraflow:notify", onNotify);
       window.removeEventListener("floraflow:notifications:update", onUpdate);
     };
-  }, []);
+  }, [notificationsMuted]);
 
   useEffect(() => {
     if (!notificationAudioRef.current) {
@@ -157,6 +178,7 @@ export default function Layout() {
   }
 
   function playNotificationSound() {
+    if (notificationsMuted) return;
     ensureAudio();
     const audio = notificationAudioRef.current;
     if (!audio) return;
@@ -174,8 +196,10 @@ export default function Layout() {
   }
 
   function handleBellClick() {
-    ensureAudio();
-    triggerRing();
+    if (!notificationsMuted) {
+      ensureAudio();
+      triggerRing();
+    }
     setShowNotif((prev) => !prev);
   }
 
@@ -247,17 +271,35 @@ export default function Layout() {
           <button
             type="button"
             className="notif-btn"
-            aria-label="Meldingen"
+            aria-label={notificationsMuted ? "Meldingen (uit)" : "Meldingen (aan)"}
             onClick={handleBellClick}
           >
-            <svg
-              className={`notif-bell ${isRinging ? "ringing" : ""}`}
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z" />
-            </svg>
+            {notificationsMuted ? (
+              <svg
+                className={`notif-bell ${isRinging ? "ringing" : ""}`}
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z" />
+                <path
+                  d="M4 4L20 20"
+                  fill="none"
+                  stroke="#f0fff4"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            ) : (
+              <svg
+                className={`notif-bell ${isRinging ? "ringing" : ""}`}
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z" />
+              </svg>
+            )}
             <span
               className={`notif-badge ${notifCount > 0 ? "show pulse" : ""}`}
               aria-hidden="true"

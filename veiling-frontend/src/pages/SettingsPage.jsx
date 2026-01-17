@@ -63,6 +63,9 @@ export default function SettingsPage() {
   const [adresStraat, setAdresStraat] = useState("");
   const [huisnummer, setHuisnummer] = useState("");
   const [postcode, setPostcode] = useState("");
+  const [notificationsMuted, setNotificationsMuted] = useState(() => {
+    return localStorage.getItem("notificationsMuted") === "true";
+  });
 
   // UI-status
   const [msg, setMsg] = useState("");
@@ -248,6 +251,17 @@ export default function SettingsPage() {
     }
   }
 
+  function handleNotificationsToggle(event) {
+    const nextMuted = event.target.checked;
+    setNotificationsMuted(nextMuted);
+    localStorage.setItem("notificationsMuted", String(nextMuted));
+    window.dispatchEvent(
+      new CustomEvent("floraflow:notifications:mute", {
+        detail: { muted: nextMuted },
+      })
+    );
+  }
+
   // Render
 
   return (
@@ -350,6 +364,27 @@ export default function SettingsPage() {
                   value={postcode}
                   onChange={(e) => setPostcode(e.target.value)}
                 />
+              </div>
+            </div>
+
+            <div className="field">
+              <div className="toggle-field">
+                <div>
+                  <label htmlFor="notificationsMuted">Meldingsgeluid</label>
+                  <p className="field-hint">
+                    Nieuwe meldingen blijven zichtbaar in het menu.
+                  </p>
+                </div>
+                <label className="switch">
+                  <input
+                    id="notificationsMuted"
+                    type="checkbox"
+                    checked={notificationsMuted}
+                    onChange={handleNotificationsToggle}
+                    aria-label="Meldingsgeluid dempen"
+                  />
+                  <span className="slider" aria-hidden="true" />
+                </label>
               </div>
             </div>
 
