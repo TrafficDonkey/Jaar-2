@@ -297,6 +297,70 @@
   padding: 0.4rem 0.1rem 0.2rem;
 }
 
+.vm-block--stacked {
+  margin-top: 1rem;
+}
+
+.vm-disclosure {
+  border: 1px solid var(--color-border);
+  border-radius: 0.9rem;
+  background: #f8fafc;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.vm-disclosure summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  font-weight: 600;
+}
+
+.vm-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.vm-disclosure summary::before {
+  content: ">";
+  color: var(--color-muted);
+}
+
+.vm-disclosure[open] summary::before {
+  content: "v";
+}
+
+.vm-disclosure-main {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.vm-disclosure-title {
+  font-size: 0.95rem;
+}
+
+.vm-disclosure-count {
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.vm-disclosure-hint {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.vm-disclosure-body {
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: 0.6rem 0.9rem 0.9rem;
+}
+
 /* Formulier */
 
 .vm-form {
@@ -554,5 +618,10 @@
 
   .vm-active-meta {
     text-align: left;
+  }
+
+  .vm-disclosure-hint {
+    margin-left: 0;
+    width: 100%;
   }
 }

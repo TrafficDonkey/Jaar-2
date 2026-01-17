@@ -133,6 +133,16 @@ public class CreateAanmeldingDto
     // GebruikerId i.p.v. AanvoerderId
     [Required]
     public int GebruikerId { get; set; }
+
+    // Optioneel: maten
+    [Range(0.01, 9999)]
+    public decimal? PlantDiameterCm { get; set; }
+
+    [Range(0.01, 9999)]
+    public decimal? PlantLengteCm { get; set; }
+
+    [StringLength(30)]
+    public string? PotMaat { get; set; }
 }
 
 public class UpdateAanmeldingDto : CreateAanmeldingDto
@@ -165,6 +175,16 @@ public class CreateAanmeldingFormDto
 
     [Required]
     public int GebruikerId { get; set; }
+
+    // Optioneel: maten
+    [Range(0.01, 9999)]
+    public decimal? PlantDiameterCm { get; set; }
+
+    [Range(0.01, 9999)]
+    public decimal? PlantLengteCm { get; set; }
+
+    [StringLength(30)]
+    public string? PotMaat { get; set; }
 }
 
 public class UpdateAanmeldingFormDto : CreateAanmeldingFormDto

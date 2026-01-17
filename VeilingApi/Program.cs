@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Linq;
@@ -9,6 +10,11 @@ using VeilingApi.Models;
 using VeilingApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Voorkom crashes door Windows Event Log (geen rechten in sommige omgevingen).
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -114,6 +120,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+static bool IsSqlException(Exception ex)
+{
+    for (var e = ex; e != null; e = e.InnerException)
+    {
+        if (e is SqlException) return true;
+    }
+
+    return false;
+}
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -124,25 +140,69 @@ if (app.Environment.IsDevelopment())
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    if (app.Environment.IsDevelopment())
+    try
     {
-        db.Database.Migrate();
-    }
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    if (!db.Gebruikers.Any(g => g.Email == "admin@floraflow.nl"))
-    {
-        var admin = new Gebruiker
+        var dbAvailable = true;
+        try
         {
-            Naam = "Beheerder",
-            Email = "admin@floraflow.nl",
-            Rol = "Admin",
-            WachtwoordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!")
-        };
+            // Let op: verbinden met de doel-database kan falen als deze nog niet bestaat.
+            // Check daarom server/instance-bereikbaarheid via 'master', zodat migraties de DB kunnen aanmaken.
+            var csb = new SqlConnectionStringBuilder(connectionString)
+            {
+                ConnectTimeout = 2
+            };
+            csb.InitialCatalog = "master";
+            using var con = new SqlConnection(csb.ConnectionString);
+            con.Open();
+        }
+        catch (Exception ex)
+        {
+            dbAvailable = false;
+            try
+            {
+                app.Logger.LogWarning(
+                    ex,
+                    "Database niet beschikbaar; migraties/seed worden overgeslagen."
+                );
+            }
+            catch
+            {
+                // Sommige omgevingen hebben geen rechten om naar Windows Event Log te schrijven.
+            }
+        }
 
-        db.Gebruikers.Add(admin);
-        db.SaveChanges();
+        if (dbAvailable && app.Environment.IsDevelopment())
+        {
+            db.Database.Migrate();
+        }
+
+        if (dbAvailable && !db.Gebruikers.Any(g => g.Email == "admin@floraflow.nl"))
+        {
+            var admin = new Gebruiker
+            {
+                Naam = "Beheerder",
+                Email = "admin@floraflow.nl",
+                Rol = "Admin",
+                WachtwoordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!")
+            };
+
+            db.Gebruikers.Add(admin);
+            db.SaveChanges();
+        }
+    }
+    catch (Exception ex)
+    {
+        // Laat de API wél opstarten zodat de frontend geen "Failed to fetch" krijgt.
+        try
+        {
+            app.Logger.LogError(ex, "Database initialisatie mislukt; controleer SQL Server/LocalDB.");
+        }
+        catch
+        {
+            // Sommige omgevingen hebben geen rechten om naar Windows Event Log te schrijven.
+        }
     }
 }
 
@@ -157,12 +217,15 @@ app.Use(async (context, next) =>
     {
         await next();
     }
-    catch (Exception)
+    catch (Exception ex)
     {
-        context.Response.StatusCode = 500;
+        context.Response.StatusCode = IsSqlException(ex) ? 503 : 500;
+        var msg = IsSqlException(ex)
+            ? "Database is niet beschikbaar. Controleer SQL Server/LocalDB en probeer opnieuw."
+            : "Er is iets misgegaan. Probeer het later opnieuw.";
         await context.Response.WriteAsJsonAsync(new
         {
-            message = "Er is iets misgegaan. Probeer het later opnieuw."
+            Message = msg
         });
     }
 });

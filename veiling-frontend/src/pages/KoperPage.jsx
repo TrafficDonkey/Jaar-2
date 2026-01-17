@@ -22,12 +22,46 @@ const cleanText = (value) => {
   return txt || "-";
 };
 
+const splitProductDescription = (value) => {
+  const raw = String(value ?? "").replace(/\r?\n/g, " ").trim();
+  if (!raw) return { title: "-", lines: [] };
+
+  const byPipe = raw
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  let title = byPipe[0] ?? "-";
+  let lines = byPipe.slice(1);
+
+  if (title.includes(" - ")) {
+    const [first, ...rest] = title.split(" - ");
+    const detail = rest.join(" - ").trim();
+    title = first.trim() || title;
+    if (detail) {
+      lines = [detail, ...lines];
+    }
+  }
+
+  return { title, lines };
+};
+
 const API_BASE_URL = API_BASE.endsWith("/") ? API_BASE : `${API_BASE}/`;
 
 const normalizeFotoUrl = (url) => {
   if (!url) return null;
   if (/^(https?:|data:)/i.test(url)) return url;
   return new URL(url, API_BASE_URL).toString();
+};
+
+const getFotoSrc = (product) => {
+  if (!product) return null;
+  const raw =
+    product.fotoUrl ||
+    (product.aanmeldingId
+      ? `/api/Aanmeldingen/${product.aanmeldingId}/foto`
+      : null);
+  return normalizeFotoUrl(raw);
 };
 
 const mapVeilingDto = (v) => {
@@ -42,15 +76,18 @@ const mapVeilingDto = (v) => {
 
   const mappedProduct = vp
     ? {
-        veilingProductId: vp.veilingProductId,
-        aanmeldingId: vp.aanmeldingId,
-        productBeschrijving: vp.productBeschrijving,
+        veilingProductId: vp.veilingProductId ?? vp.VeilingProductId,
+        aanmeldingId: vp.aanmeldingId ?? vp.AanmeldingId,
+        productBeschrijving:
+          vp.productBeschrijving ?? vp.ProductBeschrijving ?? "",
         hoeveelheid: hoeveelheid ?? 0,
         resterendAantal,
-        minimumPrijs: vp.startPrijs ?? 0,
-        fotoUrl: normalizeFotoUrl(vp.fotoUrl ?? null),
-        kloklocatie: vp.kloklocatie ?? "",
-        categorie: vp.categorie ?? "",
+        minimumPrijs: vp.startPrijs ?? vp.StartPrijs ?? 0,
+        fotoUrl: normalizeFotoUrl(vp.fotoUrl ?? vp.FotoUrl ?? null),
+        kloklocatie: vp.kloklocatie ?? vp.Kloklocatie ?? "",
+        categorie: vp.categorie ?? vp.Categorie ?? "",
+        gewensteVeilDatum:
+          vp.gewensteVeilDatum ?? vp.GewensteVeilDatum ?? null,
       }
     : null;
 
@@ -89,6 +126,7 @@ export default function KoperPage() {
   const [clockRunId, setClockRunId] = useState(1);
   const [currentPrice, setCurrentPrice] = useState(null);
   const [showStartInfo, setShowStartInfo] = useState(false);
+  const [fotoError, setFotoError] = useState(false);
 
   const [myPurchases, setMyPurchases] = useState([]);
 
@@ -411,6 +449,9 @@ export default function KoperPage() {
   }
 
   const product = veiling?.huidigProduct ?? null;
+  useEffect(() => {
+    setFotoError(false);
+  }, [veiling?.veilingId, product?.veilingProductId, product?.fotoUrl]);
   const effectiveRemaining =
     remainingQty ?? product?.resterendAantal ?? product?.hoeveelheid ?? null;
   const isSoldOut =
@@ -422,6 +463,15 @@ export default function KoperPage() {
   const veilingStartLabel = veiling?.startTijd
     ? fmtDateTime(veiling.startTijd)
     : "-";
+  const veilingDatumLabel = product?.gewensteVeilDatum
+    ? fmtDate(product.gewensteVeilDatum)
+    : fmtDate(veiling?.startTijd);
+
+  const productInfo = useMemo(
+    () => splitProductDescription(product?.productBeschrijving),
+    [product?.productBeschrijving]
+  );
+  const fotoSrc = useMemo(() => getFotoSrc(product), [product]);
 
   const { minPrice, maxPrice, durationSeconds } = useMemo(() => {
     if (!product) {
@@ -586,6 +636,9 @@ export default function KoperPage() {
                       v.veilingProducten && v.veilingProducten.length > 0
                         ? v.veilingProducten[0]
                         : null;
+                    const pInfo = p
+                      ? splitProductDescription(p.productBeschrijving)
+                      : null;
                     return (
                       <button
                         key={id}
@@ -617,7 +670,14 @@ export default function KoperPage() {
                         </div>
                         {p && (
                           <div className="kop-veiling-prod">
-                            {p.productBeschrijving}
+                            <div className="kop-veiling-prod-title">
+                              {pInfo?.title ?? "-"}
+                            </div>
+                            {(pInfo?.lines?.length ?? 0) > 0 && (
+                              <div className="kop-veiling-prod-lines">
+                                {pInfo.lines.slice(0, 2).join(" - ")}
+                              </div>
+                            )}
                           </div>
                         )}
                       </button>
@@ -641,26 +701,40 @@ export default function KoperPage() {
                   {/* Product-informatie */}
                   <div className="kop-detail-left">
                     <p className="kop-extra-text">
-                      Veiling #{veiling.veilingId} - {veiling.naam ?? "Veiling"}{" "}
-                      - {isVeilingLive ? "gestart op" : "start op"}{" "}
+                      Veiling #{veiling.veilingId} -{" "}
+                      {isVeilingLive ? "gestart op" : "start op"}{" "}
                       {veilingStartLabel}
                     </p>
-
-                    <h2 className="kop-prod-title">
-                      {product.productBeschrijving}
+                    <h2 className="kop-veiling-title">
+                      {veiling.naam ?? `Veiling #${veiling.veilingId}`}
                     </h2>
+
+                    <h3 className="kop-prod-title">{productInfo.title}</h3>
+                    {productInfo.lines.length > 0 && (
+                      <ul className="kop-prod-lines">
+                        {productInfo.lines.map((line, idx) => (
+                          <li key={`${line}-${idx}`}>{line}</li>
+                        ))}
+                      </ul>
+                    )}
                     {!hideMinPrice && (
                       <p className="kop-min-price">
                         Minimale prijs: EUR {fmtCurrency(product.minimumPrijs)}
                       </p>
                     )}
 
-                    {product.fotoUrl && (
+                    {fotoSrc && !fotoError ? (
                       <img
-                        src={product.fotoUrl}
-                        alt={product.productBeschrijving}
+                        src={fotoSrc}
+                        alt={productInfo.title}
                         className="kop-prod-img"
+                        loading="lazy"
+                        onError={() => setFotoError(true)}
                       />
+                    ) : (
+                      <div className="kop-prod-img kop-prod-img--placeholder">
+                        Geen foto beschikbaar
+                      </div>
                     )}
 
                     <div className="kop-prod-dl">
@@ -685,7 +759,7 @@ export default function KoperPage() {
 
                       <div>
                         <dt>Veildatum</dt>
-                        <dd>{fmtDate(veiling.startTijd)}</dd>
+                        <dd>{veilingDatumLabel}</dd>
                       </div>
                     </div>
 

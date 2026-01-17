@@ -134,7 +134,10 @@ public class AanmeldingenController : ControllerBase
             Categorie = dto.Categorie,
             GewensteKlokLocatie = dto.GewensteKlokLocatie,
             GewensteVeilDatum = dto.GewensteVeilDatum,
-            GebruikerId = dto.GebruikerId
+            GebruikerId = dto.GebruikerId,
+            PlantDiameterCm = dto.PlantDiameterCm,
+            PlantLengteCm = dto.PlantLengteCm,
+            PotMaat = dto.PotMaat
         });
 
         return CreatedAtAction(nameof(Get), new { id = created.AanmeldingId }, created);

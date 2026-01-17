@@ -50,6 +50,7 @@ export default function LoginScreen() {
         // Backend stuurt nu { Message, Fouten } bij 400-validatie
         const friendly =
           errorBody?.Message ||
+          errorBody?.message ||
           (res.status === 400
             ? "Het email adres of het wachtwoord zijn niet correct ingevuld."
             : "Er ging iets mis bij het inloggen.");

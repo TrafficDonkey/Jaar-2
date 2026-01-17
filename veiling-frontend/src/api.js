@@ -56,6 +56,7 @@ export default async function apiFetch(path, options = {}) {
         const parsed = JSON.parse(trimmed);
         message =
           parsed?.message ||
+          parsed?.Message ||
           parsed?.title ||
           parsed?.detail ||
           parsed?.error ||

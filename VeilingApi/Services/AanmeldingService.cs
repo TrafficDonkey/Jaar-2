@@ -6,6 +6,7 @@
 using Microsoft.EntityFrameworkCore;
 using VeilingApi.Data;
 using VeilingApi.Models;
+using System.Globalization;
 
 namespace VeilingApi.Services;
 
@@ -37,6 +38,52 @@ public class AanmeldingService : IAanmeldingService
         GebruikerId          = a.GebruikerId,
         GebruikerNaam        = a.Gebruiker?.Naam ?? string.Empty
     };
+
+    private static readonly CultureInfo DutchCulture = CultureInfo.GetCultureInfo("nl-NL");
+
+    private static string FormatCm(decimal value)
+        => value.ToString("0.##", DutchCulture);
+
+    private static string NormalizePotMaat(string potMaat)
+        => string.Join(" ", potMaat.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+
+    private static string AppendMatenToBeschrijving(
+        string productBeschrijving,
+        decimal? plantDiameterCm,
+        decimal? plantLengteCm,
+        string? potMaat
+    )
+    {
+        var trimmed = (productBeschrijving ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed)) return string.Empty;
+
+        var parts = new List<string>();
+
+        if (plantDiameterCm is not null || plantLengteCm is not null)
+        {
+            if (plantDiameterCm is not null && plantLengteCm is not null)
+            {
+                parts.Add($"Plant Ø{FormatCm(plantDiameterCm.Value)}cm x {FormatCm(plantLengteCm.Value)}cm");
+            }
+            else if (plantDiameterCm is not null)
+            {
+                parts.Add($"Plant Ø{FormatCm(plantDiameterCm.Value)}cm");
+            }
+            else if (plantLengteCm is not null)
+            {
+                parts.Add($"Plant {FormatCm(plantLengteCm.Value)}cm");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(potMaat))
+        {
+            parts.Add($"Pot {NormalizePotMaat(potMaat)}");
+        }
+
+        if (parts.Count == 0) return trimmed;
+
+        return $"{trimmed} | {string.Join(" | ", parts)}";
+    }
 
     // ────────────────────────────── READ: alle aanmeldingen ──────────────────────────────
     // Haal alle aanmeldingen op, inclusief gekoppelde gebruiker (eigenaar).
@@ -99,12 +146,19 @@ public class AanmeldingService : IAanmeldingService
         if (!userExists)
             throw new InvalidOperationException("Gebruiker bij deze aanmelding bestaat niet.");
 
+        var productBeschrijving = AppendMatenToBeschrijving(
+            dto.ProductBeschrijving,
+            dto.PlantDiameterCm,
+            dto.PlantLengteCm,
+            dto.PotMaat
+        );
+
         var entity = new Aanmelding
         {
             FotoData            = dto.FotoData,
             FotoContentType     = dto.FotoContentType,
             FotoFileName        = dto.FotoFileName,
-            ProductBeschrijving = dto.ProductBeschrijving,
+            ProductBeschrijving = productBeschrijving,
             Hoeveelheid         = dto.Hoeveelheid,
             MinimumPrijs        = dto.MinimumPrijs,
             Categorie = string.IsNullOrWhiteSpace(dto.Categorie)
@@ -140,7 +194,12 @@ public class AanmeldingService : IAanmeldingService
             entity.FotoContentType = dto.FotoContentType;
             entity.FotoFileName    = dto.FotoFileName;
         }
-        entity.ProductBeschrijving = dto.ProductBeschrijving;
+        entity.ProductBeschrijving = AppendMatenToBeschrijving(
+            dto.ProductBeschrijving,
+            dto.PlantDiameterCm,
+            dto.PlantLengteCm,
+            dto.PotMaat
+        );
         entity.Hoeveelheid         = dto.Hoeveelheid;
         entity.MinimumPrijs        = dto.MinimumPrijs;
         entity.GewensteKlokLocatie = dto.GewensteKlokLocatie;

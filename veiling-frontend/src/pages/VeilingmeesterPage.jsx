@@ -950,40 +950,55 @@ export default function VeilingmeesterPage() {
                       </div>
                     </form>
                   </section>
-
-                  {/* Rechter kolom: open aanmeldingen */}
-                  <section className="vm-block">
-                    <h2>Openstaande aanmeldingen</h2>
-                    {openAanmeldingen.length === 0 ? (
-                      <p className="vm-muted">
-                        Er zijn geen openstaande aanmeldingen.
-                      </p>
-                    ) : (
-                      <div className="vm-table-wrap vm-table-wrap--small">
-                        <table className="vm-table">
-                          <thead>
-                            <tr>
-                              <th>ID</th>
-                              <th>Product</th>
-                              <th>Min. prijs</th>
-                              <th>Veildatum</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {openAanmeldingen.map((a) => (
-                              <tr key={a.aanmeldingId}>
-                                <td>{a.aanmeldingId}</td>
-                                <td>{a.productBeschrijving}</td>
-                                <td>{formatCurrency(a.minimumPrijs)}</td>
-                                <td>{formatDate(a.gewensteVeilDatum)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </section>
                 </div>
+
+                <section className="vm-block vm-block--stacked">
+                  <details className="vm-disclosure">
+                    <summary>
+                      <span className="vm-disclosure-main">
+                        <span className="vm-disclosure-title">
+                          Openstaande aanmeldingen
+                        </span>
+                        <span className="vm-disclosure-count">
+                          ({openAanmeldingen.length})
+                        </span>
+                      </span>
+                      <span className="vm-disclosure-hint">
+                        Klik om te openen
+                      </span>
+                    </summary>
+                    <div className="vm-disclosure-body">
+                      {openAanmeldingen.length === 0 ? (
+                        <p className="vm-muted">
+                          Er zijn geen openstaande aanmeldingen.
+                        </p>
+                      ) : (
+                        <div className="vm-table-wrap vm-table-wrap--small">
+                          <table className="vm-table">
+                            <thead>
+                              <tr>
+                                <th>ID</th>
+                                <th>Product</th>
+                                <th>Min. prijs</th>
+                                <th>Veildatum</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {openAanmeldingen.map((a) => (
+                                <tr key={a.aanmeldingId}>
+                                  <td>{a.aanmeldingId}</td>
+                                  <td>{a.productBeschrijving}</td>
+                                  <td>{formatCurrency(a.minimumPrijs)}</td>
+                                  <td>{formatDate(a.gewensteVeilDatum)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                </section>
               </section>
             )}
 

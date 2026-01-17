@@ -9,6 +9,7 @@ import "./AanvoerderPageStyle.css";
 import apiFetch from "../api";
 import { formatDate, parseApiDate, toTimeMs } from "../utils/date";
 import { PLANTEN_CATEGORIEEN } from "../utils/plantenCategorieen";
+import { POTMATEN, getPotmaat } from "../utils/potmaten";
 
 // Vastgestelde kloklocaties
 const KLOK_LOCATIES = ["Naaldwijk", "Aalsmeer", "Rijnsburg", "Eelde"];
@@ -121,6 +122,9 @@ export default function AanvoerderPage() {
         categorie: PLANTEN_CATEGORIEEN.categories[0] ?? PLANTEN_CATEGORIEEN.overigeLabel,
         kloklocatie: "Naaldwijk",
         veilDatum: "",
+        plantDiameterCm: "",
+        plantLengteCm: "",
+        potMaat: "",
     });
 
     const fotoInputRef = useRef(null);
@@ -340,6 +344,14 @@ export default function AanvoerderPage() {
         // Client-side validatie voor hoeveelheid, prijs en datum
         const qty = Number(form.hoeveelheid);
         const minPrice = Number(form.minimumPrijs);
+        const plantDiameter =
+            String(form.plantDiameterCm ?? "").trim() === ""
+                ? null
+                : Number(form.plantDiameterCm);
+        const plantLengte =
+            String(form.plantLengteCm ?? "").trim() === ""
+                ? null
+                : Number(form.plantLengteCm);
 
         if (!Number.isFinite(qty) || qty <= 0) {
             setError("Hoeveelheid moet groter zijn dan 0.");
@@ -348,6 +360,18 @@ export default function AanvoerderPage() {
 
         if (!Number.isFinite(minPrice) || minPrice < 0) {
             setError("Minimumprijs kan niet negatief zijn.");
+            return;
+        }
+
+        if (
+            plantDiameter !== null &&
+            (!Number.isFinite(plantDiameter) || plantDiameter <= 0)
+        ) {
+            setError("Plant diameter moet groter zijn dan 0.");
+            return;
+        }
+        if (plantLengte !== null && (!Number.isFinite(plantLengte) || plantLengte <= 0)) {
+            setError("Plant lengte moet groter zijn dan 0.");
             return;
         }
 
@@ -419,6 +443,9 @@ export default function AanvoerderPage() {
             data.append("gewensteKlokLocatie", form.kloklocatie.trim());
             data.append("gewensteVeilDatum", veilDatumIso);
             data.append("gebruikerId", String(gebruikerId));
+            if (plantDiameter !== null) data.append("plantDiameterCm", String(plantDiameter));
+            if (plantLengte !== null) data.append("plantLengteCm", String(plantLengte));
+            if (String(form.potMaat ?? "").trim()) data.append("potMaat", String(form.potMaat).trim());
 
             const created = await apiFetch("/Aanmeldingen", {
                 method: "POST",
@@ -438,6 +465,9 @@ export default function AanvoerderPage() {
                 categorie: PLANTEN_CATEGORIEEN.categories[0] ?? PLANTEN_CATEGORIEEN.overigeLabel,
                 kloklocatie: "Naaldwijk",
                 veilDatum: "",
+                plantDiameterCm: "",
+                plantLengteCm: "",
+                potMaat: "",
             });
             if (fotoInputRef.current) {
                 fotoInputRef.current.value = "";
@@ -461,6 +491,9 @@ export default function AanvoerderPage() {
             categorie: PLANTEN_CATEGORIEEN.categories[0] ?? PLANTEN_CATEGORIEEN.overigeLabel,
             kloklocatie: "Naaldwijk",
             veilDatum: "",
+            plantDiameterCm: "",
+            plantLengteCm: "",
+            potMaat: "",
         });
         if (fotoInputRef.current) {
             fotoInputRef.current.value = "";
@@ -902,8 +935,111 @@ export default function AanvoerderPage() {
                             </div>
                         </div>
 
+                        <div className="field-row">
+                            <div className="field">
+                                <label htmlFor="plantDiameter">Plant diameter (cm)</label>
+                                <input
+                                    id="plantDiameter"
+                                    type="number"
+                                    min={0}
+                                    step="0.1"
+                                    value={form.plantDiameterCm}
+                                    onChange={(e) =>
+                                        updateField("plantDiameterCm", e.target.value)
+                                    }
+                                />
+                            </div>
+                            <div className="field">
+                                <label htmlFor="plantLengte">Plant lengte (cm)</label>
+                                <input
+                                    id="plantLengte"
+                                    type="number"
+                                    min={0}
+                                    step="0.1"
+                                    value={form.plantLengteCm}
+                                    onChange={(e) =>
+                                        updateField("plantLengteCm", e.target.value)
+                                    }
+                                />
+                            </div>
+                        </div>
+
+                        <div className="field">
+                            <div className="field-labelRow">
+                                <label htmlFor="potMaat">Potmaat</label>
+                                <details className="aanv-tip">
+                                    <summary
+                                        className="aanv-tip__btn"
+                                        aria-label="Toon uitleg potmaten"
+                                        title="Uitleg potmaten"
+                                    >
+                                        ?
+                                    </summary>
+                                    <div className="aanv-tip__panel" role="note">
+                                        <p className="aanv-tip__title">Potmaten (schema)</p>
+                                        <div className="aanv-tip__tableWrap">
+                                            <table className="aanv-tip__table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Potmaat</th>
+                                                        <th>LxBxH (cm)</th>
+                                                        <th>Doorsnee (cm)</th>
+                                                        <th>Volume (L)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {POTMATEN.map((p) => (
+                                                        <tr key={p.code}>
+                                                            <td>{p.code}</td>
+                                                            <td>{p.lxbxh ?? "–"}</td>
+                                                            <td>
+                                                                {p.diameterCm
+                                                                    ? `Ø${p.diameterCm}`
+                                                                    : "–"}
+                                                            </td>
+                                                            <td>
+                                                                {p.volumeL ?? "–"}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <p className="aanv-tip__hint">
+                                            Tip: kies “Geen / onbekend” als je het niet zeker weet.
+                                        </p>
+                                    </div>
+                                </details>
+                            </div>
+                            <select
+                                id="potMaat"
+                                value={form.potMaat}
+                                onChange={(e) => updateField("potMaat", e.target.value)}
+                            >
+                                <option value="">Geen / onbekend</option>
+                                {POTMATEN.map((p) => (
+                                    <option key={p.code} value={p.code}>
+                                        {p.code}
+                                    </option>
+                                ))}
+                            </select>
+                            {getPotmaat(form.potMaat) && (
+                                <p className="aanv-help">
+                                    {(() => {
+                                        const p = getPotmaat(form.potMaat);
+                                        if (!p) return null;
+                                        const parts = [];
+                                        if (p.lxbxh) parts.push(`LxBxH ${p.lxbxh} cm`);
+                                        if (p.diameterCm) parts.push(`Ø${p.diameterCm} cm`);
+                                        if (p.volumeL) parts.push(`${p.volumeL} L`);
+                                        return parts.join(" • ");
+                                    })()}
+                                </p>
+                            )}
+                        </div>
+
                         <p className="aanv-help-inline">
-                            De veiling bepaalt de exacte tijd. Jij kiest de dag en locatie.
+                            De veilingmeester bepaalt de exacte tijd. Jij kiest de dag en locatie.
                         </p>
 
                         <div className="form-actions">

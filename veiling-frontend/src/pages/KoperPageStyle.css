@@ -125,6 +125,17 @@
   margin-top: 0.2rem;
 }
 
+.kop-veiling-prod-title {
+  font-weight: 600;
+}
+
+.kop-veiling-prod-lines {
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
 /* Algemene meldingen */
 .kop-alert {
   margin-bottom: 1rem;
@@ -205,10 +216,27 @@
   color: var(--color-text);
 }
 
+.kop-veiling-title {
+  margin: 0.1rem 0 0.3rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
 .kop-prod-title {
   font-size: 1.5rem;
   font-weight: 700;
   margin: 0.2rem 0 1rem 0;
+}
+
+.kop-prod-lines {
+  margin: -0.6rem 0 0.6rem;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.95rem;
+  color: var(--color-muted);
 }
 
 .kop-min-price {
@@ -245,6 +273,17 @@
   max-height: 260px;
   object-fit: cover;
   border-radius: 10px;
+}
+
+.kop-prod-img--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  border: 1px dashed rgba(148, 163, 184, 0.6);
+  background: rgba(148, 163, 184, 0.08);
+  color: var(--color-muted);
+  font-weight: 600;
 }
 
 /* Extra uitleg onder de tabel */
