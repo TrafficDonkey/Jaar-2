@@ -155,6 +155,20 @@
   margin-bottom: 0.75rem;
 }
 
+.kop-search-block {
+  margin-bottom: 0.9rem;
+  padding: 0.75rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.kop-search-title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
 .kop-filter-label {
   font-size: 0.85rem;
   display: block;
@@ -169,6 +183,22 @@
   background: #fff;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   transition: box-shadow 0.2s ease;
+}
+
+.kop-filter-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  padding: 0.35rem 0.5rem;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: box-shadow 0.2s ease;
+}
+
+.kop-filter-input:focus {
+  outline: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  border-color: rgba(21, 128, 61, 0.35);
 }
 
 .kop-filter-select:hover {

@@ -6,6 +6,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./AdminPageStyle.css";
 import apiFetch from "../api";
+import MessageCenter from "../components/MessageCenter";
 import {
   passwordHints,
   passwordPlaceholder,
@@ -31,11 +32,43 @@ export default function AdminPage() {
 
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
+  const [messages, setMessages] = useState([]);
 
   // Helpers
 
   function updateField(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function pushMessage(type, text, details) {
+    const time = new Date().toLocaleTimeString("nl-NL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const cleanDetails =
+      Array.isArray(details) && details.length > 0 ? details : null;
+    if (typeof window !== "undefined") {
+      const payload = { count: 1, text, type, time };
+      if (cleanDetails) payload.details = cleanDetails;
+      window.dispatchEvent(
+        new CustomEvent("floraflow:notify", {
+          detail: payload,
+        })
+      );
+    }
+    setMessages((prev) => {
+      const next = [
+        {
+          id: `${Date.now()}-${Math.random()}`,
+          type,
+          text,
+          time,
+          ...(cleanDetails ? { details: cleanDetails } : {}),
+        },
+        ...prev,
+      ];
+      return next.slice(0, 6);
+    });
   }
 
   // Password check gelijk aan registratie
@@ -121,14 +154,16 @@ export default function AdminPage() {
       await apiFetch(`/Gebruikers/${deleteTarget.gebruikerId}`, {
         method: "DELETE",
       });
-      setMsg(
-        `Account verwijderd: ${deleteTarget.naam ?? deleteTarget.email ?? "Onbekend"}.`
-      );
+      const successText = `Account verwijderd: ${deleteTarget.naam ?? deleteTarget.email ?? "Onbekend"}.`;
+      setMsg(successText);
+      pushMessage("success", successText);
       await reloadUsers();
       setDeleteTarget(null);
       setDeleteConfirm("");
     } catch (err) {
-      setDeleteError(err?.message ?? "Verwijderen van account mislukt.");
+      const message = err?.message ?? "Verwijderen van account mislukt.";
+      setDeleteError(message);
+      pushMessage("error", message);
     } finally {
       setDeleteLoading(false);
     }
@@ -169,9 +204,9 @@ export default function AdminPage() {
         body: JSON.stringify(payload),
       });
 
-      setMsg(
-        `OK. Account aangemaakt voor ${created?.naam ?? payload.naam} als ${payload.rol}.`
-      );
+      const successText = `Account aangemaakt voor ${created?.naam ?? payload.naam} als ${payload.rol}.`;
+      setMsg(successText);
+      pushMessage("success", successText);
       setError("");
 
       // formulier leegmaken (rol laten staan)
@@ -186,8 +221,10 @@ export default function AdminPage() {
       // lijst opnieuw laden zodat nieuwe gebruiker zichtbaar wordt + stats updaten
       await reloadUsers();
     } catch (err) {
-      setError(err?.message ?? "Kon account niet aanmaken.");
+      const message = err?.message ?? "Kon account niet aanmaken.";
+      setError(message);
       setMsg("");
+      pushMessage("error", message);
     } finally {
       setLoading(false);
     }
@@ -251,6 +288,12 @@ export default function AdminPage() {
                   {msg}
                 </div>
               )}
+
+              <MessageCenter
+                title="Berichten"
+                messages={messages}
+                onClear={() => setMessages([])}
+              />
 
               <form className="admin-form" onSubmit={handleCreate} noValidate>
                 <div className="field">

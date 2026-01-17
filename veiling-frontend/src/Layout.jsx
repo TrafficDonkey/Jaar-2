@@ -1,18 +1,58 @@
 // src/Layout.jsx
 // Hoofdlayout voor ingelogde omgeving (navbar + content).
 
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import notificationSound from "./assets/new-notification-09-352705.mp3";
 import "./Layout.css";
 
 export default function Layout() {
   const nav = useNavigate();
+
+  function normalizeDetails(raw) {
+    if (!Array.isArray(raw)) return null;
+    const cleaned = raw
+      .map((item) => {
+        const label = String(item?.label ?? "").trim();
+        const value = String(item?.value ?? "").trim();
+        if (!label || !value) return null;
+        return { label, value };
+      })
+      .filter(Boolean);
+    return cleaned.length > 0 ? cleaned : null;
+  }
+
+  function normalizeLog(list) {
+    return list.map((item) => {
+      const details = normalizeDetails(item?.details);
+      return {
+        ...item,
+        read: Boolean(item?.read),
+        ...(details ? { details } : {}),
+      };
+    });
+  }
 
   const [dark] = useState(() => {
     return localStorage.getItem("theme") === "dark";
   });
 
   const [role] = useState(() => sessionStorage.getItem("role") || "");
+  const [notifCount, setNotifCount] = useState(0);
+  const [isRinging, setIsRinging] = useState(false);
+  const [showNotif, setShowNotif] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [notifLog, setNotifLog] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem("notifLog");
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? normalizeLog(parsed) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [audioReady, setAudioReady] = useState(false);
+  const notificationAudioRef = useRef(null);
 
   // Dark/light theme toepassen op <html> element
   useEffect(() => {
@@ -26,11 +66,128 @@ export default function Layout() {
     }
   }, [dark]);
 
+  useEffect(() => {
+    const unread = notifLog.filter((n) => !n.read).length;
+    setNotifCount(unread);
+    sessionStorage.setItem("notifLog", JSON.stringify(notifLog));
+    sessionStorage.setItem("notifCount", String(unread));
+  }, [notifLog]);
+
+  useEffect(() => {
+    function onNotify(event) {
+      const text = event?.detail?.text || "Nieuwe melding";
+      const type = event?.detail?.type || "info";
+      const time =
+        event?.detail?.time ||
+        new Date().toLocaleTimeString("nl-NL", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      const details = normalizeDetails(event?.detail?.details);
+      const item = {
+        id: `${Date.now()}-${Math.random()}`,
+        text,
+        type,
+        time,
+        read: false,
+        ...(details ? { details } : {}),
+      };
+
+      setNotifLog((prev) =>
+        normalizeLog([item, ...prev]).slice(0, 50)
+      );
+      triggerRing();
+      playNotificationSound();
+    }
+
+    function onUpdate(event) {
+      const next = event?.detail?.log;
+      if (Array.isArray(next)) {
+        setNotifLog(normalizeLog(next));
+      }
+    }
+
+    window.addEventListener("floraflow:notify", onNotify);
+    window.addEventListener("floraflow:notifications:update", onUpdate);
+    return () => {
+      window.removeEventListener("floraflow:notify", onNotify);
+      window.removeEventListener("floraflow:notifications:update", onUpdate);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!notificationAudioRef.current) {
+      const audio = new Audio(notificationSound);
+      audio.preload = "auto";
+      audio.volume = 0.7;
+      notificationAudioRef.current = audio;
+    }
+  }, []);
+
+  useEffect(() => {
+    function unlockAudio() {
+      ensureAudio();
+    }
+    const opts = { once: true };
+    document.addEventListener("pointerdown", unlockAudio, opts);
+    document.addEventListener("click", unlockAudio, opts);
+    document.addEventListener("keydown", unlockAudio, opts);
+    document.addEventListener("touchstart", unlockAudio, opts);
+    return () => {
+      document.removeEventListener("pointerdown", unlockAudio);
+      document.removeEventListener("click", unlockAudio);
+      document.removeEventListener("keydown", unlockAudio);
+      document.removeEventListener("touchstart", unlockAudio);
+    };
+  }, []);
+
+  function ensureAudio() {
+    if (!notificationAudioRef.current) {
+      const audio = new Audio(notificationSound);
+      audio.preload = "auto";
+      audio.volume = 0.7;
+      notificationAudioRef.current = audio;
+    }
+    setAudioReady(true);
+  }
+
+  function triggerRing() {
+    setIsRinging(true);
+    window.setTimeout(() => setIsRinging(false), 500);
+  }
+
+  function playNotificationSound() {
+    ensureAudio();
+    const audio = notificationAudioRef.current;
+    if (!audio) return;
+    if (!audioReady) setAudioReady(true);
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {});
+      }
+    } catch {
+      // ignore audio errors
+    }
+  }
+
+  function handleBellClick() {
+    ensureAudio();
+    triggerRing();
+    setShowNotif((prev) => !prev);
+  }
+
   function handleLogout() {
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("role");
     sessionStorage.removeItem("gebruikerId");
     nav("/", { replace: true });
+  }
+
+  function confirmLogout() {
+    setShowLogoutConfirm(true);
   }
 
   return (
@@ -87,16 +244,109 @@ export default function Layout() {
         </nav>
 
         <div className="topbar__actions">
+          <button
+            type="button"
+            className="notif-btn"
+            aria-label="Meldingen"
+            onClick={handleBellClick}
+          >
+            <svg
+              className={`notif-bell ${isRinging ? "ringing" : ""}`}
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z" />
+            </svg>
+            <span
+              className={`notif-badge ${notifCount > 0 ? "show pulse" : ""}`}
+              aria-hidden="true"
+            >
+              {notifCount}
+            </span>
+          </button>
+
+          {showNotif && (
+            <div className="notif-panel" role="status" aria-live="polite">
+              <div className="notif-panel__head">
+                <span>Meldingen</span>
+                <Link
+                  to="/app/meldingen"
+                  className="notif-panel__viewall"
+                  onClick={() => setShowNotif(false)}
+                >
+                  View all
+                </Link>
+              </div>
+              {notifLog.length === 0 ? (
+                <div className="notif-panel__empty">
+                  Geen nieuwe meldingen.
+                </div>
+              ) : (
+                <ul className="notif-panel__list">
+                  {notifLog.slice(0, 3).map((item) => (
+                    <li
+                      key={item.id}
+                      className={`notif-panel__item notif-panel__item--${item.type || "info"} ${
+                        item.read ? "is-read" : "is-unread"
+                      }`}
+                    >
+                      <span>{item.text}</span>
+                      {item.time && (
+                        <span className="notif-panel__time">{item.time}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           {/* eventueel later weer een theme-toggle naast de logout */}
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={confirmLogout}
             className="logout-btn"
           >
             Uitloggen
           </button>
         </div>
       </header>
+
+      {showLogoutConfirm && (
+        <div
+          className="logout-modal__backdrop"
+          role="presentation"
+          onMouseDown={() => setShowLogoutConfirm(false)}
+        >
+          <div
+            className="logout-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Uitloggen bevestigen"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <h2>Uitloggen?</h2>
+            <p>Weet je zeker dat je wilt uitloggen?</p>
+            <div className="logout-modal__actions">
+              <button
+                type="button"
+                className="logout-modal__btn logout-modal__btn--danger"
+                onClick={handleLogout}
+              >
+                Log uit
+              </button>
+              <button
+                type="button"
+                className="logout-modal__btn logout-modal__btn--ghost"
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Annuleer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="main-content" aria-live="polite">
         <Outlet />

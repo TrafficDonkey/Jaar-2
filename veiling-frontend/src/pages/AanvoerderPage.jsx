@@ -10,6 +10,7 @@ import apiFetch from "../api";
 import { formatDate, parseApiDate, toTimeMs } from "../utils/date";
 import { PLANTEN_CATEGORIEEN } from "../utils/plantenCategorieen";
 import { POTMATEN, getPotmaat } from "../utils/potmaten";
+import MessageCenter from "../components/MessageCenter";
 
 // Vastgestelde kloklocaties
 const KLOK_LOCATIES = ["Naaldwijk", "Aalsmeer", "Rijnsburg", "Eelde"];
@@ -105,6 +106,8 @@ export default function AanvoerderPage() {
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
     const [error, setError] = useState("");
+    const [messages, setMessages] = useState([]);
+    const lastToewijzingCount = useRef(null);
 
     const [role, setRole] = useState(null);
     const [gebruikerId, setGebruikerId] = useState(null);
@@ -112,6 +115,9 @@ export default function AanvoerderPage() {
 
     const [aanmeldingen, setAanmeldingen] = useState([]);
     const [toewijzingen, setToewijzingen] = useState([]);
+    const [aanmeldingQuery, setAanmeldingQuery] = useState("");
+    const [aanmeldingStatusFilter, setAanmeldingStatusFilter] = useState("ALL");
+    const [aanmeldingSort, setAanmeldingSort] = useState("date-asc");
 
     const [form, setForm] = useState({
         fotoFile: null,
@@ -175,7 +181,9 @@ export default function AanvoerderPage() {
                 setAanmeldingen(Array.isArray(aRes) ? aRes : []);
                 setToewijzingen(Array.isArray(tRes) ? tRes : []);
             } catch (err) {
-                setError(err?.message ?? "Kon gegevens niet laden.");
+                const message = err?.message ?? "Kon gegevens niet laden.";
+                setError(message);
+                pushMessage("error", message);
             } finally {
                 setLoadingData(false);
             }
@@ -184,10 +192,58 @@ export default function AanvoerderPage() {
         load();
     }, [role, gebruikerId]);
 
+    useEffect(() => {
+        if (loadingData) return;
+        if (!Array.isArray(toewijzingen)) return;
+        if (lastToewijzingCount.current === null) {
+            lastToewijzingCount.current = toewijzingen.length;
+            return;
+        }
+        const diff = toewijzingen.length - lastToewijzingCount.current;
+        if (diff > 0) {
+            pushMessage(
+                "success",
+                `Nieuwe verkoop geregistreerd: ${diff} toewijzing(en).`
+            );
+        }
+        lastToewijzingCount.current = toewijzingen.length;
+    }, [toewijzingen, loadingData]);
+
     // ───────────────────────── helpers ─────────────────────────
 
     function updateField(name, value) {
         setForm((prev) => ({ ...prev, [name]: value }));
+    }
+
+    function pushMessage(type, text, details) {
+        const time = new Date().toLocaleTimeString("nl-NL", {
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+        const cleanDetails =
+            Array.isArray(details) && details.length > 0 ? details : null;
+        if (typeof window !== "undefined") {
+            const payload = { count: 1, text, type, time };
+            if (cleanDetails) payload.details = cleanDetails;
+            window.dispatchEvent(
+                new CustomEvent("floraflow:notify", {
+                    detail: payload,
+                })
+            );
+        }
+        setMessages((prev) => {
+            const next = [
+                {
+                    id: `${Date.now()}-${Math.random()}`,
+                    type,
+                    text,
+                    time,
+                    ...(cleanDetails ? { details: cleanDetails } : {}),
+                },
+                ...prev,
+            ];
+            return next.slice(0, 6);
+        });
     }
 
     const [categorieInput, setCategorieInput] = useState(form.categorie);
@@ -295,6 +351,72 @@ export default function AanvoerderPage() {
             }),
         [aanmeldingen]
     );
+
+    const filteredAanmeldingen = useMemo(() => {
+        const query = aanmeldingQuery.trim().toLowerCase();
+        const statusFilter = aanmeldingStatusFilter;
+        let list = sortedAanmeldingen.filter((a) => {
+            const status = getAanmeldingStatus(a.gewensteVeilDatum);
+            const statusValue =
+                status?.label === "Vandaag"
+                    ? "ACTIEF"
+                    : status?.label === "Gepland"
+                        ? "GEPLAND"
+                        : status?.label === "Verlopen"
+                            ? "VERLOPEN"
+                            : "ONBEKEND";
+
+            if (statusFilter !== "ALL" && statusValue !== statusFilter) {
+                return false;
+            }
+
+            if (!query) return true;
+
+            const haystack = [
+                a.aanmeldingId,
+                a.productBeschrijving,
+                a.categorie,
+                a.hoeveelheid,
+                a.minimumPrijs,
+                formatDate(a.gewensteVeilDatum),
+                status?.label,
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+            return haystack.includes(query);
+        });
+
+        list = [...list];
+        switch (aanmeldingSort) {
+            case "az":
+                list.sort((a, b) =>
+                    String(a.productBeschrijving ?? "").localeCompare(
+                        String(b.productBeschrijving ?? ""),
+                        "nl-NL"
+                    )
+                );
+                break;
+            case "date-desc":
+                list.sort(
+                    (a, b) =>
+                        toTimeMs(b.gewensteVeilDatum) -
+                        toTimeMs(a.gewensteVeilDatum)
+                );
+                break;
+            case "date-asc":
+            default:
+                list.sort(
+                    (a, b) =>
+                        toTimeMs(a.gewensteVeilDatum) -
+                        toTimeMs(b.gewensteVeilDatum)
+                );
+                break;
+        }
+
+        return list;
+    }, [sortedAanmeldingen, aanmeldingQuery, aanmeldingStatusFilter, aanmeldingSort]);
 
     const sortedToewijzingen = useMemo(
         () =>
@@ -474,8 +596,15 @@ export default function AanvoerderPage() {
             }
 
             setMsg("✅ Aanmelding opgeslagen.");
+            pushMessage(
+                "success",
+                "Aanmelding verstuurd naar de veilingmeester. Je ziet de status bij Mijn aanmeldingen."
+            );
         } catch (err) {
-            setError(err?.message ?? "Opslaan van de aanmelding is mislukt.");
+            const message =
+                err?.message ?? "Opslaan van de aanmelding is mislukt.";
+            setError(message);
+            pushMessage("error", message);
         } finally {
             setSaving(false);
         }
@@ -585,6 +714,12 @@ export default function AanvoerderPage() {
                             {msg}
                         </p>
                     )}
+
+                    <MessageCenter
+                        title="Berichten"
+                        messages={messages}
+                        onClear={() => setMessages([])}
+                    />
 
                     <form className="aanv-form" onSubmit={handleSubmit} noValidate>
                         <div className="field">
@@ -1072,6 +1207,70 @@ export default function AanvoerderPage() {
                             in om een eerste kavel aan te melden.
                         </p>
                     ) : (
+                        <>
+                            <div className="aanv-search">
+                            <label
+                                htmlFor="aanmeldingSearch"
+                                className="aanv-search-label"
+                            >
+                                Zoeken
+                            </label>
+                            <input
+                                id="aanmeldingSearch"
+                                type="search"
+                                className="aanv-search-input"
+                                placeholder="Zoek op product, categorie, datum of ID"
+                                value={aanmeldingQuery}
+                                onChange={(e) => setAanmeldingQuery(e.target.value)}
+                            />
+                            <div className="aanv-filter-row">
+                                <div className="aanv-filter">
+                                    <label
+                                        htmlFor="aanmeldingSort"
+                                        className="aanv-search-label"
+                                    >
+                                        Sorteren
+                                    </label>
+                                    <select
+                                        id="aanmeldingSort"
+                                        className="aanv-search-input"
+                                        value={aanmeldingSort}
+                                        onChange={(e) =>
+                                            setAanmeldingSort(e.target.value)
+                                        }
+                                    >
+                                        <option value="az">A-Z (product)</option>
+                                        <option value="date-asc">
+                                            Veildatum (oudste eerst)
+                                        </option>
+                                        <option value="date-desc">
+                                            Veildatum (nieuwste eerst)
+                                        </option>
+                                    </select>
+                                </div>
+                                <div className="aanv-filter">
+                                    <label
+                                        htmlFor="aanmeldingStatus"
+                                        className="aanv-search-label"
+                                    >
+                                        Status
+                                    </label>
+                                    <select
+                                        id="aanmeldingStatus"
+                                        className="aanv-search-input"
+                                        value={aanmeldingStatusFilter}
+                                        onChange={(e) =>
+                                            setAanmeldingStatusFilter(e.target.value)
+                                        }
+                                    >
+                                        <option value="ALL">Alle statussen</option>
+                                        <option value="GEPLAND">Gepland</option>
+                                        <option value="ACTIEF">Actief</option>
+                                        <option value="VERLOPEN">Verlopen</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
                         <table className="aanv-table">
                             <thead>
                             <tr>
@@ -1085,28 +1284,37 @@ export default function AanvoerderPage() {
                             </tr>
                             </thead>
                             <tbody>
-                            {sortedAanmeldingen.map((a) => {
-                                const status = getAanmeldingStatus(a.gewensteVeilDatum);
-                                return (
-                                    <tr key={a.aanmeldingId}>
-                                        <td>{a.aanmeldingId}</td>
-                                        <td>{a.productBeschrijving}</td>
-                                        <td>{a.categorie}</td>
-                                        <td>{a.hoeveelheid}</td>
-                                        <td>€ {formatCurrency(a.minimumPrijs)}</td>
-                                        <td>{formatDate(a.gewensteVeilDatum)}</td>
-                                        <td>
-                        <span
-                            className={`aanv-status-pill ${status.className}`}
-                        >
-                          {status.label}
-                        </span>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
+                            {filteredAanmeldingen.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="aanv-empty-cell">
+                                        Geen resultaten voor deze zoekterm.
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredAanmeldingen.map((a) => {
+                                    const status = getAanmeldingStatus(a.gewensteVeilDatum);
+                                    return (
+                                        <tr key={a.aanmeldingId}>
+                                            <td>{a.aanmeldingId}</td>
+                                            <td>{a.productBeschrijving}</td>
+                                            <td>{a.categorie}</td>
+                                            <td>{a.hoeveelheid}</td>
+                                            <td>€ {formatCurrency(a.minimumPrijs)}</td>
+                                            <td>{formatDate(a.gewensteVeilDatum)}</td>
+                                            <td>
+                                                <span
+                                                    className={`aanv-status-pill ${status.className}`}
+                                                >
+                                                    {status.label}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
                             </tbody>
                         </table>
+                        </>
                     )}
                 </section>
 
@@ -1148,4 +1356,5 @@ export default function AanvoerderPage() {
         </div>
     );
 }
+
 

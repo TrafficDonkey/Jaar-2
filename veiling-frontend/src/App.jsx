@@ -20,6 +20,7 @@ import AanvoerderPage from "./pages/AanvoerderPage";
 import VeilingmeesterPage from "./pages/VeilingmeesterPage";
 import AdminPage from "./pages/AdminPage";
 import HelpPage from "./pages/HelpPage";
+import NotificationsPage from "./pages/NotificationsPage";
 
 export default function App() {
   return (
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="instellingen" element={<SettingsPage />} />
 
         <Route path="hulp" element={<HelpPage />} />
+        <Route path="meldingen" element={<NotificationsPage />} />
 
         <Route 
           path="koper" 

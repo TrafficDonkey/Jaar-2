@@ -8,6 +8,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./VeilingmeesterPageStyle.css";
 import apiFetch from "../api";
+import MessageCenter from "../components/MessageCenter";
 import {
   formatDate,
   formatDateTime,
@@ -36,6 +37,48 @@ function getVeilingProductIds(veiling) {
     .map((p) => p?.veilingProductId ?? p?.VeilingProductId ?? p?.id)
     .filter((id) => Number.isFinite(Number(id)))
     .map((id) => Number(id));
+}
+
+function buildVeilingDetails({ veiling, aanmelding, startTijd }) {
+  const veilingId = veiling?.veilingId ?? veiling?.VeilingId;
+  const veilingNaam = veiling?.naam ?? veiling?.Naam ?? "";
+  const producten =
+    veiling?.veilingProducten ?? veiling?.VeilingProducten ?? [];
+  const eersteProduct =
+    Array.isArray(producten) && producten.length > 0 ? producten[0] : null;
+  const aanmeldingId =
+    aanmelding?.aanmeldingId ??
+    eersteProduct?.aanmeldingId ??
+    eersteProduct?.AanmeldingId;
+  const productBeschrijving =
+    aanmelding?.productBeschrijving ??
+    eersteProduct?.productBeschrijving ??
+    eersteProduct?.ProductBeschrijving ??
+    "";
+  const kloklocatie =
+    aanmelding?.gewensteKlokLocatie ??
+    aanmelding?.kloklocatie ??
+    eersteProduct?.kloklocatie ??
+    eersteProduct?.Kloklocatie ??
+    "";
+  const startLabel = formatDateTime(
+    veiling?.startTijd ?? veiling?.StartTijd ?? startTijd
+  );
+
+  const details = [
+    veilingId ? { label: "Veiling ID", value: `#${veilingId}` } : null,
+    veilingNaam ? { label: "Veilingnaam", value: veilingNaam } : null,
+    aanmeldingId ? { label: "Aanmelding ID", value: `#${aanmeldingId}` } : null,
+    productBeschrijving
+      ? { label: "Product", value: productBeschrijving }
+      : null,
+    kloklocatie ? { label: "Kloklocatie", value: kloklocatie } : null,
+    startLabel && startLabel !== "-"
+      ? { label: "Starttijd", value: startLabel }
+      : null,
+  ].filter(Boolean);
+
+  return details;
 }
 
 function normalizeToewijzing(raw) {
@@ -269,6 +312,7 @@ export default function VeilingmeesterPage() {
 
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
+  const [messages, setMessages] = useState([]);
 
   const [openAanmeldingen, setOpenAanmeldingen] = useState([]);
   const [actieveVeilingen, setActieveVeilingen] = useState([]); // eigen vorm
@@ -300,6 +344,37 @@ export default function VeilingmeesterPage() {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  function pushMessage(type, text, details) {
+    const time = new Date().toLocaleTimeString("nl-NL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const cleanDetails =
+      Array.isArray(details) && details.length > 0 ? details : null;
+    if (typeof window !== "undefined") {
+      const payload = { count: 1, text, type, time };
+      if (cleanDetails) payload.details = cleanDetails;
+      window.dispatchEvent(
+        new CustomEvent("floraflow:notify", {
+          detail: payload,
+        })
+      );
+    }
+    setMessages((prev) => {
+      const next = [
+        {
+          id: `${Date.now()}-${Math.random()}`,
+          type,
+          text,
+          time,
+          ...(cleanDetails ? { details: cleanDetails } : {}),
+        },
+        ...prev,
+      ];
+      return next.slice(0, 6);
+    });
+  }
 
   useEffect(() => {
     if (!detailOpen) return;
@@ -379,10 +454,11 @@ export default function VeilingmeesterPage() {
       const open = await apiFetch("/Aanmeldingen/open");
       setOpenAanmeldingen(Array.isArray(open) ? open : []);
     } catch (err) {
-      setError(
+      const message =
         (err?.message ?? "Fout bij ophalen van open aanmeldingen.") +
-          " (Aanmeldingen/open)"
-      );
+        " (Aanmeldingen/open)";
+      setError(message);
+      pushMessage("error", message);
     }
   }
 
@@ -748,13 +824,23 @@ export default function VeilingmeesterPage() {
         aanmeldingId: Number(selectedAanmeldingId),
       };
 
-      await apiFetch("/Veilingen/start", {
+      const created = await apiFetch("/Veilingen/start", {
         method: "POST",
         body: JSON.stringify(payload),
+      });
+      const details = buildVeilingDetails({
+        veiling: created,
+        aanmelding: chosen,
+        startTijd,
       });
 
       if (startTijd) {
         setMsg(`Veiling ingepland voor ${formatDateTime(startTijd)}.`);
+        pushMessage(
+          "success",
+          `Veiling ingepland voor ${formatDateTime(startTijd)}.`,
+          details
+        );
         setSelectedAanmeldingId("");
         setTitel("");
         setStartTime("");
@@ -764,13 +850,16 @@ export default function VeilingmeesterPage() {
       }
 
       setMsg("✅ Veiling gestart.");
+      pushMessage("success", "Veiling gestart.", details);
       setSelectedAanmeldingId("");
       setTitel("");
       setStartTime("");
 
       await Promise.all([loadOpenAanmeldingen(), loadActieveVeilingen()]);
     } catch (err) {
-      setError(err?.message ?? "Kon veiling niet starten.");
+      const message = err?.message ?? "Kon veiling niet starten.";
+      setError(message);
+      pushMessage("error", message);
     } finally {
       setSaving(false);
     }
@@ -788,9 +877,12 @@ export default function VeilingmeesterPage() {
       });
 
       setMsg(`Veiling #${veilingId} is gestopt.`);
+      pushMessage("success", `Veiling #${veilingId} is gestopt.`);
       await Promise.all([loadActieveVeilingen(), loadArchief()]);
     } catch (err) {
-      setError(err?.message ?? "Kon veiling niet stoppen.");
+      const message = err?.message ?? "Kon veiling niet stoppen.";
+      setError(message);
+      pushMessage("error", message);
     }
   }
 
@@ -840,6 +932,12 @@ export default function VeilingmeesterPage() {
               {msg}
             </p>
           )}
+
+          <MessageCenter
+            title="Berichten"
+            messages={messages}
+            onClear={() => setMessages([])}
+          />
 
           {/* Tabs in volgorde: Nieuwe → Actief → Archief → Overzicht */}
           <nav className="vm-tabs" aria-label="Veilingweergave">

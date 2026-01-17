@@ -308,6 +308,48 @@
   background: #f9fafb;
 }
 
+.aanv-search {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border);
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.aanv-filter-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.65rem;
+}
+
+.aanv-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.aanv-search-label {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.aanv-search-input {
+  border: 1px solid var(--color-border);
+  border-radius: 0.7rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.aanv-search-input:focus {
+  outline: none;
+  border-color: rgba(21, 128, 61, 0.4);
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.12);
+}
+
 /* ────────────────────────────── Tabellen ────────────────────────────── */
 
 .aanv-table {
@@ -330,6 +372,12 @@
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.aanv-empty-cell {
+  text-align: center;
+  color: var(--color-muted);
+  padding: 0.75rem 0.4rem;
 }
 
 .aanv-empty {

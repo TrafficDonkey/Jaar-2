@@ -2,6 +2,7 @@
 import apiFetch, { API_BASE } from "../api";
 import "./KoperPageStyle.css";
 import AuctionClock from "../components/AuctionClock";
+import MessageCenter from "../components/MessageCenter";
 import {
   formatDate as fmtDate,
   formatDateTime as fmtDateTime,
@@ -114,12 +115,14 @@ export default function KoperPage() {
   const [loadingPurchases, setLoadingPurchases] = useState(false);
   const [err, setErr] = useState("");
   const [koopMsg, setKoopMsg] = useState("");
+  const [messages, setMessages] = useState([]);
 
   const [nowMs, setNowMs] = useState(Date.now());
 
   const [actieveVeilingen, setActieveVeilingen] = useState([]);
   const [selectedVeilingId, setSelectedVeilingId] = useState(null);
   const selectedVeilingIdRef = React.useRef(null);
+  const soldOutNotifiedRef = React.useRef(new Set());
   const [veiling, setVeiling] = useState(null);
   const [koopAantal, setKoopAantal] = useState("");
   const [remainingQty, setRemainingQty] = useState(null);
@@ -143,6 +146,7 @@ export default function KoperPage() {
 
   // categorie-filter
   const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const koperIdRaw =
     typeof window !== "undefined"
@@ -178,6 +182,37 @@ export default function KoperPage() {
   useEffect(() => {
     selectedVeilingIdRef.current = selectedVeilingId;
   }, [selectedVeilingId]);
+
+  function pushMessage(type, text, details) {
+    const time = new Date().toLocaleTimeString("nl-NL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const cleanDetails =
+      Array.isArray(details) && details.length > 0 ? details : null;
+    if (typeof window !== "undefined") {
+      const payload = { count: 1, text, type, time };
+      if (cleanDetails) payload.details = cleanDetails;
+      window.dispatchEvent(
+        new CustomEvent("floraflow:notify", {
+          detail: payload,
+        })
+      );
+    }
+    setMessages((prev) => {
+      const next = [
+        {
+          id: `${Date.now()}-${Math.random()}`,
+          type,
+          text,
+          time,
+          ...(cleanDetails ? { details: cleanDetails } : {}),
+        },
+        ...prev,
+      ];
+      return next.slice(0, 6);
+    });
+  }
 
   async function loadActieveVeilingen() {
     try {
@@ -341,6 +376,7 @@ export default function KoperPage() {
     setCurrentPrice(null);
     setClockFinished(true);
     setKoopMsg("De klok is gestopt. Wacht op de volgende ronde of veiling.");
+    pushMessage("info", "De klok is gestopt voor deze veiling.");
   }
 
   // Popup: sluit met ESC
@@ -398,33 +434,45 @@ export default function KoperPage() {
           veiling.startTijd
         )}.`
       );
+      pushMessage(
+        "warning",
+        `Veiling is nog niet live. Start op ${fmtDateTime(veiling.startTijd)}.`
+      );
       return;
     }
 
     if (!koperId) {
       setKoopMsg("Je moet ingelogd zijn als koper om te kunnen kopen.");
+      pushMessage("error", "Je moet ingelogd zijn om te kunnen kopen.");
       return;
     }
 
     if (currentPrice == null) {
       setKoopMsg("Wacht tot de klok loopt voordat je kunt kopen.");
+      pushMessage("info", "Wacht tot de klok loopt voordat je kunt kopen.");
       return;
     }
 
     if (remainingQty != null && remainingQty <= 0) {
       setKoopMsg("Dit product is uitverkocht.");
+      pushMessage("info", "Dit product is uitverkocht.");
       return;
     }
 
     const qty = Number(String(koopAantal).replace(",", "."));
     if (!qty || qty <= 0) {
       setKoopMsg("Voer een geldig aantal in.");
+      pushMessage("warning", "Voer een geldig aantal in.");
       return;
     }
 
     if (remainingQty != null && qty > remainingQty) {
       setKoopMsg(
         `Er zijn nog maar ${remainingQty} stuks beschikbaar voor dit product.`
+      );
+      pushMessage(
+        "warning",
+        `Er zijn nog maar ${remainingQty} stuks beschikbaar.`
       );
       return;
     }
@@ -450,6 +498,12 @@ export default function KoperPage() {
           currentPrice
         )} per stuk (totaal EUR ${fmtCurrency(totaal)}).`
       );
+      pushMessage(
+        "success",
+        `Aankoop gelukt: ${qty} stuks voor EUR ${fmtCurrency(
+          currentPrice
+        )} per stuk.`
+      );
 
       if (remainingQty != null) {
         setRemainingQty(Math.max(0, remainingQty - qty));
@@ -466,9 +520,10 @@ export default function KoperPage() {
         );
       }
     } catch (e2) {
-      setKoopMsg(
-        e2?.message ?? "Er ging iets mis bij het registreren van de aankoop."
-      );
+      const message =
+        e2?.message ?? "Er ging iets mis bij het registreren van de aankoop.";
+      setKoopMsg(message);
+      pushMessage("error", message);
     }
   }
 
@@ -490,6 +545,18 @@ export default function KoperPage() {
   const veilingDatumLabel = product?.gewensteVeilDatum
     ? fmtDate(product.gewensteVeilDatum)
     : fmtDate(veiling?.startTijd);
+
+  useEffect(() => {
+    if (!isSoldOut) return;
+    const id = veiling?.veilingId;
+    if (!id) return;
+    if (soldOutNotifiedRef.current.has(id)) return;
+    soldOutNotifiedRef.current.add(id);
+    pushMessage(
+      "info",
+      "Veiling is voorbij. Alle beschikbare producten zijn verkocht."
+    );
+  }, [isSoldOut, veiling?.veilingId]);
   const showEndedPanel = clockFinished || isSoldOut;
   const endedReason = isSoldOut
     ? "Alle producten zijn verkocht."
@@ -537,9 +604,32 @@ export default function KoperPage() {
   }, [actieveVeilingen]);
 
   const filteredAuctions = useMemo(() => {
-    if (categoryFilter === "ALL") return actieveVeilingen;
-    return actieveVeilingen.filter((v) => v.categorie === categoryFilter);
-  }, [actieveVeilingen, categoryFilter]);
+    let list = actieveVeilingen;
+    if (categoryFilter !== "ALL") {
+      list = list.filter((v) => v.categorie === categoryFilter);
+    }
+
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return list;
+
+    return list.filter((v) => {
+      const first =
+        v.veilingProducten && v.veilingProducten.length > 0
+          ? v.veilingProducten[0]
+          : v.huidigProduct ?? null;
+      const haystack = [
+        v.categorie,
+        v.naam,
+        first?.productBeschrijving,
+        first?.productNaam,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [actieveVeilingen, categoryFilter, searchQuery]);
 
   const handlePickAnother = () => {
     setEndedNotice(null);
@@ -600,6 +690,27 @@ export default function KoperPage() {
         )}
       </header>
 
+      <MessageCenter
+        title="Berichten"
+        messages={messages}
+        onClear={() => setMessages([])}
+      />
+
+      <section className="kop-search-block" aria-label="Zoeken">
+        <h3 className="kop-search-title">Zoeken</h3>
+        <label htmlFor="kopSearch" className="kop-filter-label">
+          Zoek op categorie, product of beschrijving
+        </label>
+        <input
+          id="kopSearch"
+          type="search"
+          className="kop-filter-input"
+          placeholder="Bijv. rozen, kamerplanten, 60 cm"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </section>
+
       {/* TABBAR - zelfde stijl als Veilingbeheer */}
       <div className="vm-tabs kop-tabs">
         <button
@@ -657,8 +768,13 @@ export default function KoperPage() {
 
               {filteredAuctions.length === 0 ? (
                 <p className="kop-extra-text">
-                  Er zijn momenteel geen actieve veilingen
-                  {categoryFilter !== "ALL" ? " in deze categorie." : "."}
+                  {searchQuery.trim()
+                    ? "Geen veilingen gevonden voor deze zoekterm."
+                    : `Er zijn momenteel geen actieve veilingen${
+                        categoryFilter !== "ALL"
+                          ? " in deze categorie."
+                          : "."
+                      }`}
                 </p>
               ) : (
                 <div className="kop-veiling-list">
