@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace VeilingApi.Controllers;
 
 [ApiController]
-[Route("auth")]  // Changed from "api/[controller]" to just "auth"
+[Route("api/auth")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _svc;
@@ -53,7 +53,7 @@ public class AuthController : ControllerBase
     }
 
     // ────────────────────────────── Admin: nieuwe gebruiker maken ──────────────────────────────
-    // Route: POST /auth/admin/create-user
+    // Route: POST /api/auth/admin/create-user
     // Alleen bereikbaar voor ingelogde gebruikers met rol "Admin".
     [HttpPost("admin/create-user")]
     [Authorize(Roles = "Admin")]
