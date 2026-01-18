@@ -28,11 +28,30 @@ builder.Services.AddControllers(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+static string? GetAzureAppServiceConnStr(string name)
+{
+    // Azure App Service (Connection strings) expose env vars like:
+    // - SQLAZURECONNSTR_<name>
+    // - SQLCONNSTR_<name>
+    // - MYSQLCONNSTR_<name>
+    // - CUSTOMCONNSTR_<name>
+    return Environment.GetEnvironmentVariable($"SQLAZURECONNSTR_{name}")
+        ?? Environment.GetEnvironmentVariable($"SQLCONNSTR_{name}")
+        ?? Environment.GetEnvironmentVariable($"MYSQLCONNSTR_{name}")
+        ?? Environment.GetEnvironmentVariable($"CUSTOMCONNSTR_{name}");
+}
+
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
     ?? builder.Configuration.GetConnectionString("Default")
+    // Alternatieve keys (bijv. als iemand het als app setting zet)
+    ?? builder.Configuration["ConnectionStrings:DefaultConnection"]
+    ?? builder.Configuration["ConnectionStrings:Default"]
     ?? builder.Configuration["DefaultConnection"]
-    ?? builder.Configuration["Default"];
+    ?? builder.Configuration["Default"]
+    // Azure App Service "Connection strings" slot
+    ?? GetAzureAppServiceConnStr("DefaultConnection")
+    ?? GetAzureAppServiceConnStr("Default");
 
 if (string.IsNullOrWhiteSpace(connectionString))
 {
