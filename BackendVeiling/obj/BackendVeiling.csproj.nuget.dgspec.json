@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\BackendVeiling\\BackendVeiling.csproj": {}
+    "C:\\Users\\ROG gaming pc\\Jaar-2\\BackendVeiling\\BackendVeiling.csproj": {}
   },
   "projects": {
-    "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\BackendVeiling\\BackendVeiling.csproj": {
+    "C:\\Users\\ROG gaming pc\\Jaar-2\\BackendVeiling\\BackendVeiling.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\BackendVeiling\\BackendVeiling.csproj",
+        "projectUniqueName": "C:\\Users\\ROG gaming pc\\Jaar-2\\BackendVeiling\\BackendVeiling.csproj",
         "projectName": "BackendVeiling",
-        "projectPath": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\BackendVeiling\\BackendVeiling.csproj",
-        "packagesPath": "C:\\Users\\huber\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\BackendVeiling\\obj\\",
+        "projectPath": "C:\\Users\\ROG gaming pc\\Jaar-2\\BackendVeiling\\BackendVeiling.csproj",
+        "packagesPath": "C:\\Users\\ROG gaming pc\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\ROG gaming pc\\Jaar-2\\BackendVeiling\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\huber\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\ROG gaming pc\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -77,7 +77,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.416/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.414/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

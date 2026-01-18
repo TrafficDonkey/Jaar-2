@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import "./LoginStyle.css";
+import { API_ORIGIN } from "../api";
 
 // ✅ Base URL zonder /api (dus alleen domain + eventueel poort lokaal)
-const API_BASE =
-  import.meta.env.VITE_API_BASE || "https://floraflow-dxdtbhedcjdganbw.francecentral-01.azurewebsites.net";
+const API_BASE = API_ORIGIN;
 
 // helper: veilig JSON lezen (of tekst fallback)
 async function readBody(res) {
@@ -46,7 +46,7 @@ export default function LoginScreen() {
     if (last) setEmail(last);
 
     // 🔎 Debug (mag je later verwijderen)
-    console.log("LoginScreen API_BASE =", API_BASE);
+    console.log("LoginScreen API_ORIGIN =", API_ORIGIN);
   }, []);
 
   async function handleSubmit(e) {
@@ -69,7 +69,7 @@ export default function LoginScreen() {
         // ✅ LoginDto verwacht: Email + Wachtwoord
         body: JSON.stringify({
           email: cleanEmail,
-          wachtwoord: pw,
+          password: pw,
         }),
       });
 

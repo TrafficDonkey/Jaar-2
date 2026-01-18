@@ -2,7 +2,20 @@
 // Centrale helperfunctie voor API-verzoeken naar de backend.
 // Voegt automatisch het JWT-token toe (indien aanwezig) en handelt fouten en 401-status af.
 
-const API_BASE = import.meta.env.VITE_API_BASE || "https://floraflow-dxdtbhedcjdganbw.francecentral-01.azurewebsites.net/api";
+function normalizeApiBase(raw) {
+  const fallbackOrigin =
+    "https://floraflow-dxdtbhedcjdganbw.francecentral-01.azurewebsites.net";
+
+  const input = (raw ?? "").toString().trim() || fallbackOrigin;
+  const withoutTrailingSlash = input.replace(/\/+$/, "");
+  const lower = withoutTrailingSlash.toLowerCase();
+
+  // Sta toe dat VITE_API_BASE zowel een origin is (zonder /api) als een base (met /api)
+  return lower.endsWith("/api") ? withoutTrailingSlash : `${withoutTrailingSlash}/api`;
+}
+
+export const API_BASE = normalizeApiBase(import.meta.env.VITE_API_BASE);
+export const API_ORIGIN = API_BASE.replace(/\/api$/i, "");
 
 export default async function apiFetch(path, options = {}) {
   const token = sessionStorage.getItem("token");

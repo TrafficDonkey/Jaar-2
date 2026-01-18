@@ -5,9 +5,10 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./RegisterStyle.css";
+import { API_ORIGIN } from "../api";
 
 // ✅ FIXED: Remove /api from the end
-const API_BASE = import.meta.env.VITE_API_BASE ?? "https://floraflow-dxdtbhedcjdganbw.francecentral-01.azurewebsites.net";
+const API_BASE = API_ORIGIN;
 const emptyErrors = { general: "", fields: {} };
 
 export default function RegisterScreen() {
@@ -53,7 +54,7 @@ export default function RegisterScreen() {
         body: JSON.stringify({
           naam: naam.trim(),
           email: email.trim(),
-          wachtwoord: pw,
+          password: pw,
           rol: role, // wordt in backend alsnog als 'Klant' gebruikt
         }),
       });
