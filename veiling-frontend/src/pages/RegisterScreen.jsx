@@ -7,7 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import "./RegisterStyle.css";
 
 // ✅ FIXED: Remove /api from the end
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:5146";
+const API_BASE = import.meta.env.VITE_API_BASE ?? "https://floraflow-dxdtbhedcjdganbw.francecentral-01.azurewebsites.net";
 const emptyErrors = { general: "", fields: {} };
 
 export default function RegisterScreen() {
@@ -53,7 +53,7 @@ export default function RegisterScreen() {
         body: JSON.stringify({
           naam: naam.trim(),
           email: email.trim(),
-          password: pw,
+          wachtwoord: pw,
           rol: role, // wordt in backend alsnog als 'Klant' gebruikt
         }),
       });
@@ -139,7 +139,7 @@ export default function RegisterScreen() {
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">
-            dYOи
+            🌿
           </span>
           <span className="brand-name">FloraFlow</span>
         </div>
@@ -289,7 +289,7 @@ export default function RegisterScreen() {
       </main>
 
       <footer className="footer">
-        <p>Ac {new Date().getFullYear()} FloraFlow - demo</p>
+        <p>© {new Date().getFullYear()} FloraFlow - demo</p>
       </footer>
     </div>
   );
