@@ -1,4 +1,4 @@
-﻿// src/pages/RegisterScreen.jsx
+// src/pages/RegisterScreen.jsx
 // Registratie-scherm. Nieuwe gebruikers krijgen altijd rol "Klant".
 // Andere rollen (Aanvoerder / Veilingmeester / Admin) worden door een beheerder toegekend.
 
@@ -6,7 +6,8 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./RegisterStyle.css";
 
-const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
+// ✅ FIXED: Remove /api from the end
+const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:5146";
 const emptyErrors = { general: "", fields: {} };
 
 export default function RegisterScreen() {
@@ -45,7 +46,8 @@ export default function RegisterScreen() {
 
     setMsg("Registreren...");
     try {
-      const res = await fetch(`${API}/auth/register`, {
+      // ✅ FIXED: Use API_BASE + /api/auth/register
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
