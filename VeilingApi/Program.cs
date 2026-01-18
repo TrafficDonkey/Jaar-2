@@ -181,12 +181,12 @@ using (var scope = app.Services.CreateScope())
         var dbAvailable = true;
         try
         {
-            // Check bereikbaarheid via master zodat migraties de database kunnen aanmaken.
+            // Probeer te verbinden met de doel-database (Azure SQL/SQL Server).
+            // Gebruik een korte timeout zodat de API snel een duidelijke 503 kan teruggeven.
             var csb = new SqlConnectionStringBuilder(connectionString)
             {
-                ConnectTimeout = 2
+                ConnectTimeout = 5
             };
-            csb.InitialCatalog = "master";
             using var con = new SqlConnection(csb.ConnectionString);
             con.Open();
         }
@@ -202,7 +202,16 @@ using (var scope = app.Services.CreateScope())
 
         if (dbAvailable)
         {
-            db.Database.Migrate();
+            // Als er geen EF migrations in de repo zitten (of nog niet zijn aangemaakt),
+            // maak de tabellen aan via EnsureCreated zodat de app op Azure blijft werken.
+            if (db.Database.GetMigrations().Any())
+            {
+                db.Database.Migrate();
+            }
+            else
+            {
+                db.Database.EnsureCreated();
+            }
 
             var admin = db.Gebruikers.FirstOrDefault(g => g.Email == "admin@floraflow.nl");
             if (admin == null)
@@ -271,7 +280,7 @@ app.Use(async (context, next) =>
     {
         context.Response.StatusCode = IsSqlException(ex) ? 503 : 500;
         var msg = IsSqlException(ex)
-            ? "Database is niet beschikbaar. Controleer SQL Server/LocalDB en probeer opnieuw."
+            ? "Database is niet beschikbaar. Controleer Azure SQL/SQL Server (firewall + connection string) en probeer opnieuw."
             : "Er is iets misgegaan. Probeer het later opnieuw.";
         await context.Response.WriteAsJsonAsync(new
         {
