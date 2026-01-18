@@ -26,6 +26,7 @@ public class GebruikerService : IGebruikerService
                 Naam = g.Naam,
                 Email = g.Email,
                 Rol = g.Rol,
+                TwoFactorEnabled = g.TwoFactorEnabled,
                 TelefoonLand = g.TelefoonLand,
                 TelefoonNummer = g.TelefoonNummer,
                 AdresStraat = g.AdresStraat,
@@ -47,6 +48,7 @@ public class GebruikerService : IGebruikerService
                 Naam = g.Naam,
                 Email = g.Email,
                 Rol = g.Rol,
+                TwoFactorEnabled = g.TwoFactorEnabled,
                 TelefoonLand = g.TelefoonLand,
                 TelefoonNummer = g.TelefoonNummer,
                 AdresStraat = g.AdresStraat,
@@ -82,6 +84,7 @@ public class GebruikerService : IGebruikerService
             Naam = g.Naam,
             Email = g.Email,
             Rol = g.Rol,
+            TwoFactorEnabled = g.TwoFactorEnabled,
             TelefoonLand = g.TelefoonLand,
             TelefoonNummer = g.TelefoonNummer,
             AdresStraat = g.AdresStraat,
@@ -147,6 +150,8 @@ public class GebruikerService : IGebruikerService
         g.AdresStraat = null;
         g.Huisnummer = null;
         g.Postcode = null;
+        g.TwoFactorEnabled = false;
+        g.TwoFactorSecret = null;
 
         await _db.SaveChangesAsync();
         return (true, false);

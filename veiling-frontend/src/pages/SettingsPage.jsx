@@ -4,7 +4,7 @@
 // - Laat gebruiker deze velden aanpassen
 // - Slaat wijzigingen op via PUT /Gebruikers/{id}
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./SettingsPageStyle.css";
 import apiFetch from "../api";
 
@@ -66,6 +66,17 @@ export default function SettingsPage() {
   const [notificationsMuted, setNotificationsMuted] = useState(() => {
     return localStorage.getItem("notificationsMuted") === "true";
   });
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorSetup, setTwoFactorSetup] = useState(null);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [twoFactorMsg, setTwoFactorMsg] = useState("");
+  const [twoFactorWorking, setTwoFactorWorking] = useState(false);
+  const twoFactorQrUrl = useMemo(() => {
+    if (!twoFactorSetup?.otpauthUrl) return "";
+    return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(
+      twoFactorSetup.otpauthUrl
+    )}`;
+  }, [twoFactorSetup]);
 
   // UI-status
   const [msg, setMsg] = useState("");
@@ -121,6 +132,7 @@ export default function SettingsPage() {
         setAdresStraat(g.adresStraat || "");
         setHuisnummer(g.huisnummer || "");
         setPostcode(g.postcode || "");
+        setTwoFactorEnabled(Boolean(g.twoFactorEnabled));
 
         // sessionStorage up-to-date houden
         sessionStorage.setItem("gebruikerId", String(g.gebruikerId));
@@ -248,6 +260,76 @@ export default function SettingsPage() {
       setDeleteMsg(err?.message ?? "Account verwijderen is mislukt.");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function handleTwoFactorSetup() {
+    setTwoFactorMsg("");
+    setTwoFactorWorking(true);
+    try {
+      const res = await apiFetch("/auth/2fa/setup", { method: "POST" });
+      setTwoFactorSetup({
+        secret: res?.secret || "",
+        otpauthUrl: res?.otpauthUrl || "",
+      });
+      setTwoFactorCode("");
+      setTwoFactorMsg(
+        "Scan of voeg de sleutel toe in je Authenticator-app en bevestig met de code."
+      );
+    } catch (err) {
+      setTwoFactorMsg(err?.message ?? "2FA instellen is mislukt.");
+    } finally {
+      setTwoFactorWorking(false);
+    }
+  }
+
+  async function handleTwoFactorEnable() {
+    const code = twoFactorCode.trim();
+    if (!code) {
+      setTwoFactorMsg("Voer de 6-cijferige code uit je Authenticator-app in.");
+      return;
+    }
+
+    setTwoFactorMsg("");
+    setTwoFactorWorking(true);
+    try {
+      await apiFetch("/auth/2fa/enable", {
+        method: "POST",
+        body: JSON.stringify({ code }),
+      });
+      setTwoFactorEnabled(true);
+      setTwoFactorSetup(null);
+      setTwoFactorCode("");
+      setTwoFactorMsg("2FA is ingeschakeld.");
+    } catch (err) {
+      setTwoFactorMsg(err?.message ?? "2FA inschakelen is mislukt.");
+    } finally {
+      setTwoFactorWorking(false);
+    }
+  }
+
+  async function handleTwoFactorDisable() {
+    const code = twoFactorCode.trim();
+    if (!code) {
+      setTwoFactorMsg("Voer de 6-cijferige code uit je Authenticator-app in.");
+      return;
+    }
+
+    setTwoFactorMsg("");
+    setTwoFactorWorking(true);
+    try {
+      await apiFetch("/auth/2fa/disable", {
+        method: "POST",
+        body: JSON.stringify({ code }),
+      });
+      setTwoFactorEnabled(false);
+      setTwoFactorSetup(null);
+      setTwoFactorCode("");
+      setTwoFactorMsg("2FA is uitgeschakeld.");
+    } catch (err) {
+      setTwoFactorMsg(err?.message ?? "2FA uitschakelen is mislukt.");
+    } finally {
+      setTwoFactorWorking(false);
     }
   }
 
@@ -400,6 +482,109 @@ export default function SettingsPage() {
               {msg}
             </p>
           </form>
+
+          <section className="settings-security" aria-label="Beveiliging">
+            <h2>Extra beveiliging (2FA)</h2>
+            <p className="panel-subtitle">
+              Koppel je account aan een Authenticator-app voor extra bescherming.
+            </p>
+
+            {twoFactorEnabled ? (
+              <div className="twofa-panel">
+                <div className="field">
+                  <label htmlFor="twoFactorDisableCode">Code</label>
+                  <input
+                    id="twoFactorDisableCode"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="123456"
+                    value={twoFactorCode}
+                    onChange={(e) => setTwoFactorCode(e.target.value)}
+                  />
+                </div>
+                <div className="twofa-actions">
+                  <button
+                    type="button"
+                    className="outline-btn"
+                    onClick={handleTwoFactorDisable}
+                    disabled={twoFactorWorking}
+                  >
+                    2FA uitschakelen
+                  </button>
+                </div>
+              </div>
+            ) : twoFactorSetup ? (
+              <div className="twofa-panel">
+                {twoFactorQrUrl && (
+                  <div className="twofa-qr">
+                    <img
+                      src={twoFactorQrUrl}
+                      alt="2FA QR-code"
+                      loading="lazy"
+                    />
+                  </div>
+                )}
+                <div className="field">
+                  <label>Authenticator sleutel</label>
+                  <input
+                    className="twofa-key"
+                    readOnly
+                    value={twoFactorSetup.secret || ""}
+                  />
+                </div>
+                <div className="field">
+                  <label>Authenticator link</label>
+                  <input
+                    className="twofa-key"
+                    readOnly
+                    value={twoFactorSetup.otpauthUrl || ""}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="twoFactorEnableCode">Code</label>
+                  <input
+                    id="twoFactorEnableCode"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="123456"
+                    value={twoFactorCode}
+                    onChange={(e) => setTwoFactorCode(e.target.value)}
+                  />
+                </div>
+                <div className="twofa-actions">
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={handleTwoFactorEnable}
+                    disabled={twoFactorWorking}
+                  >
+                    2FA bevestigen
+                  </button>
+                  <button
+                    type="button"
+                    className="outline-btn"
+                    onClick={handleTwoFactorSetup}
+                    disabled={twoFactorWorking}
+                  >
+                    Nieuwe sleutel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="outline-btn"
+                onClick={handleTwoFactorSetup}
+                disabled={twoFactorWorking}
+              >
+                2FA inschakelen
+              </button>
+            )}
+
+            <p className="twofa-msg" aria-live="polite">
+              {twoFactorMsg}
+            </p>
+          </section>
 
           <section className="danger-zone" aria-label="Account verwijderen">
             <h2>Account verwijderen</h2>

@@ -97,6 +97,57 @@
   margin-top: 0.4rem;
 }
 
+.settings-security {
+  margin-top: 1.6rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 1rem;
+}
+
+.settings-security h2 {
+  font-size: 0.95rem;
+  margin: 0 0 0.4rem;
+  color: var(--color-text);
+}
+
+.twofa-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.twofa-qr {
+  width: fit-content;
+  padding: 0.6rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.twofa-qr img {
+  display: block;
+  width: 180px;
+  height: 180px;
+}
+
+.twofa-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.twofa-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 0.85rem;
+}
+
+.twofa-msg {
+  min-height: 1.1rem;
+  color: var(--color-muted);
+  margin-top: 0.5rem;
+}
+
 /* Donkere modus toggle veld */
 .toggle-field {
   display: flex;

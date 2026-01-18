@@ -12,6 +12,8 @@ export default function LoginScreen() {
   const [showPw, setShowPw] = useState(false);
   const [caps, setCaps] = useState(false);
   const [msg, setMsg] = useState("");
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [needsTwoFactor, setNeedsTwoFactor] = useState(false);
   const nav = useNavigate();
   const location = useLocation();
 
@@ -40,6 +42,7 @@ export default function LoginScreen() {
         body: JSON.stringify({
           email: email.trim(),
           password: pw,
+          twoFactorCode: needsTwoFactor ? twoFactorCode : undefined,
         }),
       });
 
@@ -47,6 +50,12 @@ export default function LoginScreen() {
       const errorBody = res.ok ? null : await res.json().catch(() => ({}));
 
       if (!res.ok) {
+        if (res.status === 401 && errorBody?.twoFactorRequired) {
+          setNeedsTwoFactor(true);
+          setMsg(errorBody?.message || "Voer je 2FA-code in om door te gaan.");
+          return;
+        }
+
         // Backend stuurt nu { Message, Fouten } bij 400-validatie
         const friendly =
           errorBody?.Message ||
@@ -96,6 +105,8 @@ export default function LoginScreen() {
       if (data.gebruikerId)
         sessionStorage.setItem("gebruikerId", String(data.gebruikerId));
 
+      setNeedsTwoFactor(false);
+      setTwoFactorCode("");
       setMsg("✅ Ingelogd!");
 
       // Standaard doel op basis van rol
@@ -146,7 +157,10 @@ export default function LoginScreen() {
                 autoComplete="email"
                 placeholder="naam@bedrijf.nl"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (needsTwoFactor) setNeedsTwoFactor(false);
+                }}
                 required
               />
             </div>
@@ -159,7 +173,10 @@ export default function LoginScreen() {
                 autoComplete="current-password"
                 placeholder="Wachtwoord"
                 value={pw}
-                onChange={(e) => setPw(e.target.value)}
+                onChange={(e) => {
+                  setPw(e.target.value);
+                  if (needsTwoFactor) setNeedsTwoFactor(false);
+                }}
                 onKeyUp={(e) =>
                   setCaps(
                     e.getModifierState && e.getModifierState("CapsLock")
@@ -177,6 +194,21 @@ export default function LoginScreen() {
               </button>
               {caps && <p className="caps-hint">⚠️ Caps Lock staat aan</p>}
             </div>
+
+            {needsTwoFactor && (
+              <div className="field">
+                <label htmlFor="twoFactorCode">Authenticator-code</label>
+                <input
+                  id="twoFactorCode"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="123456"
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value)}
+                  required
+                />
+              </div>
+            )}
 
             <button type="submit" className="primary-btn">
               Inloggen

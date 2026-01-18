@@ -16,6 +16,7 @@ public class GebruikerDto
     public string Naam { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Rol { get; set; } = string.Empty;
+    public bool TwoFactorEnabled { get; set; }
     public string? TelefoonLand { get; set; }
     public string? TelefoonNummer { get; set; }
     public string? AdresStraat { get; set; }
@@ -463,6 +464,15 @@ public class LoginDto
     [Required]
     [JsonPropertyName("password")]
     public string Wachtwoord { get; set; } = string.Empty;
+
+    [JsonPropertyName("twoFactorCode")]
+    public string? TwoFactorCode { get; set; }
+}
+
+public class TwoFactorCodeDto
+{
+    [Required]
+    public string Code { get; set; } = string.Empty;
 }
 
 public class AdminCreateUserDto

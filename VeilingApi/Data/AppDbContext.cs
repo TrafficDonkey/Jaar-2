@@ -44,6 +44,7 @@ public class AppDbContext : DbContext
         mb.Entity<Gebruiker>().Property(p => p.AdresStraat).HasMaxLength(120);
         mb.Entity<Gebruiker>().Property(p => p.Huisnummer).HasMaxLength(20);
         mb.Entity<Gebruiker>().Property(p => p.Postcode).HasMaxLength(16);
+        mb.Entity<Gebruiker>().Property(p => p.TwoFactorSecret).HasMaxLength(64);
 
         mb.Entity<Aanmelding>()
             .HasOne(a => a.Gebruiker)

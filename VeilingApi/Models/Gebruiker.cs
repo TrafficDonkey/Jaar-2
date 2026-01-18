@@ -18,6 +18,8 @@ public class Gebruiker
     public string? AdresStraat { get; set; }
     public string? Huisnummer { get; set; }
     public string? Postcode { get; set; }
+    public bool TwoFactorEnabled { get; set; }
+    public string? TwoFactorSecret { get; set; }
 
     // Biedingen gedaan door deze gebruiker
     [JsonIgnore][ValidateNever]
