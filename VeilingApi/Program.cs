@@ -67,18 +67,24 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("web", policy =>
     {
-        policy.WithOrigins(
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:5174",
-            "http://127.0.0.1:5174",
-            "https://jaar-2frontendsem3.vercel.app",
-            "https://jaar-2frontendsem3-5adthyzyh-khalid3385s-projects.vercel.app",
-            "https://floraflow1223.vercel.app"  
-        )
+        policy.SetIsOriginAllowed(origin =>
+        {
+            if (string.IsNullOrWhiteSpace(origin)) return false;
+
+            if (origin.StartsWith("http://localhost:", StringComparison.OrdinalIgnoreCase)) return true;
+            if (origin.StartsWith("http://127.0.0.1:", StringComparison.OrdinalIgnoreCase)) return true;
+
+            // Production frontend (Vercel)
+            if (string.Equals(origin, "https://floraflow1223.vercel.app", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // Allow Vercel preview deployments for this project
+            if (origin.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)) return true;
+
+            return false;
+        })
         .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials();
+        .AllowAnyMethod();
     });
 });
 
@@ -133,9 +139,10 @@ using (var scope = app.Services.CreateScope())
 
     db.Database.Migrate();
 
-    if (!db.Gebruikers.Any(g => g.Email == "admin@floraflow.nl"))
+    var admin = db.Gebruikers.FirstOrDefault(g => g.Email == "admin@floraflow.nl");
+    if (admin == null)
     {
-        var admin = new Gebruiker
+        admin = new Gebruiker
         {
             Naam = "Beheerder",
             Email = "admin@floraflow.nl",
@@ -146,6 +153,26 @@ using (var scope = app.Services.CreateScope())
         db.Gebruikers.Add(admin);
         db.SaveChanges();
     }
+    else
+    {
+        var changed = false;
+
+        if (!string.Equals(admin.Rol, "Admin", StringComparison.OrdinalIgnoreCase))
+        {
+            admin.Rol = "Admin";
+            changed = true;
+        }
+
+        // Zorg dat het standaard admin-wachtwoord werkt (handig na DB resets / handmatige edits)
+        if (string.IsNullOrWhiteSpace(admin.WachtwoordHash) ||
+            !BCrypt.Net.BCrypt.Verify("Admin123!", admin.WachtwoordHash))
+        {
+            admin.WachtwoordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!");
+            changed = true;
+        }
+
+        if (changed) db.SaveChanges();
+    }
 }
 
 // Only redirect to HTTPS in development (Azure handles HTTPS for you)
@@ -154,6 +181,7 @@ if (!app.Environment.IsProduction())
     app.UseHttpsRedirection();
 }
 
+app.UseRouting();
 app.UseCors("web");
 app.UseAuthentication();
 app.UseAuthorization();
