@@ -339,13 +339,15 @@ export default function VeilingmeesterPage() {
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    document.title = "Veilingmeester — FloraFlow";
+    // Init: paginatitel + 1-seconde timer voor live countdowns/labels in de UI.
+    document.title = "Veilingmeester - FloraFlow";
 
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
   function pushMessage(type, text, details) {
+    // Globale notificaties (Layout) + lokale berichtenlijst op deze pagina.
     const time = new Date().toLocaleTimeString("nl-NL", {
       hour: "2-digit",
       minute: "2-digit",
@@ -391,6 +393,7 @@ export default function VeilingmeesterPage() {
   }, [detailOpen]);
 
   useEffect(() => {
+    // Init-load: open aanmeldingen + actieve veilingen + archief samenvatting.
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

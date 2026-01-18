@@ -32,10 +32,11 @@ export default function App() {
       <Route path="/login" element={<LoginScreen />} />
       <Route path="/register" element={<RegisterScreen />} />
 
-      {/* Ingelogde omgeving met navbar/layout */}
+      {/* Ingelogde omgeving met navbar/layout (zie Layout.jsx) */}
       <Route
         path="/app"
         element={
+          // Route-guard: zonder token kom je nooit in /app/*.
           <ProtectedRoute>
             <Layout />
           </ProtectedRoute>
@@ -53,6 +54,7 @@ export default function App() {
         <Route 
           path="koper" 
           element={
+            // Rol-guard: alleen Klant/Admin kan kopers-scherm openen.
             <ProtectedRoute allowedRoles={["Klant", "Admin"]}>
               <KoperPage />
             </ProtectedRoute>
@@ -62,6 +64,7 @@ export default function App() {
         <Route
           path="veilingmeester"
           element={
+            // Rol-guard: alleen Veilingmeester/Admin kan veilingbeheer openen.
             <ProtectedRoute allowedRoles={["Veilingmeester", "Admin"]}>
                 <VeilingmeesterPage />
             </ProtectedRoute>
@@ -72,6 +75,7 @@ export default function App() {
         <Route
           path="aanvoerder"
           element={
+            // Rol-guard: alleen Aanvoerder/Admin kan aanvoerder-dashboard openen.
             <ProtectedRoute allowedRoles={["Aanvoerder", "Admin"]}>
               <AanvoerderPage />
             </ProtectedRoute>
@@ -82,6 +86,7 @@ export default function App() {
         <Route
           path="admin"
           element={
+            // Strikte rol-guard: alleen Admin.
             <ProtectedRoute requireRole="Admin">
               <AdminPage />
             </ProtectedRoute>

@@ -109,12 +109,14 @@ const mapVeilingDto = (v) => {
 };
 
 export default function KoperPage() {
+  // UI state: loading flags + fouten/feedback.
   const [loading, setLoading] = useState(true);
   const [loadingVeiling, setLoadingVeiling] = useState(false);
   const [loadingPurchases, setLoadingPurchases] = useState(false);
   const [err, setErr] = useState("");
   const [koopMsg, setKoopMsg] = useState("");
 
+  // "nowMs" wordt elke seconde bijgewerkt voor timers/labels (clock, starttijd, etc.).
   const [nowMs, setNowMs] = useState(Date.now());
 
   const [actieveVeilingen, setActieveVeilingen] = useState([]);
@@ -159,6 +161,7 @@ export default function KoperPage() {
   const isAdmin = role === "Admin";
 
   useEffect(() => {
+    // Init: bij eerste render laad actieve veilingen + eigen aankopen (data komt via API).
     document.title = "Koper - FloraFlow";
     (async () => {
       setLoading(true);
@@ -182,6 +185,7 @@ export default function KoperPage() {
   }, [selectedVeilingId]);
 
   function pushMessage(type, text, details) {
+    // Globale notificaties (bovenin in Layout) via custom events.
     const time = new Date().toLocaleTimeString("nl-NL", {
       hour: "2-digit",
       minute: "2-digit",
@@ -200,6 +204,8 @@ export default function KoperPage() {
   }
 
   async function loadActieveVeilingen() {
+    // Read-flow:
+    // frontend -> GET /api/Veilingen -> filter/sort client-side -> render lijst links.
     try {
       const alle = await apiFetch("/Veilingen");
       const lijst = Array.isArray(alle) ? alle : [];

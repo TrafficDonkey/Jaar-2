@@ -7,6 +7,8 @@ namespace BackendVeiling.Controllers
     [Route("auction")]
     public class AuctionController : ControllerBase
     {
+        // In-memory state (demo): huidige veilingproduct + status flags.
+        // Let op: dit is niet persistent; bij app restart is alles weg.
         private static Product product = new Product();
         private static System.Timers.Timer auctionTimer;
         private static bool auctionRunning = false;
@@ -15,6 +17,7 @@ namespace BackendVeiling.Controllers
         [HttpPost("start")]
         public ActionResult StartAuction([FromBody] AuctionRequest request)
         {
+            // 1) Input uit request overnemen naar het "actieve" product.
             product.Name = request.ProductName;
             product.MinPrice = request.MinPrice;
             product.MaxPrice = request.MaxPrice;
@@ -22,9 +25,11 @@ namespace BackendVeiling.Controllers
             product.StartTime = DateTime.UtcNow;
             product.CurrentPrice = product.MaxPrice;
 
+            // 2) Veiling status resetten/starten.
             productBought = false;
             auctionRunning = true;
 
+            // 3) Timer starten: elke 100ms prijs herberekenen (dalende klok).
             auctionTimer?.Stop();
             auctionTimer = new System.Timers.Timer(100);
             auctionTimer.Elapsed += (sender, e) =>
@@ -33,12 +38,14 @@ namespace BackendVeiling.Controllers
 
                 if (elapsed >= product.DurationSeconds)
                 {
+                    // Einde veiling: prijs op minimum en status "ended".
                     product.CurrentPrice = product.MinPrice;
                     auctionRunning = false;
                     auctionTimer.Stop();
                 }
                 else
                 {
+                    // Lineaire daling: van MaxPrice naar MinPrice over DurationSeconds.
                     var diff = product.MaxPrice - product.MinPrice;
                     product.CurrentPrice = product.MaxPrice - diff * (decimal)(elapsed / product.DurationSeconds);
                 }
@@ -51,6 +58,7 @@ namespace BackendVeiling.Controllers
         [HttpGet("status")]
         public IActionResult GetStatus()
         {
+            // Read endpoint voor UI: huidige prijs + resterende tijd (+ optioneel bericht).
             int remaining = auctionRunning
                 ? product.DurationSeconds - (int)(DateTime.UtcNow - product.StartTime).TotalSeconds
                 : 0;
@@ -74,6 +82,7 @@ namespace BackendVeiling.Controllers
         [HttpPost("buy")]
         public IActionResult Buy()
         {
+            // Koopactie: stopt de veiling direct en markeert product als gekocht.
             if (!auctionRunning)
                 return BadRequest(new { message = "De veiling is al afgelopen." });
 

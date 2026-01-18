@@ -37,6 +37,8 @@ export default function Layout() {
     return localStorage.getItem("theme") === "dark";
   });
 
+  // Rol komt uit de backend (bij login) en wordt opgeslagen in sessionStorage.
+  // We gebruiken dit om menu-items te tonen/verbergen en (via ProtectedRoute) routes te beschermen.
   const [role] = useState(() => sessionStorage.getItem("role") || "");
   const [notifCount, setNotifCount] = useState(0);
   const [isRinging, setIsRinging] = useState(false);
@@ -70,6 +72,7 @@ export default function Layout() {
   }, [dark]);
 
   useEffect(() => {
+    // Notificaties opslaan in sessionStorage zodat ze ook op een ander scherm (Meldingen) zichtbaar zijn.
     const unread = notifLog.filter((n) => !n.read).length;
     setNotifCount(unread);
     sessionStorage.setItem("notifLog", JSON.stringify(notifLog));
@@ -77,6 +80,9 @@ export default function Layout() {
   }, [notifLog]);
 
   useEffect(() => {
+    // Event-bus voor meldingen:
+    // - floraflow:notify: push een melding vanuit een page (bv. "Aanmelding opgeslagen")
+    // - floraflow:notifications:update: sync wanneer een melding gelezen/verwijderd wordt
     function onMuteChange(event) {
       if (event?.detail && typeof event.detail.muted === "boolean") {
         setNotificationsMuted(event.detail.muted);

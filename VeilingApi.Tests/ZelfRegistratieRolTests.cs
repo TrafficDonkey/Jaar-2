@@ -1,44 +1,45 @@
-using Xunit; 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using VeilingApi.Data;
-using VeilingApi.Services;
 using VeilingApi.Models;
+using VeilingApi.Services;
+using Xunit;
+
 namespace VeilingApi.Tests;
 
-public class ZelfRegistratieRolTests{
-[Fact]
-public async Task RegisterAsync_AlwaysSetsRoleToKlant()
+public class ZelfRegistratieRolTests
 {
-    // Test: Zelfregistratie forceert rol "Klant", ook bij misbruik.
-    // Arrange
-    // Unieke databasenaam per test-run om cache/old data (met Admin-rol) te vermijden
-    var options = new DbContextOptionsBuilder<AppDbContext>()
-        .UseInMemoryDatabase($"Register_ForceKlant_{Guid.NewGuid()}")
-        .Options;
-
-    using var db = new AppDbContext(options);
-
-    var config = new ConfigurationBuilder().Build();
-    var service = new AuthService(db, config);
-
-    var dto = new RegisterDto
+    [Fact]
+    public async Task RegisterAsync_AlwaysSetsRoleToKlant()
     {
-        Naam = "Twin",
-        Email = "twin@test.nl",
-        Wachtwoord = "12345",
-        Rol = "Admin" // dit kan normaal niet via UI, maar wél via Postman/Potential misuse
-    };
+        // Arrange: InMemory EF Core => onafhankelijk van productiedatabase.
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase($"Register_ForceKlant_{Guid.NewGuid()}")
+            .Options;
 
-    // Act
-    var result = await service.RegisterAsync(dto);
+        await using var db = new AppDbContext(options);
 
-    // Assert
-    Assert.True(result.Success);
-    Assert.NotNull(result.Gebruiker);
-    Assert.Equal("Klant", result.Gebruiker!.Rol);
+        var config = new ConfigurationBuilder().Build();
+        var service = new AuthService(db, config);
 
-    var stored = await db.Gebruikers.FirstAsync();
-    Assert.Equal("Klant", stored.Rol);
+        // Act: probeer via "misbruik" de rol op Admin te zetten.
+        var result = await service.RegisterAsync(new RegisterDto
+        {
+            Naam = "Twin",
+            Email = "twin@test.nl",
+            Wachtwoord = "Test12345",
+            TelefoonLand = "NL",
+            TelefoonNummer = "0612345678",
+            Rol = "Admin"
+        });
+
+        // Assert: backend forceert rol naar "Klant".
+        Assert.True(result.Success);
+        Assert.NotNull(result.Gebruiker);
+        Assert.Equal("Klant", result.Gebruiker!.Rol);
+
+        var stored = await db.Gebruikers.FirstAsync();
+        Assert.Equal("Klant", stored.Rol);
     }
 }
+

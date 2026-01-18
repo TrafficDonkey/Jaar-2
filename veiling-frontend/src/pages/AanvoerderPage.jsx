@@ -527,6 +527,10 @@ export default function AanvoerderPage() {
 
     // ───────────────────── nieuwe aanmelding opslaan ─────────────────────
 
+    // Submit-flow (Create aanmelding):
+    // 1) client-side validatie
+    // 2) FormData bouwen (incl. minimumPrijs als decimal)
+    // 3) POST /api/Aanmeldingen (multipart/form-data)
     async function handleSubmit(e) {
         e.preventDefault();
         setMsg("");
@@ -562,6 +566,8 @@ export default function AanvoerderPage() {
 
         // Client-side validatie voor hoeveelheid, prijs en datum
         const qty = Number(form.hoeveelheid);
+        // Let op: <input type="number"> geeft een string terug; Number(...) maakt er een JS number van.
+        // Backend bindt dit naar decimal (en accepteert zowel "0.59" als "0,59").
         const minPrice = Number(form.minimumPrijs);
         const plantDiameter =
             String(form.plantDiameterCm ?? "").trim() === ""
@@ -1120,6 +1126,7 @@ export default function AanvoerderPage() {
 
                             <div className="field">
                                 <label htmlFor="minprijs">Minimumprijs (€)</label>
+                                {/* Decimal input: step=0.01 zodat 0.59 (centen) toegestaan is. */}
                                 <input
                                     id="minprijs"
                                     type="number"
