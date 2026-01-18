@@ -4,7 +4,7 @@ import "./LoginStyle.css";
 
 // ✅ Base URL zonder /api (dus alleen domain + eventueel poort lokaal)
 const API_BASE =
-  import.meta.env.VITE_API_BASE || "http://localhost:5146";
+  import.meta.env.VITE_API_BASE || "https://floraflow-dxdtbhedcjdganbw.francecentral-01.azurewebsites.net";
 
 // helper: veilig JSON lezen (of tekst fallback)
 async function readBody(res) {
@@ -66,10 +66,10 @@ export default function LoginScreen() {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // ✅ FIXED: Backend expects "password" not "wachtwoord"
+        // ✅ LoginDto verwacht: Email + Wachtwoord
         body: JSON.stringify({
           email: cleanEmail,
-          password: pw,
+          wachtwoord: pw,
         }),
       });
 
