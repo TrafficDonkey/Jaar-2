@@ -283,33 +283,13 @@ public class ActieveVeilingDto
 // ────────────────────────────── AUTH ──────────────────────────────
 // DTO's voor registratie en inloggen.
 
-
-// �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"? HISTORISCHE PRIJZEN �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
-// DTO's voor historische prijzen per bloemsoort (categorie).
-
-public class HistorischePrijsItemDto
-{
-    public string AanvoerderNaam { get; set; } = string.Empty;
-    public DateTime Datum { get; set; }
-    public decimal PrijsPerBloem { get; set; }
-}
-
-public class HistorischePrijzenResponseDto
-{
-    public string Categorie { get; set; } = string.Empty;
-    public string AanvoerderNaam { get; set; } = string.Empty;
-
-    public List<HistorischePrijsItemDto> Laatste10Aanvoerder { get; set; } = new();
-    public decimal GemiddeldeAanvoerder { get; set; }
-
-    public List<HistorischePrijsItemDto> Laatste10Alle { get; set; } = new();
-    public decimal GemiddeldeAlle { get; set; }
-}public class RegisterDto
+public class RegisterDto
 {
     [Required, MaxLength(100)]
     public string Naam { get; set; } = string.Empty;
 
     [Required, EmailAddress]
+    [JsonPropertyName("email")]
     public string Email { get; set; } = string.Empty;
 
     [Required, MinLength(6)]
@@ -324,6 +304,7 @@ public class HistorischePrijzenResponseDto
 public class LoginDto
 {
     [Required, EmailAddress]
+    [JsonPropertyName("email")]
     public string Email { get; set; } = string.Empty;
 
     [Required]
@@ -344,4 +325,27 @@ public class AdminCreateUserDto
 
     [Required]
     public string Rol { get; set; } = null!;  // Admin kan hier "Aanvoerder" of "Veilingmeester" kiezen
+}
+
+
+// ────────────────────────────── HISTORISCHE PRIJZEN ──────────────────────────────
+// DTO's voor historische prijzen per bloemsoort (categorie).
+
+public class HistorischePrijsItemDto
+{
+    public string AanvoerderNaam { get; set; } = string.Empty;
+    public DateTime Datum { get; set; }
+    public decimal PrijsPerBloem { get; set; }
+}
+
+public class HistorischePrijzenResponseDto
+{
+    public string Categorie { get; set; } = string.Empty;
+    public string AanvoerderNaam { get; set; } = string.Empty;
+
+    public List<HistorischePrijsItemDto> Laatste10Aanvoerder { get; set; } = new();
+    public decimal GemiddeldeAanvoerder { get; set; }
+
+    public List<HistorischePrijsItemDto> Laatste10Alle { get; set; } = new();
+    public decimal GemiddeldeAlle { get; set; }
 }
