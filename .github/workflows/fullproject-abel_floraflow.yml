@@ -23,33 +23,13 @@ jobs:
         with:
           dotnet-version: '8.x'
 
-      # Vind automatisch de juiste solution/project file
-      - name: Detect solution or project
+      - name: Set project path
         id: detect
         shell: pwsh
         run: |
-          $ErrorActionPreference = "Stop"
-
-          # 1) Pak eerst een .sln als die bestaat
-          $sln = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter *.sln | Select-Object -First 1
-
-          if ($null -ne $sln) {
-            Write-Host "Found solution: $($sln.FullName)"
-            "buildTarget=$($sln.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-            exit 0
-          }
-
-          # 2) Anders: pak een .csproj (probeer test projecten te vermijden)
-          $csproj = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter *.csproj |
-            Where-Object { $_.FullName -notmatch '\\(bin|obj)\\' -and $_.Name -notmatch 'Test|Tests' } |
-            Select-Object -First 1
-
-          if ($null -eq $csproj) {
-            Write-Error "Geen .sln of bruikbare .csproj gevonden in de repo. Check je repo-structuur."
-          }
-
-          Write-Host "Found project: $($csproj.FullName)"
-          "buildTarget=$($csproj.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $projectPath = "$env:GITHUB_WORKSPACE/VeilingApi/VeilingApi.csproj"
+          Write-Host "Using project: $projectPath"
+          "buildTarget=$projectPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Restore
         run: dotnet restore "${{ steps.detect.outputs.buildTarget }}"
