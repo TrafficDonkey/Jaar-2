@@ -18,6 +18,24 @@ public class AanmeldingenController : ControllerBase
     private readonly IAanmeldingService _svc;
     public AanmeldingenController(IAanmeldingService svc) => _svc = svc;
 
+    private static readonly HashSet<string> AllowedFotoContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp"
+    };
+
+    private static readonly HashSet<string> AllowedFotoExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp"
+    };
+
     // ────────────────────────────── GET ──────────────────────────────
 
     // Alle aanmeldingen
@@ -48,6 +66,17 @@ public class AanmeldingenController : ControllerBase
         return item is null ? NotFound() : Ok(item);
     }
 
+    [HttpGet("{id:int}/foto")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetFoto(int id)
+    {
+        var foto = await _svc.GetFotoAsync(id);
+        if (foto is null || foto.FotoData.Length == 0)
+            return NotFound();
+
+        return File(foto.FotoData, foto.FotoContentType);
+    }
+
     // Aanmeldingen van een specifieke gebruiker (aanvoerder)
     [HttpGet("by-gebruiker/{gebruikerId:int}")]
     public async Task<ActionResult<IEnumerable<AanmeldingDto>>> GetByGebruiker(int gebruikerId)
@@ -56,7 +85,67 @@ public class AanmeldingenController : ControllerBase
     // ────────────────────────────── POST ──────────────────────────────
 
     [HttpPost]
-    public async Task<ActionResult<AanmeldingDto>> Create([FromBody] CreateAanmeldingDto dto)
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<AanmeldingDto>> Create([FromForm] CreateAanmeldingFormDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        byte[]? fotoData = null;
+        string? fotoContentType = null;
+        string? fotoFileName = null;
+
+        if (dto.Foto != null)
+        {
+            if (dto.Foto.Length == 0)
+                return BadRequest(new { message = "De foto is leeg." });
+
+            var ext = Path.GetExtension(dto.Foto.FileName ?? string.Empty);
+            if (!AllowedFotoExtensions.Contains(ext))
+            {
+                return BadRequest(new
+                {
+                    message = "Ongeldig fotoformaat. Gebruik jpg, jpeg, png, gif of webp."
+                });
+            }
+
+            if (!AllowedFotoContentTypes.Contains(dto.Foto.ContentType ?? string.Empty))
+            {
+                return BadRequest(new
+                {
+                    message = "Ongeldig fotoformaat. Gebruik jpg, jpeg, png, gif of webp."
+                });
+            }
+
+            await using var ms = new MemoryStream();
+            await dto.Foto.CopyToAsync(ms);
+            fotoData = ms.ToArray();
+            fotoContentType = dto.Foto.ContentType;
+            fotoFileName = dto.Foto.FileName;
+        }
+
+        var created = await _svc.CreateAsync(new CreateAanmeldingDto
+        {
+            FotoData = fotoData,
+            FotoContentType = fotoContentType,
+            FotoFileName = fotoFileName,
+            ProductBeschrijving = dto.ProductBeschrijving,
+            Hoeveelheid = dto.Hoeveelheid,
+            MinimumPrijs = dto.MinimumPrijs,
+            Categorie = dto.Categorie,
+            GewensteKlokLocatie = dto.GewensteKlokLocatie,
+            GewensteVeilDatum = dto.GewensteVeilDatum,
+            GebruikerId = dto.GebruikerId,
+            PlantDiameterCm = dto.PlantDiameterCm,
+            PlantLengteCm = dto.PlantLengteCm,
+            PotMaat = dto.PotMaat
+        });
+
+        return CreatedAtAction(nameof(Get), new { id = created.AanmeldingId }, created);
+    }
+
+    [HttpPost]
+    [Consumes("application/json")]
+    public async Task<ActionResult<AanmeldingDto>> CreateJson([FromBody] CreateAanmeldingDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
         var created = await _svc.CreateAsync(dto);

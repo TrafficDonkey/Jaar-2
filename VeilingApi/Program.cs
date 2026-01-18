@@ -1,20 +1,30 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Linq;
 using System.Text;
 using VeilingApi.Data;
 using VeilingApi.Models;
+using VeilingApi.ModelBinding;
 using VeilingApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure port for Azure App Service
+// Azure App Service: bind naar de PORT die door het platform wordt gezet.
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
-builder.Services.AddControllers();
+// Voorkom issues met Windows Event Log providers in sommige omgevingen.
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+
+builder.Services.AddControllers(options =>
+{
+    options.ModelBinderProviders.Insert(0, new FlexibleDecimalModelBinderProvider());
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -78,7 +88,7 @@ builder.Services.AddCors(options =>
             if (string.Equals(origin, "https://floraflow1223.vercel.app", StringComparison.OrdinalIgnoreCase))
                 return true;
 
-            // Allow Vercel preview deployments for this project
+            // Allow Vercel preview deployments
             if (origin.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)) return true;
 
             return false;
@@ -128,6 +138,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+static bool IsSqlException(Exception ex)
+{
+    for (var e = ex; e != null; e = e.InnerException)
+    {
+        if (e is SqlException) return true;
+    }
+
+    return false;
+}
+
 var app = builder.Build();
 
 app.UseSwagger();
@@ -135,47 +155,83 @@ app.UseSwaggerUI();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    db.Database.Migrate();
-
-    var admin = db.Gebruikers.FirstOrDefault(g => g.Email == "admin@floraflow.nl");
-    if (admin == null)
+    try
     {
-        admin = new Gebruiker
-        {
-            Naam = "Beheerder",
-            Email = "admin@floraflow.nl",
-            Rol = "Admin",
-            WachtwoordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!")
-        };
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        db.Gebruikers.Add(admin);
-        db.SaveChanges();
+        var dbAvailable = true;
+        try
+        {
+            // Check bereikbaarheid via master zodat migraties de database kunnen aanmaken.
+            var csb = new SqlConnectionStringBuilder(connectionString)
+            {
+                ConnectTimeout = 2
+            };
+            csb.InitialCatalog = "master";
+            using var con = new SqlConnection(csb.ConnectionString);
+            con.Open();
+        }
+        catch (Exception ex)
+        {
+            dbAvailable = false;
+            try
+            {
+                app.Logger.LogWarning(ex, "Database niet beschikbaar; migraties/seed worden overgeslagen.");
+            }
+            catch { }
+        }
+
+        if (dbAvailable)
+        {
+            db.Database.Migrate();
+
+            var admin = db.Gebruikers.FirstOrDefault(g => g.Email == "admin@floraflow.nl");
+            if (admin == null)
+            {
+                admin = new Gebruiker
+                {
+                    Naam = "Beheerder",
+                    Email = "admin@floraflow.nl",
+                    Rol = "Admin",
+                    WachtwoordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!")
+                };
+
+                db.Gebruikers.Add(admin);
+                db.SaveChanges();
+            }
+            else
+            {
+                var changed = false;
+
+                if (!string.Equals(admin.Rol, "Admin", StringComparison.OrdinalIgnoreCase))
+                {
+                    admin.Rol = "Admin";
+                    changed = true;
+                }
+
+                // Zorg dat het standaard admin-wachtwoord werkt (demo/opleiding).
+                if (string.IsNullOrWhiteSpace(admin.WachtwoordHash) ||
+                    !BCrypt.Net.BCrypt.Verify("Admin123!", admin.WachtwoordHash))
+                {
+                    admin.WachtwoordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!");
+                    changed = true;
+                }
+
+                if (changed) db.SaveChanges();
+            }
+        }
     }
-    else
+    catch (Exception ex)
     {
-        var changed = false;
-
-        if (!string.Equals(admin.Rol, "Admin", StringComparison.OrdinalIgnoreCase))
+        try
         {
-            admin.Rol = "Admin";
-            changed = true;
+            app.Logger.LogError(ex, "Database initialisatie mislukt; controleer SQL Server/LocalDB.");
         }
-
-        // Zorg dat het standaard admin-wachtwoord werkt (handig na DB resets / handmatige edits)
-        if (string.IsNullOrWhiteSpace(admin.WachtwoordHash) ||
-            !BCrypt.Net.BCrypt.Verify("Admin123!", admin.WachtwoordHash))
-        {
-            admin.WachtwoordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!");
-            changed = true;
-        }
-
-        if (changed) db.SaveChanges();
+        catch { }
     }
 }
 
-// Only redirect to HTTPS in development (Azure handles HTTPS for you)
+// Alleen redirect naar HTTPS in development; Azure regelt HTTPS al.
 if (!app.Environment.IsProduction())
 {
     app.UseHttpsRedirection();
@@ -192,12 +248,15 @@ app.Use(async (context, next) =>
     {
         await next();
     }
-    catch (Exception)
+    catch (Exception ex)
     {
-        context.Response.StatusCode = 500;
+        context.Response.StatusCode = IsSqlException(ex) ? 503 : 500;
+        var msg = IsSqlException(ex)
+            ? "Database is niet beschikbaar. Controleer SQL Server/LocalDB en probeer opnieuw."
+            : "Er is iets misgegaan. Probeer het later opnieuw.";
         await context.Response.WriteAsJsonAsync(new
         {
-            message = "Er is iets misgegaan. Probeer het later opnieuw."
+            Message = msg
         });
     }
 });
@@ -205,3 +264,4 @@ app.Use(async (context, next) =>
 app.MapControllers();
 
 app.Run();
+

@@ -3,8 +3,16 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import "./LoginStyle.css";
 import { API_ORIGIN } from "../api";
 
-// ✅ Base URL zonder /api (dus alleen domain + eventueel poort lokaal)
+// Base URL zonder /api (dus alleen domain + eventueel poort lokaal)
 const API_BASE = API_ORIGIN;
+
+function roleToDefaultTarget(role) {
+  if (role === "Aanvoerder") return "/app/aanvoerder";
+  if (role === "Admin") return "/app/admin";
+  if (role === "Veilingmeester") return "/app/veilingmeester";
+  if (role === "Klant") return "/app/koper";
+  return "/app";
+}
 
 // helper: veilig JSON lezen (of tekst fallback)
 async function readBody(res) {
@@ -35,52 +43,69 @@ export default function LoginScreen() {
   const [pw, setPw] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [caps, setCaps] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [needsTwoFactor, setNeedsTwoFactor] = useState(false);
   const [msg, setMsg] = useState("");
 
   const nav = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    document.title = "FloraFlow — Inloggen";
+    document.title = "FloraFlow - Inloggen";
+
     const last = localStorage.getItem("lastEmail");
     if (last) setEmail(last);
 
-    // 🔎 Debug (mag je later verwijderen)
-    console.log("LoginScreen API_ORIGIN =", API_ORIGIN);
-  }, []);
+    const token = sessionStorage.getItem("token");
+    if (token) {
+      const role = sessionStorage.getItem("role");
+      nav(roleToDefaultTarget(role), { replace: true });
+    }
+  }, [nav]);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setMsg("Inloggen…");
+    setMsg("Inloggen...");
 
     const cleanEmail = email.trim();
     if (!cleanEmail || !pw) {
-      setMsg("❌ Vul je e-mailadres en wachtwoord in.");
+      setMsg("Vul je e-mailadres en wachtwoord in.");
+      return;
+    }
+
+    if (needsTwoFactor && !twoFactorCode.trim()) {
+      setMsg("Voer je authenticator-code in.");
       return;
     }
 
     try {
-      // ✅ Jouw AuthController route is: POST /api/auth/login
+      // AuthController route: POST /api/auth/login
       const url = `${API_BASE}/api/auth/login`;
 
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // ✅ LoginDto verwacht: Email + Wachtwoord
         body: JSON.stringify({
           email: cleanEmail,
           password: pw,
+          twoFactorCode: needsTwoFactor ? twoFactorCode.trim() : undefined,
         }),
       });
 
       const body = await readBody(res);
 
       if (!res.ok) {
+        if (res.status === 401 && body?.twoFactorRequired) {
+          setNeedsTwoFactor(true);
+          setMsg(body?.message || body?.Message || "2FA-code vereist.");
+          return;
+        }
+
         const friendly =
-          body?.message ||
           body?.Message ||
+          body?.message ||
           (res.status === 400
-            ? "Het e-mailadres of het wachtwoord is niet correct ingevuld."
+            ? "Sommige velden zijn niet correct ingevuld."
             : res.status === 401
             ? "Onjuiste inloggegevens."
             : `Er ging iets mis bij het inloggen (${res.status}).`);
@@ -106,17 +131,16 @@ export default function LoginScreen() {
 
         if (!details && body?.raw) details = `\n${body.raw}`;
 
-        setMsg(`❌ ${friendly}${details}`);
+        setMsg(`${friendly}${details}`);
         return;
       }
 
-      // ✅ verwacht: { token, role, gebruikerId }
       const token = body?.token || body?.Token;
       const role = body?.role || body?.Role;
       const gebruikerId = body?.gebruikerId || body?.GebruikerId;
 
       if (!token) {
-        setMsg("❌ Geen token ontvangen van de server.");
+        setMsg("Geen token ontvangen van de server.");
         return;
       }
 
@@ -127,22 +151,17 @@ export default function LoginScreen() {
       if (gebruikerId != null)
         sessionStorage.setItem("gebruikerId", String(gebruikerId));
 
-      setMsg("✅ Ingelogd!");
+      setNeedsTwoFactor(false);
+      setTwoFactorCode("");
 
       const finalRole = role || sessionStorage.getItem("role");
-      let defaultTarget = "/app";
-
-      if (finalRole === "Aanvoerder") defaultTarget = "/app/aanvoerder";
-      else if (finalRole === "Admin") defaultTarget = "/app/admin";
-      else if (finalRole === "Veilingmeester") defaultTarget = "/app/veilingmeester";
-      else if (finalRole === "Koper") defaultTarget = "/app/koper";
-
+      const defaultTarget = roleToDefaultTarget(finalRole);
       const from = location.state?.from?.pathname;
       const to = from && from !== "/login" && from !== "/" ? from : defaultTarget;
 
       nav(to, { replace: true });
     } catch (err) {
-      setMsg(`❌ Netwerkfout: ${err?.message ?? String(err)}`);
+      setMsg(`Netwerkfout: ${err?.message ?? String(err)}`);
     }
   }
 
@@ -154,7 +173,9 @@ export default function LoginScreen() {
 
       <header className="topbar" aria-label="Hoofdnavigatie">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true">🌿</span>
+          <span className="brand-mark" aria-hidden="true">
+            dYO
+          </span>
           <span className="brand-name">FloraFlow</span>
         </div>
         <Link to="/register" className="topbar-link">
@@ -178,7 +199,10 @@ export default function LoginScreen() {
                 autoComplete="email"
                 placeholder="naam@bedrijf.nl"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (needsTwoFactor) setNeedsTwoFactor(false);
+                }}
                 required
               />
             </div>
@@ -191,7 +215,10 @@ export default function LoginScreen() {
                 autoComplete="current-password"
                 placeholder="Wachtwoord"
                 value={pw}
-                onChange={(e) => setPw(e.target.value)}
+                onChange={(e) => {
+                  setPw(e.target.value);
+                  if (needsTwoFactor) setNeedsTwoFactor(false);
+                }}
                 onKeyUp={(e) =>
                   setCaps(e.getModifierState && e.getModifierState("CapsLock"))
                 }
@@ -207,8 +234,23 @@ export default function LoginScreen() {
                 {showPw ? "Verberg" : "Toon"}
               </button>
 
-              {caps && <p className="caps-hint">⚠️ Caps Lock staat aan</p>}
+              {caps && <p className="caps-hint">Caps Lock staat aan</p>}
             </div>
+
+            {needsTwoFactor && (
+              <div className="field">
+                <label htmlFor="twoFactorCode">Authenticator-code</label>
+                <input
+                  id="twoFactorCode"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="123456"
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value)}
+                  required
+                />
+              </div>
+            )}
 
             <button type="submit" className="primary-btn">
               Inloggen
@@ -226,8 +268,9 @@ export default function LoginScreen() {
       </main>
 
       <footer className="footer">
-        <p>© {new Date().getFullYear()} FloraFlow — demo</p>
+        <p>(c) {new Date().getFullYear()} FloraFlow - demo</p>
       </footer>
     </div>
   );
 }
+

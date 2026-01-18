@@ -1,24 +1,12 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
-import apiFetch from "../api";
+import apiFetch, { API_BASE } from "../api";
 import "./KoperPageStyle.css";
 import AuctionClock from "../components/AuctionClock";
-
-const fmtDateTime = (iso) => {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  return new Intl.DateTimeFormat("nl-NL", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(d);
-};
-
-const fmtDate = (iso) => {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  return new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" }).format(d);
-};
+import {
+  formatDate as fmtDate,
+  formatDateTime as fmtDateTime,
+  toTimeMs,
+} from "../utils/date";
 
 const fmtCurrency = (v) => {
   const nr = Number(v);
@@ -29,6 +17,97 @@ const fmtCurrency = (v) => {
   });
 };
 
+const cleanText = (value) => {
+  const txt = String(value ?? "").replace(/\r?\n/g, " ").trim();
+  return txt || "-";
+};
+
+const splitProductDescription = (value) => {
+  const raw = String(value ?? "").replace(/\r?\n/g, " ").trim();
+  if (!raw) return { title: "-", lines: [] };
+
+  const byPipe = raw
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  let title = byPipe[0] ?? "-";
+  let lines = byPipe.slice(1);
+
+  if (title.includes(" - ")) {
+    const [first, ...rest] = title.split(" - ");
+    const detail = rest.join(" - ").trim();
+    title = first.trim() || title;
+    if (detail) {
+      lines = [detail, ...lines];
+    }
+  }
+
+  return { title, lines };
+};
+
+const API_BASE_URL = API_BASE.endsWith("/") ? API_BASE : `${API_BASE}/`;
+
+const normalizeFotoUrl = (url) => {
+  if (!url) return null;
+  if (/^(https?:|data:)/i.test(url)) return url;
+  return new URL(url, API_BASE_URL).toString();
+};
+
+const getFotoSrc = (product) => {
+  if (!product) return null;
+  const raw =
+    product.fotoUrl ||
+    (product.aanmeldingId
+      ? `/api/Aanmeldingen/${product.aanmeldingId}/foto`
+      : null);
+  return normalizeFotoUrl(raw);
+};
+
+const mapVeilingDto = (v) => {
+  const vp =
+    v?.veilingProducten && v.veilingProducten.length > 0
+      ? v.veilingProducten[0]
+      : null;
+
+  const resterendAantal =
+    vp?.resterendAantal ?? vp?.ResterendAantal ?? null;
+  const hoeveelheid = vp?.aantal ?? vp?.Aantal ?? null;
+
+  const mappedProduct = vp
+    ? {
+        veilingProductId: vp.veilingProductId ?? vp.VeilingProductId,
+        aanmeldingId: vp.aanmeldingId ?? vp.AanmeldingId,
+        productBeschrijving:
+          vp.productBeschrijving ?? vp.ProductBeschrijving ?? "",
+        hoeveelheid: hoeveelheid ?? 0,
+        resterendAantal,
+        minimumPrijs: vp.startPrijs ?? vp.StartPrijs ?? 0,
+        fotoUrl: normalizeFotoUrl(vp.fotoUrl ?? vp.FotoUrl ?? null),
+        kloklocatie: vp.kloklocatie ?? vp.Kloklocatie ?? "",
+        categorie: vp.categorie ?? vp.Categorie ?? "",
+        gewensteVeilDatum:
+          vp.gewensteVeilDatum ?? vp.GewensteVeilDatum ?? null,
+      }
+    : null;
+
+  const mappedVeiling = v
+    ? {
+        veilingId: v.veilingId,
+        naam: v.naam,
+        status: v.status,
+        startTijd: v.startTijd,
+        eindTijd: v.eindTijd,
+        huidigProduct: mappedProduct,
+      }
+    : null;
+
+  const availableQty =
+    mappedProduct?.resterendAantal ?? mappedProduct?.hoeveelheid ?? null;
+
+  return { mappedVeiling, availableQty };
+};
+
 export default function KoperPage() {
   const [loading, setLoading] = useState(true);
   const [loadingVeiling, setLoadingVeiling] = useState(false);
@@ -36,13 +115,21 @@ export default function KoperPage() {
   const [err, setErr] = useState("");
   const [koopMsg, setKoopMsg] = useState("");
 
+  const [nowMs, setNowMs] = useState(Date.now());
+
   const [actieveVeilingen, setActieveVeilingen] = useState([]);
   const [selectedVeilingId, setSelectedVeilingId] = useState(null);
+  const selectedVeilingIdRef = React.useRef(null);
+  const soldOutNotifiedRef = React.useRef(new Set());
   const [veiling, setVeiling] = useState(null);
   const [koopAantal, setKoopAantal] = useState("");
   const [remainingQty, setRemainingQty] = useState(null);
   const [clockRunId, setClockRunId] = useState(1);
   const [currentPrice, setCurrentPrice] = useState(null);
+  const [showStartInfo, setShowStartInfo] = useState(false);
+  const [clockFinished, setClockFinished] = useState(false);
+  const [endedNotice, setEndedNotice] = useState(null);
+  const [fotoError, setFotoError] = useState(false);
 
   const [myPurchases, setMyPurchases] = useState([]);
 
@@ -57,6 +144,7 @@ export default function KoperPage() {
 
   // categorie-filter
   const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const koperIdRaw =
     typeof window !== "undefined"
@@ -68,9 +156,10 @@ export default function KoperPage() {
       ? window.sessionStorage.getItem("role") ?? ""
       : "";
   const hideMinPrice = role === "Klant" || role === "Koper";
+  const isAdmin = role === "Admin";
 
   useEffect(() => {
-    document.title = "Koper â€” FloraFlow";
+    document.title = "Koper - FloraFlow";
     (async () => {
       setLoading(true);
       setErr("");
@@ -83,6 +172,33 @@ export default function KoperPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    selectedVeilingIdRef.current = selectedVeilingId;
+  }, [selectedVeilingId]);
+
+  function pushMessage(type, text, details) {
+    const time = new Date().toLocaleTimeString("nl-NL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const cleanDetails =
+      Array.isArray(details) && details.length > 0 ? details : null;
+    if (typeof window !== "undefined") {
+      const payload = { count: 1, text, type, time };
+      if (cleanDetails) payload.details = cleanDetails;
+      window.dispatchEvent(
+        new CustomEvent("floraflow:notify", {
+          detail: payload,
+        })
+      );
+    }
+  }
+
   async function loadActieveVeilingen() {
     try {
       const alle = await apiFetch("/Veilingen");
@@ -94,6 +210,12 @@ export default function KoperPage() {
           typeof v.status === "string" &&
           v.status.toLowerCase() === "actief"
       );
+
+      const now = Date.now();
+      actief = actief.filter((v) => {
+        const endMs = toTimeMs(v.eindTijd);
+        return !Number.isFinite(endMs) || endMs >= now;
+      });
 
       // categorie meenemen vanuit eerste product
       actief = actief.map((v) => {
@@ -108,13 +230,39 @@ export default function KoperPage() {
       });
 
       actief.sort(
-        (a, b) =>
-          new Date(b.startTijd).getTime() - new Date(a.startTijd).getTime()
+        (a, b) => toTimeMs(b.startTijd) - toTimeMs(a.startTijd)
       );
 
       setActieveVeilingen(actief);
 
-      if (!selectedVeilingId && actief.length > 0) {
+      const selectedId = selectedVeilingIdRef.current;
+      if (
+        selectedId &&
+        !actief.some((v) => (v.veilingId ?? v.id) === selectedId)
+      ) {
+        const last = veiling;
+        const lastName =
+          last?.naam ?? (selectedId ? `Veiling #${selectedId}` : "Veiling");
+        const lastStart = last?.startTijd
+          ? fmtDateTime(last.startTijd)
+          : null;
+        const lastProduct =
+          last?.huidigProduct?.productBeschrijving ?? null;
+
+        setEndedNotice({
+          title: "Veiling is voorbij",
+          name: lastName,
+          startedAt: lastStart,
+          product: lastProduct,
+        });
+        setSelectedVeilingId(null);
+        setVeiling(null);
+        setRemainingQty(null);
+        setCurrentPrice(null);
+        setKoopMsg("De veiling is afgelopen of uitverkocht.");
+      }
+
+      if (!selectedId && actief.length > 0) {
         selectVeilingById(actief[0].veilingId);
       }
     } catch (e) {
@@ -138,8 +286,7 @@ export default function KoperPage() {
 
       mine.sort(
         (a, b) =>
-          new Date(b.datum ?? b.Datum).getTime() -
-          new Date(a.datum ?? a.Datum).getTime()
+          toTimeMs(b.datum ?? b.Datum) - toTimeMs(a.datum ?? a.Datum)
       );
 
       setMyPurchases(mine);
@@ -160,6 +307,8 @@ export default function KoperPage() {
 
     setErr("");
     setKoopMsg("");
+    setEndedNotice(null);
+    setClockFinished(false);
     setLoadingVeiling(true);
 
     try {
@@ -170,38 +319,15 @@ export default function KoperPage() {
         return;
       }
 
-      const vp =
-        v.veilingProducten && v.veilingProducten.length > 0
-          ? v.veilingProducten[0]
-          : null;
-
-      const mappedProduct = vp
-        ? {
-            veilingProductId: vp.veilingProductId,
-            aanmeldingId: vp.aanmeldingId,
-            productBeschrijving: vp.productBeschrijving,
-            hoeveelheid: vp.aantal,
-            minimumPrijs: vp.startPrijs ?? 0,
-            fotoUrl: vp.fotoUrl ?? null,
-            kloklocatie: vp.kloklocatie ?? "",
-            categorie: vp.categorie ?? "",
-          }
-        : null;
-
-      const mappedVeiling = {
-        veilingId: v.veilingId,
-        naam: v.naam,
-        status: v.status,
-        startTijd: v.startTijd,
-        eindTijd: v.eindTijd,
-        huidigProduct: mappedProduct,
-      };
+      const { mappedVeiling, availableQty } = mapVeilingDto(v);
 
       setVeiling(mappedVeiling);
       setSelectedVeilingId(id);
-      setRemainingQty(mappedProduct?.hoeveelheid ?? null);
+      setRemainingQty(availableQty);
       setKoopAantal("");
       setCurrentPrice(null);
+      setShowStartInfo(false);
+      setClockFinished(false);
       setClockRunId((n) => n + 1);
     } catch (e) {
       setErr(e?.message ?? "Kon veiling niet laden.");
@@ -210,13 +336,32 @@ export default function KoperPage() {
     }
   }
 
+  async function refreshSelectedVeiling(id) {
+    if (!id) return;
+    try {
+      const v = await apiFetch(`/Veilingen/${id}`);
+      if (!v) return;
+      const { mappedVeiling, availableQty } = mapVeilingDto(v);
+      setVeiling(mappedVeiling);
+      setRemainingQty(availableQty);
+      return availableQty;
+    } catch {
+      // stil falen
+    }
+  }
+
   function handleClockPriceChange(price) {
     setCurrentPrice(price);
+    if (clockFinished) {
+      setClockFinished(false);
+    }
   }
 
   function handleClockFinished() {
     setCurrentPrice(null);
+    setClockFinished(true);
     setKoopMsg("De klok is gestopt. Wacht op de volgende ronde of veiling.");
+    pushMessage("info", "De klok is gestopt voor deze veiling.");
   }
 
   // Popup: sluit met ESC
@@ -229,6 +374,37 @@ export default function KoperPage() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [showHistory]);
 
+  useEffect(() => {
+    if (activeTab !== "veilingen" || !selectedVeilingId) return;
+    let cancelled = false;
+
+    const refresh = async () => {
+      try {
+        const v = await apiFetch(`/Veilingen/${selectedVeilingId}`);
+        if (!v || cancelled) return;
+        const { mappedVeiling, availableQty } = mapVeilingDto(v);
+        setVeiling(mappedVeiling);
+        setRemainingQty(availableQty);
+      } catch {
+        // stil falen; we proberen het later opnieuw
+      }
+    };
+
+    refresh();
+    const id = setInterval(refresh, 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [activeTab, selectedVeilingId]);
+
+  useEffect(() => {
+    if (activeTab !== "veilingen") return;
+    const id = setInterval(loadActieveVeilingen, 3000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   async function handleKoop(e) {
     e.preventDefault();
     const product = veiling?.huidigProduct;
@@ -236,25 +412,52 @@ export default function KoperPage() {
 
     setKoopMsg("");
 
+    const startMs = toTimeMs(veiling.startTijd);
+    if (Number.isFinite(startMs) && nowMs < startMs) {
+      setKoopMsg(
+        `Deze veiling is nog niet live. Start op ${fmtDateTime(
+          veiling.startTijd
+        )}.`
+      );
+      pushMessage(
+        "warning",
+        `Veiling is nog niet live. Start op ${fmtDateTime(veiling.startTijd)}.`
+      );
+      return;
+    }
+
     if (!koperId) {
       setKoopMsg("Je moet ingelogd zijn als koper om te kunnen kopen.");
+      pushMessage("error", "Je moet ingelogd zijn om te kunnen kopen.");
       return;
     }
 
     if (currentPrice == null) {
       setKoopMsg("Wacht tot de klok loopt voordat je kunt kopen.");
+      pushMessage("info", "Wacht tot de klok loopt voordat je kunt kopen.");
+      return;
+    }
+
+    if (remainingQty != null && remainingQty <= 0) {
+      setKoopMsg("Dit product is uitverkocht.");
+      pushMessage("info", "Dit product is uitverkocht.");
       return;
     }
 
     const qty = Number(String(koopAantal).replace(",", "."));
     if (!qty || qty <= 0) {
       setKoopMsg("Voer een geldig aantal in.");
+      pushMessage("warning", "Voer een geldig aantal in.");
       return;
     }
 
     if (remainingQty != null && qty > remainingQty) {
       setKoopMsg(
         `Er zijn nog maar ${remainingQty} stuks beschikbaar voor dit product.`
+      );
+      pushMessage(
+        "warning",
+        `Er zijn nog maar ${remainingQty} stuks beschikbaar.`
       );
       return;
     }
@@ -265,6 +468,7 @@ export default function KoperPage() {
       const payload = {
         koperId: koperId,
         veilingProductId: product.veilingProductId,
+        aantal: qty,
         eindPrijs: currentPrice,
         datum: new Date().toISOString(),
       };
@@ -275,25 +479,79 @@ export default function KoperPage() {
       });
 
       setKoopMsg(
-        `Je hebt ${qty}Ã— "${product.productBeschrijving}" gekocht voor â‚¬${fmtCurrency(
+        `Je hebt ${qty}x "${product.productBeschrijving}" gekocht voor EUR ${fmtCurrency(
           currentPrice
-        )} per stuk (totaal â‚¬${fmtCurrency(totaal)}).`
+        )} per stuk (totaal EUR ${fmtCurrency(totaal)}).`
+      );
+      pushMessage(
+        "success",
+        `Aankoop gelukt: ${qty} stuks voor EUR ${fmtCurrency(
+          currentPrice
+        )} per stuk.`
       );
 
       if (remainingQty != null) {
-        setRemainingQty(remainingQty - qty);
+        setRemainingQty(Math.max(0, remainingQty - qty));
       }
 
       setKoopAantal("");
       await loadMyPurchases();
+
+      const updatedRemaining = await refreshSelectedVeiling(selectedVeilingId);
+      await loadActieveVeilingen();
+      if (updatedRemaining === 0) {
+        setKoopMsg(
+          "Je aankoop is verwerkt. Dit product is nu uitverkocht; de veiling is gestopt."
+        );
+      }
     } catch (e2) {
-      setKoopMsg(
-        e2?.message ?? "Er ging iets mis bij het registreren van de aankoop."
-      );
+      const message =
+        e2?.message ?? "Er ging iets mis bij het registreren van de aankoop.";
+      setKoopMsg(message);
+      pushMessage("error", message);
     }
   }
 
   const product = veiling?.huidigProduct ?? null;
+  useEffect(() => {
+    setFotoError(false);
+  }, [veiling?.veilingId, product?.veilingProductId, product?.fotoUrl]);
+  const effectiveRemaining =
+    remainingQty ?? product?.resterendAantal ?? product?.hoeveelheid ?? null;
+  const isSoldOut =
+    typeof effectiveRemaining === "number" ? effectiveRemaining <= 0 : false;
+  const selectedStartMs = toTimeMs(veiling?.startTijd);
+  const isVeilingLive = Number.isFinite(selectedStartMs)
+    ? selectedStartMs <= nowMs
+    : true;
+  const veilingStartLabel = veiling?.startTijd
+    ? fmtDateTime(veiling.startTijd)
+    : "-";
+  const veilingDatumLabel = product?.gewensteVeilDatum
+    ? fmtDate(product.gewensteVeilDatum)
+    : fmtDate(veiling?.startTijd);
+
+  useEffect(() => {
+    if (!isSoldOut) return;
+    const id = veiling?.veilingId;
+    if (!id) return;
+    if (soldOutNotifiedRef.current.has(id)) return;
+    soldOutNotifiedRef.current.add(id);
+    pushMessage(
+      "info",
+      "Veiling is voorbij. Alle beschikbare producten zijn verkocht."
+    );
+  }, [isSoldOut, veiling?.veilingId]);
+  const showEndedPanel = clockFinished || isSoldOut;
+  const endedReason = isSoldOut
+    ? "Alle producten zijn verkocht."
+    : "De klok is gestopt voor deze veiling.";
+
+  const productInfo = useMemo(
+    () => splitProductDescription(product?.productBeschrijving),
+    [product?.productBeschrijving]
+  );
+  const fotoSrc = useMemo(() => getFotoSrc(product), [product]);
 
   const { minPrice, maxPrice, durationSeconds } = useMemo(() => {
     if (!product) {
@@ -301,8 +559,15 @@ export default function KoperPage() {
     }
     const min = Number(product.minimumPrijs ?? 0);
     const max = min > 0 ? min * 2 : 100;
-    return { minPrice: min, maxPrice: max, durationSeconds: 60 };
-  }, [product]);
+    const startMs = toTimeMs(veiling?.startTijd);
+    const endMs = toTimeMs(veiling?.eindTijd);
+    const durationFromBackend =
+      Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs
+        ? Math.round((endMs - startMs) / 1000)
+        : 60;
+    const duration = Math.max(1, durationFromBackend);
+    return { minPrice: min, maxPrice: max, durationSeconds: duration };
+  }, [product, veiling?.startTijd, veiling?.eindTijd]);
 
   const quickAmounts = [1, 5, 10, 50, 100];
 
@@ -310,7 +575,7 @@ export default function KoperPage() {
     const qty = Number(String(koopAantal).replace(",", "."));
     if (!product || currentPrice == null || !qty || qty <= 0) return null;
     const totaal = currentPrice * qty;
-    return `Totaal: â‚¬ ${fmtCurrency(totaal)} (${qty} Ã— â‚¬ ${fmtCurrency(
+    return `Totaal: EUR ${fmtCurrency(totaal)} (${qty} x EUR ${fmtCurrency(
       currentPrice
     )})`;
   }, [koopAantal, product, currentPrice]);
@@ -324,9 +589,41 @@ export default function KoperPage() {
   }, [actieveVeilingen]);
 
   const filteredAuctions = useMemo(() => {
-    if (categoryFilter === "ALL") return actieveVeilingen;
-    return actieveVeilingen.filter((v) => v.categorie === categoryFilter);
-  }, [actieveVeilingen, categoryFilter]);
+    let list = actieveVeilingen;
+    if (categoryFilter !== "ALL") {
+      list = list.filter((v) => v.categorie === categoryFilter);
+    }
+
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return list;
+
+    return list.filter((v) => {
+      const first =
+        v.veilingProducten && v.veilingProducten.length > 0
+          ? v.veilingProducten[0]
+          : v.huidigProduct ?? null;
+      const haystack = [
+        v.categorie,
+        v.naam,
+        first?.productBeschrijving,
+        first?.productNaam,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [actieveVeilingen, categoryFilter, searchQuery]);
+
+  const handlePickAnother = () => {
+    setEndedNotice(null);
+    setClockFinished(false);
+    const first = filteredAuctions[0];
+    if (first) {
+      selectVeilingById(first.veilingId ?? first.id);
+    }
+  };
 
   // Popup: laad historische prijzen wanneer geopend
   useEffect(() => {
@@ -373,12 +670,27 @@ export default function KoperPage() {
         </p>
         {err && (
           <p className="kop-error" role="alert">
-            âŒ {err}
+            {err}
           </p>
         )}
       </header>
 
-      {/* TABBAR â€“ zelfde stijl als Veilingbeheer */}
+      <section className="kop-search-block" aria-label="Zoeken">
+        <h3 className="kop-search-title">Zoeken</h3>
+        <label htmlFor="kopSearch" className="kop-filter-label">
+          Zoek op categorie, product of beschrijving
+        </label>
+        <input
+          id="kopSearch"
+          type="search"
+          className="kop-filter-input"
+          placeholder="Bijv. rozen, kamerplanten, 60 cm"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </section>
+
+      {/* TABBAR - zelfde stijl als Veilingbeheer */}
       <div className="vm-tabs kop-tabs">
         <button
           type="button"
@@ -401,7 +713,7 @@ export default function KoperPage() {
       </div>
 
       {loading ? (
-        <p>Gegevens ladenâ€¦</p>
+        <p>Gegevens laden...</p>
       ) : activeTab === "veilingen" ? (
         <>
           <main className="kop-layout">
@@ -410,29 +722,20 @@ export default function KoperPage() {
               <h2 className="kop-section-title">Actieve veilingen</h2>
 
               {categoryOptions.length > 0 && (
-                <div style={{ marginBottom: "0.75rem" }}>
+                <div className="kop-filter">
                   <label
                     htmlFor="catFilter"
-                    style={{
-                      fontSize: "0.85rem",
-                      display: "block",
-                      marginBottom: "0.25rem",
-                    }}
+                    className="kop-filter-label"
                   >
                     Filter op categorie
                   </label>
                   <select
                     id="catFilter"
+                    className="kop-filter-select"
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
-                    style={{
-                      width: "100%",
-                      borderRadius: "0.75rem",
-                      border: "1px solid rgba(15,23,42,0.1)",
-                      padding: "0.35rem 0.5rem",
-                    }}
                   >
-                    <option value="ALL">Alle categorieÃ«n</option>
+                    <option value="ALL">Alle categorieen</option>
                     {categoryOptions.map((c) => (
                       <option key={c} value={c}>
                         {c}
@@ -444,18 +747,30 @@ export default function KoperPage() {
 
               {filteredAuctions.length === 0 ? (
                 <p className="kop-extra-text">
-                  Er zijn momenteel geen actieve veilingen
-                  {categoryFilter !== "ALL" ? " in deze categorie." : "."}
+                  {searchQuery.trim()
+                    ? "Geen veilingen gevonden voor deze zoekterm."
+                    : `Er zijn momenteel geen actieve veilingen${
+                        categoryFilter !== "ALL"
+                          ? " in deze categorie."
+                          : "."
+                      }`}
                 </p>
               ) : (
                 <div className="kop-veiling-list">
                   {filteredAuctions.map((v) => {
                     const id = v.veilingId ?? v.id;
                     const isActive = id === selectedVeilingId;
+                    const startMs = toTimeMs(v.startTijd);
+                    const isLive = Number.isFinite(startMs)
+                      ? startMs <= nowMs
+                      : true;
                     const p =
                       v.veilingProducten && v.veilingProducten.length > 0
                         ? v.veilingProducten[0]
                         : null;
+                    const pInfo = p
+                      ? splitProductDescription(p.productBeschrijving)
+                      : null;
                     return (
                       <button
                         key={id}
@@ -474,12 +789,27 @@ export default function KoperPage() {
                             Categorie: {v.categorie}
                           </div>
                         )}
-                        <div className="kop-veiling-meta">
-                          Gestart op {fmtDateTime(v.startTijd)}
+                        <div className="kop-veiling-meta kop-veiling-meta--row">
+                          <span>
+                            {isLive ? "Gestart op" : "Start op"}{" "}
+                            {fmtDateTime(v.startTijd)}
+                          </span>
+                          {!isLive && (
+                            <span className="kop-live-pill kop-live-pill--offline">
+                              Niet live
+                            </span>
+                          )}
                         </div>
                         {p && (
                           <div className="kop-veiling-prod">
-                            {p.productBeschrijving}
+                            <div className="kop-veiling-prod-title">
+                              {pInfo?.title ?? "-"}
+                            </div>
+                            {(pInfo?.lines?.length ?? 0) > 0 && (
+                              <div className="kop-veiling-prod-lines">
+                                {pInfo.lines.slice(0, 2).join(" - ")}
+                              </div>
+                            )}
                           </div>
                         )}
                       </button>
@@ -492,37 +822,100 @@ export default function KoperPage() {
             {/* Rechter kolom: details + klok + koopformulier */}
             <section className="kop-right">
               {loadingVeiling ? (
-                <p>Veiling ladenâ€¦</p>
+                <p>Veiling laden...</p>
               ) : !veiling || !product ? (
-                <p className="kop-extra-text">
-                  Kies links een veiling om de details te zien en te kunnen
-                  kopen.
-                </p>
+                endedNotice ? (
+                  <div className="kop-end-empty" role="status">
+                    <h3>{endedNotice.title}</h3>
+                    <p className="kop-end-meta">{endedNotice.name}</p>
+                    {endedNotice.product && (
+                      <p className="kop-end-meta">
+                        Product: {endedNotice.product}
+                      </p>
+                    )}
+                    {endedNotice.startedAt && (
+                      <p className="kop-end-meta">
+                        Gestart op {endedNotice.startedAt}
+                      </p>
+                    )}
+                    <p className="kop-end-note">
+                      Dank u voor uw mededeling.
+                    </p>
+                    <div className="kop-end-actions">
+                      <button
+                        type="button"
+                        className="kop-koop-btn kop-koop-btn--ghost"
+                        onClick={handlePickAnother}
+                        disabled={filteredAuctions.length === 0}
+                      >
+                        Kies andere veiling
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="kop-extra-text">
+                    Kies links een veiling om de details te zien en te kunnen
+                    kopen.
+                  </p>
+                )
               ) : (
                 <div className="kop-detail-card">
+                  {showEndedPanel && (
+                    <div className="kop-end-card" role="status">
+                      <h3>Veiling is voorbij</h3>
+                      <p className="kop-end-meta">{endedReason}</p>
+                      <p className="kop-end-note">
+                        Dank u voor uw mededeling.
+                      </p>
+                      <div className="kop-end-actions">
+                        <button
+                          type="button"
+                          className="kop-koop-btn kop-koop-btn--ghost"
+                          onClick={handlePickAnother}
+                          disabled={filteredAuctions.length === 0}
+                        >
+                          Kies andere veiling
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {/* Product-informatie */}
                   <div className="kop-detail-left">
                     <p className="kop-extra-text">
-                      Veiling #{veiling.veilingId} Â·{" "}
-                      {veiling.naam ?? "Veiling"} Â· gestart op{" "}
-                      {fmtDateTime(veiling.startTijd)}
+                      Veiling #{veiling.veilingId} -{" "}
+                      {isVeilingLive ? "gestart op" : "start op"}{" "}
+                      {veilingStartLabel}
                     </p>
-
-                    <h2 className="kop-prod-title">
-                      {product.productBeschrijving}
+                    <h2 className="kop-veiling-title">
+                      {veiling.naam ?? `Veiling #${veiling.veilingId}`}
                     </h2>
+
+                    <h3 className="kop-prod-title">{productInfo.title}</h3>
+                    {productInfo.lines.length > 0 && (
+                      <ul className="kop-prod-lines">
+                        {productInfo.lines.map((line, idx) => (
+                          <li key={`${line}-${idx}`}>{line}</li>
+                        ))}
+                      </ul>
+                    )}
                     {!hideMinPrice && (
                       <p className="kop-min-price">
                         Minimale prijs: EUR {fmtCurrency(product.minimumPrijs)}
                       </p>
                     )}
 
-                    {product.fotoUrl && (
+                    {fotoSrc && !fotoError ? (
                       <img
-                        src={product.fotoUrl}
-                        alt={product.productBeschrijving}
+                        src={fotoSrc}
+                        alt={productInfo.title}
                         className="kop-prod-img"
+                        loading="lazy"
+                        onError={() => setFotoError(true)}
                       />
+                    ) : (
+                      <div className="kop-prod-img kop-prod-img--placeholder">
+                        Geen foto beschikbaar
+                      </div>
                     )}
 
                     <div className="kop-prod-dl">
@@ -539,15 +932,15 @@ export default function KoperPage() {
                       <div>
                         <dt>Beschikbare hoeveelheid</dt>
                         <dd>
-                          {remainingQty != null
-                            ? `${remainingQty} stuks`
-                            : `${product.hoeveelheid} stuks`}
+                          {effectiveRemaining != null
+                            ? `${effectiveRemaining} stuks`
+                            : "-"}
                         </dd>
                       </div>
 
                       <div>
                         <dt>Veildatum</dt>
-                        <dd>{fmtDate(veiling.startTijd)}</dd>
+                        <dd>{veilingDatumLabel}</dd>
                       </div>
                     </div>
 
@@ -563,21 +956,77 @@ export default function KoperPage() {
 
                     <p className="kop-extra-text">
                       De prijs daalt gedurende de ronde. Koop op het juiste
-                      moment: hoe langer je wacht, hoe lager de prijs â€“ maar
+                      moment: hoe langer je wacht, hoe lager de prijs - maar
                       risico dat iemand anders je voor is of de voorraad op is.
                     </p>
                   </div>
 
                   {/* Klok + koopformulier */}
                   <div>
-                    <AuctionClock
-                      minPrice={minPrice}
-                      maxPrice={maxPrice}
-                      durationSeconds={durationSeconds}
-                      runId={clockRunId}
-                      onPriceChange={handleClockPriceChange}
-                      onFinished={handleClockFinished}
-                    />
+                    <div className="kop-clock-box">
+                      {isSoldOut ? (
+                        <div className="kop-clock-placeholder">
+                          <div className="kop-notlive-row">
+                            <span className="kop-live-pill kop-live-pill--offline">
+                              Uitverkocht
+                            </span>
+                          </div>
+                          <p className="kop-extra-text kop-soldout-text">
+                            Er zijn geen artikelen meer beschikbaar. De veiling is gestopt.
+                          </p>
+                        </div>
+                      ) : !isVeilingLive ? (
+                        <div className="kop-clock-placeholder">
+                          <div className="kop-notlive-row">
+                            <span className="kop-live-pill kop-live-pill--offline">
+                              Niet live
+                            </span>
+                            <button
+                              type="button"
+                              className="kop-info-btn"
+                              aria-label="Toon startmoment"
+                              onClick={() =>
+                                setShowStartInfo((v) => !v)
+                              }
+                            >
+                              i
+                            </button>
+                          </div>
+
+                          {showStartInfo && (
+                            <div
+                              className="kop-startinfo-popover"
+                              role="dialog"
+                              aria-label="Startmoment van de veiling"
+                            >
+                              <p className="kop-startinfo-title">
+                                Deze veiling start op:
+                              </p>
+                              <p className="kop-startinfo-datetime">
+                                {veilingStartLabel}
+                              </p>
+                              <button
+                                type="button"
+                                className="kop-koop-btn kop-koop-btn--ghost kop-startinfo-close"
+                                onClick={() => setShowStartInfo(false)}
+                              >
+                                Sluiten
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <AuctionClock
+                          minPrice={minPrice}
+                          maxPrice={maxPrice}
+                          durationSeconds={durationSeconds}
+                          startTime={veiling?.startTijd}
+                          runId={clockRunId}
+                          onPriceChange={handleClockPriceChange}
+                          onFinished={handleClockFinished}
+                        />
+                      )}
+                    </div>
 
                     <form
                       className="kop-koop-form"
@@ -597,29 +1046,14 @@ export default function KoperPage() {
                         placeholder="Bijv. 10"
                       />
 
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: "0.4rem",
-                          fontSize: "0.85rem",
-                        }}
-                      >
-                        <span style={{ alignSelf: "center" }}>
-                          Snel kiezen:
-                        </span>
+                      <div className="kop-quick-row">
+                        <span className="kop-quick-label">Snel kiezen:</span>
                         {quickAmounts.map((a) => (
                           <button
                             key={a}
                             type="button"
                             onClick={() => setKoopAantal(String(a))}
-                            style={{
-                              padding: "0.25rem 0.6rem",
-                              borderRadius: "999px",
-                              border: "1px solid rgba(15,23,42,0.16)",
-                              background: "#ffffff",
-                              cursor: "pointer",
-                            }}
+                            className="kop-quick-btn"
                           >
                             {a}
                           </button>
@@ -628,21 +1062,22 @@ export default function KoperPage() {
 
                       {currentPrice != null && (
                         <p className="kop-extra-text">
-                          Huidige prijs per stuk: â‚¬{" "}
+                          Huidige prijs per stuk: EUR{" "}
                           {fmtCurrency(currentPrice)}
                         </p>
                       )}
 
                       {totalPriceLabel && (
-                        <p
-                          className="kop-extra-text"
-                          style={{ fontWeight: 600 }}
-                        >
+                        <p className="kop-extra-text kop-extra-text--strong">
                           {totalPriceLabel}
                         </p>
                       )}
 
-                      <button type="submit" className="kop-koop-btn">
+                      <button
+                        type="submit"
+                        className="kop-koop-btn"
+                        disabled={!isVeilingLive || isSoldOut || currentPrice == null}
+                      >
                         Koop tegen huidige prijs
                       </button>
 
@@ -663,11 +1098,10 @@ export default function KoperPage() {
         <section
           className="kop-history"
           aria-label="Mijn aankopen"
-          style={{ marginTop: "1.75rem" }}
         >
-          <h2 style={{ marginBottom: "0.5rem" }}>Mijn aankopen</h2>
+          <h2 className="kop-history-title">Mijn aankopen</h2>
           {loadingPurchases ? (
-            <p>Gegevens ladenâ€¦</p>
+            <p>Gegevens laden...</p>
           ) : !koperId ? (
             <p className="kop-extra-text">
               Je bent niet als koper ingelogd, dus er zijn geen aankopen om te
@@ -678,83 +1112,49 @@ export default function KoperPage() {
               Je hebt nog geen aankopen gedaan op deze veilingen.
             </p>
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: "0.9rem",
-                }}
-              >
+            <div className="kop-history-table-wrap">
+              <table className="kop-history-table">
                 <thead>
                   <tr>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "0.5rem",
-                        borderBottom: "1px solid rgba(15,23,42,0.06)",
-                      }}
-                    >
-                      Datum
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "0.5rem",
-                        borderBottom: "1px solid rgba(15,23,42,0.06)",
-                      }}
-                    >
-                      Product-ID
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "0.5rem",
-                        borderBottom: "1px solid rgba(15,23,42,0.06)",
-                      }}
-                    >
-                      Prijs per stuk
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "0.5rem",
-                        borderBottom: "1px solid rgba(15,23,42,0.06)",
-                      }}
-                    >
-                      Aantal
-                    </th>
-                    <th
-                      style={{
-                        textAlign: "left",
-                        padding: "0.5rem",
-                        borderBottom: "1px solid rgba(15,23,42,0.06)",
-                      }}
-                    >
-                      Totaal
-                    </th>
+                    {isAdmin && <th>ID</th>}
+                    <th>Datum</th>
+                    <th>Categorie</th>
+                    <th>Beschrijving</th>
+                    <th>Prijs per stuk</th>
+                    <th>Aantal</th>
+                    <th>Totaal</th>
                   </tr>
                 </thead>
                 <tbody>
                   {myPurchases.map((t) => {
                     const eindPrijs = t.eindPrijs ?? t.EindPrijs ?? 0;
-                    const aantal = 1; // totdat je ook aantallen gaat opslaan
+                    const aantal = t.aantal ?? t.Aantal ?? 1;
                     const totaal = eindPrijs * aantal;
                     const datum = t.datum ?? t.Datum;
+                    const categorie = cleanText(t.categorie ?? t.Categorie);
+                    const beschrijving = cleanText(
+                      t.productBeschrijving ?? t.ProductBeschrijving
+                    );
+                    const toewijzingId =
+                      t.toewijzingId ?? t.ToewijzingId ?? "-";
                     return (
-                      <tr key={t.toewijzingId ?? t.ToewijzingId}>
-                        <td style={{ padding: "0.5rem" }}>
+                      <tr key={toewijzingId}>
+                        {isAdmin && <td>{toewijzingId}</td>}
+                        <td>
                           {fmtDateTime(datum)}
                         </td>
-                        <td style={{ padding: "0.5rem" }}>
-                          {t.veilingProductId ?? t.VeilingProductId}
+                        <td>
+                          {categorie}
                         </td>
-                        <td style={{ padding: "0.5rem" }}>
-                          â‚¬ {fmtCurrency(eindPrijs)}
+                        <td>
+                          {beschrijving}
                         </td>
-                        <td style={{ padding: "0.5rem" }}>{aantal}</td>
-                        <td style={{ padding: "0.5rem" }}>
-                          â‚¬ {fmtCurrency(totaal)}
+                        <td>
+                          EUR {fmtCurrency(eindPrijs)}
+                        </td>
+                        <td>{aantal}</td>
+                        <td>
+                          EUR {fmtCurrency(totaal)}
                         </td>
                       </tr>
                     );

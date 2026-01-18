@@ -33,7 +33,9 @@ public class AanmeldingServiceTests  //dotnet test --filter ClassName=Aanmelding
         var dto = new UpdateAanmeldingDto
         {
             AanmeldingId = 999,            // bestaat niet
-            FotoUrl = "test.jpg",
+            FotoData = new byte[] { 1 },
+            FotoContentType = "image/jpeg",
+            FotoFileName = "test.jpg",
             ProductBeschrijving = "Test",
             Hoeveelheid = 10,
             MinimumPrijs = 5,
@@ -59,7 +61,9 @@ public class AanmeldingServiceTests  //dotnet test --filter ClassName=Aanmelding
         // Eerst een aanmelding in de "database" zetten
         var existing = new Aanmelding
         {
-            FotoUrl = "old.jpg",
+            FotoData = new byte[] { 1 },
+            FotoContentType = "image/jpeg",
+            FotoFileName = "old.jpg",
             ProductBeschrijving = "Oud",
             Hoeveelheid = 1,
             MinimumPrijs = 2,
@@ -76,7 +80,9 @@ public class AanmeldingServiceTests  //dotnet test --filter ClassName=Aanmelding
         var dto = new UpdateAanmeldingDto
         {
             AanmeldingId = existing.AanmeldingId,
-            FotoUrl = "new.jpg",
+            FotoData = new byte[] { 2, 3 },
+            FotoContentType = "image/jpeg",
+            FotoFileName = "new.jpg",
             ProductBeschrijving = "Nieuw product",
             Hoeveelheid = 5,
             MinimumPrijs = 10,
@@ -93,7 +99,9 @@ public class AanmeldingServiceTests  //dotnet test --filter ClassName=Aanmelding
 
         var updated = await db.Aanmeldingen.FindAsync(existing.AanmeldingId);
         Assert.NotNull(updated);
-        Assert.Equal("new.jpg", updated!.FotoUrl);
+        Assert.Equal(new byte[] { 2, 3 }, updated!.FotoData);
+        Assert.Equal("image/jpeg", updated.FotoContentType);
+        Assert.Equal("new.jpg", updated.FotoFileName);
         Assert.Equal("Nieuw product", updated.ProductBeschrijving);
         Assert.Equal(5, updated.Hoeveelheid);
         Assert.Equal(10, updated.MinimumPrijs);
@@ -111,7 +119,9 @@ public class AanmeldingServiceTests  //dotnet test --filter ClassName=Aanmelding
 
         var dto = new CreateAanmeldingDto
         {
-            FotoUrl = "test.jpg",
+            FotoData = new byte[] { 9 },
+            FotoContentType = "image/jpeg",
+            FotoFileName = "test.jpg",
             ProductBeschrijving = "Test",
             Hoeveelheid = 10,
             MinimumPrijs = 5,

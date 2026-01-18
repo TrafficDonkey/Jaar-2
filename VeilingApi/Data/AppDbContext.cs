@@ -36,7 +36,15 @@ public class AppDbContext : DbContext
             .HasColumnType("decimal(10,2)");
 
         mb.Entity<Aanmelding>().Property(p => p.Categorie).HasMaxLength(100);
+        mb.Entity<Aanmelding>().Property(p => p.FotoContentType).HasMaxLength(100);
+        mb.Entity<Aanmelding>().Property(p => p.FotoFileName).HasMaxLength(255);
         mb.Entity<VeilingProduct>().Property(p => p.Categorie).HasMaxLength(100);
+        mb.Entity<Gebruiker>().Property(p => p.TelefoonLand).HasMaxLength(2);
+        mb.Entity<Gebruiker>().Property(p => p.TelefoonNummer).HasMaxLength(25);
+        mb.Entity<Gebruiker>().Property(p => p.AdresStraat).HasMaxLength(120);
+        mb.Entity<Gebruiker>().Property(p => p.Huisnummer).HasMaxLength(20);
+        mb.Entity<Gebruiker>().Property(p => p.Postcode).HasMaxLength(16);
+        mb.Entity<Gebruiker>().Property(p => p.TwoFactorSecret).HasMaxLength(64);
 
         mb.Entity<Aanmelding>()
             .HasOne(a => a.Gebruiker)
@@ -83,8 +91,8 @@ public class AppDbContext : DbContext
 
         mb.Entity<Toewijzing>()
             .HasOne(t => t.VeilingProduct)
-            .WithOne(vp => vp.Toewijzing)
-            .HasForeignKey<Toewijzing>(t => t.VeilingProductId)
+            .WithMany(vp => vp.Toewijzingen)
+            .HasForeignKey(t => t.VeilingProductId)
             .OnDelete(DeleteBehavior.Cascade);
 
         mb.Entity<Toewijzing>()

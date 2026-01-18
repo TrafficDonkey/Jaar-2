@@ -70,7 +70,9 @@ public class VeilingProductServiceTests
         };
         var aanmelding = new Aanmelding
         {
-            FotoUrl = "foto.jpg",
+            FotoData = new byte[] { 1 },
+            FotoContentType = "image/jpeg",
+            FotoFileName = "foto.jpg",
             ProductBeschrijving = "Rozen",
             Hoeveelheid = 10,
             MinimumPrijs = 5,

@@ -4,12 +4,25 @@
 // - Overzicht van eigen aanmeldingen
 // - Overzicht van toewijzingen (verkochte kavels) + totale opbrengst
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./AanvoerderPageStyle.css";
 import apiFetch from "../api";
+import { formatDate, parseApiDate, toTimeMs } from "../utils/date";
+import { PLANTEN_CATEGORIEEN } from "../utils/plantenCategorieen";
+import { POTMATEN, getPotmaat } from "../utils/potmaten";
+import MessageCenter from "../components/MessageCenter";
 
 // Vastgestelde kloklocaties
 const KLOK_LOCATIES = ["Naaldwijk", "Aalsmeer", "Rijnsburg", "Eelde"];
+const FOTO_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+const FOTO_CONTENT_TYPES = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+];
+const FOTO_FORMAT_LABEL = "jpg, jpeg, png, gif, webp";
 
 // Probeer gebruikerId uit JWT-token te halen
 function getGebruikerIdFromToken() {
@@ -56,13 +69,6 @@ function getRoleFromToken() {
     }
 }
 
-function formatDate(iso) {
-    if (!iso) return "-";
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "-";
-    return new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" }).format(d);
-}
-
 function formatCurrency(value) {
     const nr = Number(value);
     if (Number.isNaN(nr)) return "-";
@@ -72,13 +78,73 @@ function formatCurrency(value) {
     });
 }
 
-// Bepaal status van een aanmelding op basis van veildatum
-function getAanmeldingStatus(iso) {
-    if (!iso) return { label: "Onbekend", className: "aanv-status--unknown" };
+function getAanmeldingStatus(iso, veilingInfo) {
+    const rawStatus = String(veilingInfo?.status ?? "").trim().toLowerCase();
+    const startMs = toTimeMs(veilingInfo?.startTijd);
+    const endMs = toTimeMs(veilingInfo?.eindTijd);
+    const now = Date.now();
 
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime()))
-        return { label: "Onbekend", className: "aanv-status--unknown" };
+    if (rawStatus) {
+        if (rawStatus === "actief") {
+            if (Number.isFinite(endMs) && endMs <= now) {
+                return {
+                    label: "Verlopen",
+                    className: "aanv-status--past",
+                    code: "VERLOPEN",
+                };
+            }
+            if (Number.isFinite(startMs) && startMs > now) {
+                return {
+                    label: "Gepland",
+                    className: "aanv-status--upcoming",
+                    code: "GEPLAND",
+                };
+            }
+            return {
+                label: "Actief",
+                className: "aanv-status--today",
+                code: "ACTIEF",
+            };
+        }
+
+        if (rawStatus === "gepland" || rawStatus === "concept") {
+            return {
+                label: "Gepland",
+                className: "aanv-status--upcoming",
+                code: "GEPLAND",
+            };
+        }
+
+        if (
+            rawStatus === "afgerond" ||
+            rawStatus === "afgesloten" ||
+            rawStatus === "afgelopen" ||
+            rawStatus === "verlopen"
+        ) {
+            return {
+                label: "Verlopen",
+                className: "aanv-status--past",
+                code: "VERLOPEN",
+            };
+        }
+    }
+
+    if (!iso) {
+        return {
+            label: "Onbekend",
+            className: "aanv-status--unknown",
+            code: "ONBEKEND",
+        };
+    }
+
+    const d = parseApiDate(iso);
+    if (!d) {
+        return {
+            label: "Onbekend",
+            className: "aanv-status--unknown",
+            code: "ONBEKEND",
+        };
+    }
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -86,12 +152,45 @@ function getAanmeldingStatus(iso) {
     cmp.setHours(0, 0, 0, 0);
 
     if (cmp.getTime() === today.getTime()) {
-        return { label: "Vandaag", className: "aanv-status--today" };
+        return {
+            label: "Vandaag",
+            className: "aanv-status--today",
+            code: "GEPLAND",
+        };
     }
     if (cmp > today) {
-        return { label: "Gepland", className: "aanv-status--upcoming" };
+        return {
+            label: "Gepland",
+            className: "aanv-status--upcoming",
+            code: "GEPLAND",
+        };
     }
-    return { label: "Verlopen", className: "aanv-status--past" };
+    return {
+        label: "Verlopen",
+        className: "aanv-status--past",
+        code: "VERLOPEN",
+    };
+}
+
+function buildVeilingStatusMap(veilingen) {
+    const map = {};
+    const list = Array.isArray(veilingen) ? veilingen : [];
+
+    list.forEach((veiling) => {
+        const status = veiling?.status ?? veiling?.Status ?? "";
+        const startTijd = veiling?.startTijd ?? veiling?.StartTijd ?? null;
+        const eindTijd = veiling?.eindTijd ?? veiling?.EindTijd ?? null;
+        const producten =
+            veiling?.veilingProducten ?? veiling?.VeilingProducten ?? [];
+
+        producten.forEach((vp) => {
+            const aanmeldingId = vp?.aanmeldingId ?? vp?.AanmeldingId;
+            if (!aanmeldingId) return;
+            map[aanmeldingId] = { status, startTijd, eindTijd };
+        });
+    });
+
+    return map;
 }
 
 export default function AanvoerderPage() {
@@ -99,6 +198,8 @@ export default function AanvoerderPage() {
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
     const [error, setError] = useState("");
+    const [messages, setMessages] = useState([]);
+    const lastToewijzingCount = useRef(null);
 
     const [role, setRole] = useState(null);
     const [gebruikerId, setGebruikerId] = useState(null);
@@ -106,16 +207,26 @@ export default function AanvoerderPage() {
 
     const [aanmeldingen, setAanmeldingen] = useState([]);
     const [toewijzingen, setToewijzingen] = useState([]);
+    const [aanmeldingQuery, setAanmeldingQuery] = useState("");
+    const [aanmeldingStatusFilter, setAanmeldingStatusFilter] = useState("ALL");
+    const [aanmeldingSort, setAanmeldingSort] = useState("date-asc");
+    const [veilingStatusByAanmeldingId, setVeilingStatusByAanmeldingId] = useState({});
 
     const [form, setForm] = useState({
-        fotoUrl: "",
+        fotoFile: null,
+        productNaam: "",
         productBeschrijving: "",
         hoeveelheid: 1,
         minimumPrijs: 0,
-        categorie: "Snijbloemen",
+        categorie: PLANTEN_CATEGORIEEN.categories[0] ?? PLANTEN_CATEGORIEEN.overigeLabel,
         kloklocatie: "Naaldwijk",
         veilDatum: "",
+        plantDiameterCm: "",
+        plantLengteCm: "",
+        potMaat: "",
     });
+
+    const fotoInputRef = useRef(null);
 
     // Eerste init: titel + rol + gebruikerId bepalen
     useEffect(() => {
@@ -155,15 +266,19 @@ export default function AanvoerderPage() {
                 setGebruikerNaam(g?.naam ?? "");
 
                 // 2) Eigen aanmeldingen + toewijzingen
-                const [aRes, tRes] = await Promise.all([
+                const [aRes, tRes, vRes] = await Promise.all([
                     apiFetch("/Aanmeldingen/mine"),
                     apiFetch("/Toewijzingen/mine"),
+                    apiFetch("/Veilingen").catch(() => []),
                 ]);
 
                 setAanmeldingen(Array.isArray(aRes) ? aRes : []);
                 setToewijzingen(Array.isArray(tRes) ? tRes : []);
+                setVeilingStatusByAanmeldingId(buildVeilingStatusMap(vRes));
             } catch (err) {
-                setError(err?.message ?? "Kon gegevens niet laden.");
+                const message = err?.message ?? "Kon gegevens niet laden.";
+                setError(message);
+                pushMessage("error", message);
             } finally {
                 setLoadingData(false);
             }
@@ -172,11 +287,126 @@ export default function AanvoerderPage() {
         load();
     }, [role, gebruikerId]);
 
+    useEffect(() => {
+        if (loadingData) return;
+        if (!Array.isArray(toewijzingen)) return;
+        if (lastToewijzingCount.current === null) {
+            lastToewijzingCount.current = toewijzingen.length;
+            return;
+        }
+        const diff = toewijzingen.length - lastToewijzingCount.current;
+        if (diff > 0) {
+            pushMessage(
+                "success",
+                `Nieuwe verkoop geregistreerd: ${diff} toewijzing(en).`
+            );
+        }
+        lastToewijzingCount.current = toewijzingen.length;
+    }, [toewijzingen, loadingData]);
+
     // ───────────────────────── helpers ─────────────────────────
 
     function updateField(name, value) {
         setForm((prev) => ({ ...prev, [name]: value }));
     }
+
+    function pushMessage(type, text, details) {
+        const time = new Date().toLocaleTimeString("nl-NL", {
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+        const cleanDetails =
+            Array.isArray(details) && details.length > 0 ? details : null;
+        if (typeof window !== "undefined") {
+            const payload = { count: 1, text, type, time };
+            if (cleanDetails) payload.details = cleanDetails;
+            window.dispatchEvent(
+                new CustomEvent("floraflow:notify", {
+                    detail: payload,
+                })
+            );
+        }
+        setMessages((prev) => {
+            const next = [
+                {
+                    id: `${Date.now()}-${Math.random()}`,
+                    type,
+                    text,
+                    time,
+                    ...(cleanDetails ? { details: cleanDetails } : {}),
+                },
+                ...prev,
+            ];
+            return next.slice(0, 6);
+        });
+    }
+
+    const [categorieInput, setCategorieInput] = useState(form.categorie);
+    const [showCategorieSuggest, setShowCategorieSuggest] = useState(false);
+    const [categorieSuggestIndex, setCategorieSuggestIndex] = useState(-1);
+    const categorieSuggestRef = useRef(null);
+
+    const filteredCategorieen = useMemo(() => {
+        const q = String(categorieInput ?? "").trim().toLowerCase();
+        const list = PLANTEN_CATEGORIEEN.categories ?? [];
+        return q ? list.filter((c) => c.toLowerCase().includes(q)) : list;
+    }, [categorieInput]);
+
+    useEffect(() => {
+        setCategorieInput(form.categorie);
+    }, [form.categorie]);
+
+    const beschikbareProductNamen = useMemo(() => {
+        const cat = form.categorie;
+        return PLANTEN_CATEGORIEEN.plantsByCategory?.[cat] ?? [];
+    }, [form.categorie]);
+    const [showProductSuggest, setShowProductSuggest] = useState(false);
+    const [productSuggestIndex, setProductSuggestIndex] = useState(-1);
+    const [productSuggestLimit, setProductSuggestLimit] = useState(60);
+    const productSuggestRef = useRef(null);
+
+    const allFilteredProductNamen = useMemo(() => {
+        if (form.categorie === PLANTEN_CATEGORIEEN.overigeLabel) return [];
+        const q = String(form.productNaam ?? "").trim().toLowerCase();
+        const list = beschikbareProductNamen;
+        return q
+            ? list.filter((n) => n.toLowerCase().includes(q))
+            : list;
+    }, [beschikbareProductNamen, form.categorie, form.productNaam]);
+
+    const visibleProductNamen = useMemo(() => {
+        return allFilteredProductNamen.slice(0, productSuggestLimit);
+    }, [allFilteredProductNamen, productSuggestLimit]);
+
+    useEffect(() => {
+        setProductSuggestLimit(60);
+        setProductSuggestIndex(-1);
+    }, [form.categorie, form.productNaam]);
+
+    useEffect(() => {
+        function onDocMouseDown(e) {
+            if (!productSuggestRef.current) return;
+            if (!productSuggestRef.current.contains(e.target)) {
+                setShowProductSuggest(false);
+                setProductSuggestIndex(-1);
+            }
+        }
+        document.addEventListener("mousedown", onDocMouseDown);
+        return () => document.removeEventListener("mousedown", onDocMouseDown);
+    }, []);
+
+    useEffect(() => {
+        function onDocMouseDown(e) {
+            if (!categorieSuggestRef.current) return;
+            if (!categorieSuggestRef.current.contains(e.target)) {
+                setShowCategorieSuggest(false);
+                setCategorieSuggestIndex(-1);
+                setCategorieInput(form.categorie);
+            }
+        }
+        document.addEventListener("mousedown", onDocMouseDown);
+        return () => document.removeEventListener("mousedown", onDocMouseDown);
+    }, [form.categorie]);
 
     // Stats voor bovenaan de pagina
     const stats = useMemo(() => {
@@ -187,8 +417,8 @@ export default function AanvoerderPage() {
 
         const geplandeAanmeldingen = aanmeldingen.filter((a) => {
             if (!a.gewensteVeilDatum) return false;
-            const d = new Date(a.gewensteVeilDatum);
-            if (Number.isNaN(d.getTime())) return false;
+            const d = parseApiDate(a.gewensteVeilDatum);
+            if (!d) return false;
             d.setHours(0, 0, 0, 0);
             return d >= today;
         }).length;
@@ -210,18 +440,86 @@ export default function AanvoerderPage() {
     const sortedAanmeldingen = useMemo(
         () =>
             [...aanmeldingen].sort((a, b) => {
-                const da = new Date(a.gewensteVeilDatum ?? 0).getTime();
-                const db = new Date(b.gewensteVeilDatum ?? 0).getTime();
+                const da = toTimeMs(a.gewensteVeilDatum ?? 0);
+                const db = toTimeMs(b.gewensteVeilDatum ?? 0);
                 return da - db;
             }),
         [aanmeldingen]
     );
 
+    const filteredAanmeldingen = useMemo(() => {
+        const query = aanmeldingQuery.trim().toLowerCase();
+        const statusFilter = aanmeldingStatusFilter;
+        let list = sortedAanmeldingen.filter((a) => {
+            const status = getAanmeldingStatus(
+                a.gewensteVeilDatum,
+                veilingStatusByAanmeldingId[a.aanmeldingId]
+            );
+            const statusValue = status?.code ?? "ONBEKEND";
+
+            if (statusFilter !== "ALL" && statusValue !== statusFilter) {
+                return false;
+            }
+
+            if (!query) return true;
+
+            const haystack = [
+                a.aanmeldingId,
+                a.productBeschrijving,
+                a.categorie,
+                a.hoeveelheid,
+                a.minimumPrijs,
+                formatDate(a.gewensteVeilDatum),
+                status?.label,
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+            return haystack.includes(query);
+        });
+
+        list = [...list];
+        switch (aanmeldingSort) {
+            case "az":
+                list.sort((a, b) =>
+                    String(a.productBeschrijving ?? "").localeCompare(
+                        String(b.productBeschrijving ?? ""),
+                        "nl-NL"
+                    )
+                );
+                break;
+            case "date-desc":
+                list.sort(
+                    (a, b) =>
+                        toTimeMs(b.gewensteVeilDatum) -
+                        toTimeMs(a.gewensteVeilDatum)
+                );
+                break;
+            case "date-asc":
+            default:
+                list.sort(
+                    (a, b) =>
+                        toTimeMs(a.gewensteVeilDatum) -
+                        toTimeMs(b.gewensteVeilDatum)
+                );
+                break;
+        }
+
+        return list;
+    }, [
+        sortedAanmeldingen,
+        aanmeldingQuery,
+        aanmeldingStatusFilter,
+        aanmeldingSort,
+        veilingStatusByAanmeldingId,
+    ]);
+
     const sortedToewijzingen = useMemo(
         () =>
             [...toewijzingen].sort((a, b) => {
-                const da = new Date(a.datum ?? 0).getTime();
-                const db = new Date(b.datum ?? 0).getTime();
+                const da = toTimeMs(a.datum ?? 0);
+                const db = toTimeMs(b.datum ?? 0);
                 return db - da;
             }),
         [toewijzingen]
@@ -240,9 +538,22 @@ export default function AanvoerderPage() {
             );
             return;
         }
-        if (!form.productBeschrijving.trim()) {
-            setError("Productbeschrijving is verplicht.");
+        if (!String(form.productNaam ?? "").trim()) {
+            setError("Productnaam is verplicht.");
             return;
+        }
+
+        if (form.categorie !== PLANTEN_CATEGORIEEN.overigeLabel) {
+            const chosen = String(form.productNaam ?? "").trim();
+            const ok = beschikbareProductNamen.some(
+                (n) => n.toLowerCase() === chosen.toLowerCase()
+            );
+            if (!ok) {
+                setError(
+                    `Kies een productnaam uit de lijst, of kies categorie ${PLANTEN_CATEGORIEEN.overigeLabel} voor een vrije invoer.`
+                );
+                return;
+            }
         }
         if (!form.veilDatum) {
             setError("Kies een veildatum.");
@@ -252,6 +563,14 @@ export default function AanvoerderPage() {
         // Client-side validatie voor hoeveelheid, prijs en datum
         const qty = Number(form.hoeveelheid);
         const minPrice = Number(form.minimumPrijs);
+        const plantDiameter =
+            String(form.plantDiameterCm ?? "").trim() === ""
+                ? null
+                : Number(form.plantDiameterCm);
+        const plantLengte =
+            String(form.plantLengteCm ?? "").trim() === ""
+                ? null
+                : Number(form.plantLengteCm);
 
         if (!Number.isFinite(qty) || qty <= 0) {
             setError("Hoeveelheid moet groter zijn dan 0.");
@@ -260,6 +579,18 @@ export default function AanvoerderPage() {
 
         if (!Number.isFinite(minPrice) || minPrice < 0) {
             setError("Minimumprijs kan niet negatief zijn.");
+            return;
+        }
+
+        if (
+            plantDiameter !== null &&
+            (!Number.isFinite(plantDiameter) || plantDiameter <= 0)
+        ) {
+            setError("Plant diameter moet groter zijn dan 0.");
+            return;
+        }
+        if (plantLengte !== null && (!Number.isFinite(plantLengte) || plantLengte <= 0)) {
+            setError("Plant lengte moet groter zijn dan 0.");
             return;
         }
 
@@ -291,26 +622,53 @@ export default function AanvoerderPage() {
             return;
         }
 
+        const fotoFile = form.fotoFile;
+        if (fotoFile) {
+            const ext = fotoFile.name
+                ? `.${fotoFile.name.split(".").pop().toLowerCase()}`
+                : "";
+            const isExtAllowed = FOTO_EXTENSIONS.includes(ext);
+            const isTypeAllowed =
+                !fotoFile.type || FOTO_CONTENT_TYPES.includes(fotoFile.type);
+
+            if (!isExtAllowed || !isTypeAllowed) {
+                setError(
+                    `Foto moet een van de volgende formaten zijn: ${FOTO_FORMAT_LABEL}.`
+                );
+                return;
+            }
+        }
+
         try {
             setSaving(true);
             setMsg("Aanmelding opslaan…");
 
             const veilDatumIso = veilDate.toISOString();
 
-            const payload = {
-                fotoUrl: form.fotoUrl.trim() || null,
-                productBeschrijving: form.productBeschrijving.trim(),
-                hoeveelheid: qty,
-                minimumPrijs: minPrice,
-                categorie: form.categorie,
-                gewensteKlokLocatie: form.kloklocatie.trim(),
-                gewensteVeilDatum: veilDatumIso,
-                gebruikerId: gebruikerId,
-            };
+            const productNaam = String(form.productNaam ?? "").trim();
+            const details = String(form.productBeschrijving ?? "").trim();
+            const combinedBeschrijving = details
+                ? `${productNaam} - ${details}`
+                : productNaam;
+
+            const data = new FormData();
+            if (fotoFile) {
+                data.append("foto", fotoFile);
+            }
+            data.append("productBeschrijving", combinedBeschrijving);
+            data.append("hoeveelheid", String(qty));
+            data.append("minimumPrijs", String(minPrice));
+            data.append("categorie", form.categorie);
+            data.append("gewensteKlokLocatie", form.kloklocatie.trim());
+            data.append("gewensteVeilDatum", veilDatumIso);
+            data.append("gebruikerId", String(gebruikerId));
+            if (plantDiameter !== null) data.append("plantDiameterCm", String(plantDiameter));
+            if (plantLengte !== null) data.append("plantLengteCm", String(plantLengte));
+            if (String(form.potMaat ?? "").trim()) data.append("potMaat", String(form.potMaat).trim());
 
             const created = await apiFetch("/Aanmeldingen", {
                 method: "POST",
-                body: JSON.stringify(payload),
+                body: data,
             });
 
             // nieuwe aanmelding bovenaan
@@ -318,18 +676,32 @@ export default function AanvoerderPage() {
 
             // formulier resetten
             setForm({
-                fotoUrl: "",
+                fotoFile: null,
+                productNaam: "",
                 productBeschrijving: "",
                 hoeveelheid: 1,
                 minimumPrijs: 0,
-                categorie: "Snijbloemen",
+                categorie: PLANTEN_CATEGORIEEN.categories[0] ?? PLANTEN_CATEGORIEEN.overigeLabel,
                 kloklocatie: "Naaldwijk",
                 veilDatum: "",
+                plantDiameterCm: "",
+                plantLengteCm: "",
+                potMaat: "",
             });
+            if (fotoInputRef.current) {
+                fotoInputRef.current.value = "";
+            }
 
             setMsg("✅ Aanmelding opgeslagen.");
+            pushMessage(
+                "success",
+                "Aanmelding verstuurd naar de veilingmeester. Je ziet de status bij Mijn aanmeldingen."
+            );
         } catch (err) {
-            setError(err?.message ?? "Opslaan van de aanmelding is mislukt.");
+            const message =
+                err?.message ?? "Opslaan van de aanmelding is mislukt.";
+            setError(message);
+            pushMessage("error", message);
         } finally {
             setSaving(false);
         }
@@ -337,14 +709,21 @@ export default function AanvoerderPage() {
 
     function handleResetForm() {
         setForm({
-            fotoUrl: "",
+            fotoFile: null,
+            productNaam: "",
             productBeschrijving: "",
             hoeveelheid: 1,
             minimumPrijs: 0,
-            categorie: "Snijbloemen",
+            categorie: PLANTEN_CATEGORIEEN.categories[0] ?? PLANTEN_CATEGORIEEN.overigeLabel,
             kloklocatie: "Naaldwijk",
             veilDatum: "",
+            plantDiameterCm: "",
+            plantLengteCm: "",
+            potMaat: "",
         });
+        if (fotoInputRef.current) {
+            fotoInputRef.current.value = "";
+        }
         setError("");
         setMsg("");
     }
@@ -433,20 +812,33 @@ export default function AanvoerderPage() {
                         </p>
                     )}
 
+                    <MessageCenter
+                        title="Berichten"
+                        messages={messages}
+                        onClear={() => setMessages([])}
+                    />
+
                     <form className="aanv-form" onSubmit={handleSubmit} noValidate>
                         <div className="field">
-                            <label htmlFor="foto">Foto-URL (optioneel)</label>
+                            <label htmlFor="foto">
+                                Foto (optioneel: {FOTO_FORMAT_LABEL})
+                            </label>
                             <input
                                 id="foto"
-                                type="url"
-                                placeholder="https://…"
-                                value={form.fotoUrl}
-                                onChange={(e) => updateField("fotoUrl", e.target.value)}
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                                ref={fotoInputRef}
+                                onChange={(e) =>
+                                    updateField(
+                                        "fotoFile",
+                                        e.target.files ? e.target.files[0] : null
+                                    )
+                                }
                             />
                         </div>
 
                         <div className="field">
-                            <label htmlFor="beschrijving">Productbeschrijving</label>
+                            <label htmlFor="beschrijving">Beschrijving (optioneel)</label>
                             <input
                                 id="beschrijving"
                                 type="text"
@@ -454,30 +846,263 @@ export default function AanvoerderPage() {
                                 onChange={(e) =>
                                     updateField("productBeschrijving", e.target.value)
                                 }
-                                required
+                                placeholder="Bijv. orchidee wit, 2 takken, volle knop"
                             />
                             <p className="aanv-help">
-                                Bijvoorbeeld: “Rozen rood 60cm, tros, 10 bossen per fust”.
+                                Bijvoorbeeld: "Orchidee wit, 2 takken, volle knop".
                             </p>
                         </div>
 
                         <div className="field-row">
                             <div className="field">
                                 <label htmlFor="categorie">Categorie</label>
-                                <select
-                                    id="categorie"
-                                    value={form.categorie}
-                                    onChange={(e) => updateField("categorie", e.target.value)}
-                                    required
+                                <div
+                                    className="aanv-autocomplete"
+                                    ref={categorieSuggestRef}
                                 >
-                                    <option value="Snijbloemen">Snijbloemen</option>
-                                    <option value="Kamerplanten">Kamerplanten</option>
-                                    <option value="Tuinplanten">Tuinplanten</option>
-                                    <option value="Boomkwekerij">Boomkwekerij</option>
-                                    <option value="Decoratiegroen">Decoratiegroen</option>
-                                    <option value="Overig">Overig</option>
-                                </select>
+                                    <input
+                                        id="categorie"
+                                        value={categorieInput}
+                                        onChange={(e) => {
+                                            setCategorieInput(e.target.value);
+                                            setShowCategorieSuggest(true);
+                                            setCategorieSuggestIndex(-1);
+                                        }}
+                                        onFocus={() => setShowCategorieSuggest(true)}
+                                        onBlur={() => {
+                                            window.setTimeout(() => {
+                                                setShowCategorieSuggest(false);
+                                                setCategorieSuggestIndex(-1);
+                                                setCategorieInput(form.categorie);
+                                            }, 120);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (!showCategorieSuggest) return;
+                                            const maxIdx = filteredCategorieen.length - 1;
+
+                                            if (e.key === "ArrowDown") {
+                                                e.preventDefault();
+                                                setCategorieSuggestIndex((i) =>
+                                                    maxIdx >= 0 ? Math.min(i + 1, maxIdx) : -1
+                                                );
+                                            } else if (e.key === "ArrowUp") {
+                                                e.preventDefault();
+                                                setCategorieSuggestIndex((i) =>
+                                                    maxIdx >= 0 ? Math.max(i - 1, 0) : -1
+                                                );
+                                            } else if (e.key === "Escape") {
+                                                setShowCategorieSuggest(false);
+                                                setCategorieSuggestIndex(-1);
+                                                setCategorieInput(form.categorie);
+                                            } else if (e.key === "Enter") {
+                                                const picked =
+                                                    categorieSuggestIndex >= 0
+                                                        ? filteredCategorieen[categorieSuggestIndex]
+                                                        : null;
+
+                                                if (picked) {
+                                                    e.preventDefault();
+                                                    updateField("categorie", picked);
+                                                    updateField("productNaam", "");
+                                                    setCategorieInput(picked);
+                                                    setShowCategorieSuggest(false);
+                                                    setCategorieSuggestIndex(-1);
+                                                    setShowProductSuggest(false);
+                                                } else {
+                                                    const exact = filteredCategorieen.find(
+                                                        (c) =>
+                                                            c.toLowerCase() ===
+                                                            String(categorieInput ?? "").trim().toLowerCase()
+                                                    );
+                                                    if (exact) {
+                                                        e.preventDefault();
+                                                        updateField("categorie", exact);
+                                                        updateField("productNaam", "");
+                                                        setCategorieInput(exact);
+                                                        setShowCategorieSuggest(false);
+                                                        setCategorieSuggestIndex(-1);
+                                                        setShowProductSuggest(false);
+                                                    }
+                                                }
+                                            }
+                                        }}
+                                        placeholder="Typ om te zoeken..."
+                                        autoComplete="off"
+                                        required
+                                    />
+                                    {showCategorieSuggest && filteredCategorieen.length > 0 && (
+                                        <div
+                                            className="aanv-autocomplete-list"
+                                            role="listbox"
+                                            aria-label="Categorieen"
+                                        >
+                                            {filteredCategorieen.map((c, idx) => (
+                                                <button
+                                                    key={c}
+                                                    type="button"
+                                                    className={
+                                                        "aanv-autocomplete-item" +
+                                                        (idx === categorieSuggestIndex
+                                                            ? " aanv-autocomplete-item--active"
+                                                            : "")
+                                                    }
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault();
+                                                        updateField("categorie", c);
+                                                        updateField("productNaam", "");
+                                                        setCategorieInput(c);
+                                                        setShowCategorieSuggest(false);
+                                                        setCategorieSuggestIndex(-1);
+                                                        setShowProductSuggest(false);
+                                                    }}
+                                                    onMouseEnter={() =>
+                                                        setCategorieSuggestIndex(idx)
+                                                    }
+                                                >
+                                                    {c}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
+                        </div>
+
+                        <div className="field">
+                            <label htmlFor="productNaam">Productnaam</label>
+                            {form.categorie === PLANTEN_CATEGORIEEN.overigeLabel ? (
+                                <input
+                                    id="productNaam"
+                                    type="text"
+                                    value={form.productNaam}
+                                    onChange={(e) =>
+                                        updateField("productNaam", e.target.value)
+                                    }
+                                    placeholder="Bijv. Roos"
+                                    required
+                                />
+                            ) : (
+                                <div
+                                    className="aanv-autocomplete"
+                                    ref={productSuggestRef}
+                                >
+                                    <input
+                                        id="productNaam"
+                                        value={form.productNaam}
+                                        onChange={(e) => {
+                                            updateField("productNaam", e.target.value);
+                                            setShowProductSuggest(true);
+                                            setProductSuggestIndex(-1);
+                                            setProductSuggestLimit(60);
+                                        }}
+                                        onFocus={() => setShowProductSuggest(true)}
+                                        onKeyDown={(e) => {
+                                            if (!showProductSuggest) return;
+                                            if (e.key === "Escape") {
+                                                setShowProductSuggest(false);
+                                                setProductSuggestIndex(-1);
+                                                return;
+                                            }
+                                            if (e.key === "ArrowDown") {
+                                                e.preventDefault();
+                                                if (
+                                                    productSuggestIndex >=
+                                                        visibleProductNamen.length - 1 &&
+                                                    visibleProductNamen.length <
+                                                        allFilteredProductNamen.length
+                                                ) {
+                                                    setProductSuggestLimit((n) =>
+                                                        Math.min(
+                                                            n + 60,
+                                                            allFilteredProductNamen.length
+                                                        )
+                                                    );
+                                                }
+                                                setProductSuggestIndex((i) =>
+                                                    Math.min(
+                                                        visibleProductNamen.length - 1,
+                                                        i + 1
+                                                    )
+                                                );
+                                                return;
+                                            }
+                                            if (e.key === "ArrowUp") {
+                                                e.preventDefault();
+                                                setProductSuggestIndex((i) =>
+                                                    Math.max(-1, i - 1)
+                                                );
+                                                return;
+                                            }
+                                            if (e.key === "Enter" && productSuggestIndex >= 0) {
+                                                e.preventDefault();
+                                                const chosen =
+                                                    visibleProductNamen[productSuggestIndex];
+                                                if (chosen) {
+                                                    updateField("productNaam", chosen);
+                                                    setShowProductSuggest(false);
+                                                    setProductSuggestIndex(-1);
+                                                }
+                                            }
+                                        }}
+                                        placeholder="Typ om te zoeken..."
+                                        autoComplete="off"
+                                        required
+                                    />
+                                    {showProductSuggest && visibleProductNamen.length > 0 && (
+                                        <div
+                                            className="aanv-autocomplete-list"
+                                            role="listbox"
+                                            aria-label="Productnamen"
+                                            onScroll={(e) => {
+                                                const el = e.currentTarget;
+                                                const nearBottom =
+                                                    el.scrollTop + el.clientHeight >=
+                                                    el.scrollHeight - 40;
+                                                if (
+                                                    nearBottom &&
+                                                    visibleProductNamen.length <
+                                                        allFilteredProductNamen.length
+                                                ) {
+                                                    setProductSuggestLimit((n) =>
+                                                        Math.min(
+                                                            n + 60,
+                                                            allFilteredProductNamen.length
+                                                        )
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            {visibleProductNamen.map((naam, idx) => (
+                                                <button
+                                                    key={naam}
+                                                    type="button"
+                                                    className={
+                                                        "aanv-autocomplete-item" +
+                                                        (idx === productSuggestIndex
+                                                            ? " aanv-autocomplete-item--active"
+                                                            : "")
+                                                    }
+                                                    onMouseEnter={() =>
+                                                        setProductSuggestIndex(idx)
+                                                    }
+                                                    onClick={() => {
+                                                        updateField("productNaam", naam);
+                                                        setShowProductSuggest(false);
+                                                        setProductSuggestIndex(-1);
+                                                    }}
+                                                >
+                                                    {naam}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            <p className="aanv-help">
+                                Zoek door te typen. Staat jouw product er niet bij? Kies dan
+                                categorie{" "}
+                                <strong>{PLANTEN_CATEGORIEEN.overigeLabel}</strong>.
+                            </p>
                         </div>
 
                         <div className="field-row">
@@ -542,8 +1167,111 @@ export default function AanvoerderPage() {
                             </div>
                         </div>
 
+                        <div className="field-row">
+                            <div className="field">
+                                <label htmlFor="plantDiameter">Plant diameter (cm)</label>
+                                <input
+                                    id="plantDiameter"
+                                    type="number"
+                                    min={0}
+                                    step="0.1"
+                                    value={form.plantDiameterCm}
+                                    onChange={(e) =>
+                                        updateField("plantDiameterCm", e.target.value)
+                                    }
+                                />
+                            </div>
+                            <div className="field">
+                                <label htmlFor="plantLengte">Plant lengte (cm)</label>
+                                <input
+                                    id="plantLengte"
+                                    type="number"
+                                    min={0}
+                                    step="0.1"
+                                    value={form.plantLengteCm}
+                                    onChange={(e) =>
+                                        updateField("plantLengteCm", e.target.value)
+                                    }
+                                />
+                            </div>
+                        </div>
+
+                        <div className="field">
+                            <div className="field-labelRow">
+                                <label htmlFor="potMaat">Potmaat</label>
+                                <details className="aanv-tip">
+                                    <summary
+                                        className="aanv-tip__btn"
+                                        aria-label="Toon uitleg potmaten"
+                                        title="Uitleg potmaten"
+                                    >
+                                        ?
+                                    </summary>
+                                    <div className="aanv-tip__panel" role="note">
+                                        <p className="aanv-tip__title">Potmaten (schema)</p>
+                                        <div className="aanv-tip__tableWrap">
+                                            <table className="aanv-tip__table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Potmaat</th>
+                                                        <th>LxBxH (cm)</th>
+                                                        <th>Doorsnee (cm)</th>
+                                                        <th>Volume (L)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {POTMATEN.map((p) => (
+                                                        <tr key={p.code}>
+                                                            <td>{p.code}</td>
+                                                            <td>{p.lxbxh ?? "–"}</td>
+                                                            <td>
+                                                                {p.diameterCm
+                                                                    ? `Ø${p.diameterCm}`
+                                                                    : "–"}
+                                                            </td>
+                                                            <td>
+                                                                {p.volumeL ?? "–"}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <p className="aanv-tip__hint">
+                                            Tip: kies “Geen / onbekend” als je het niet zeker weet.
+                                        </p>
+                                    </div>
+                                </details>
+                            </div>
+                            <select
+                                id="potMaat"
+                                value={form.potMaat}
+                                onChange={(e) => updateField("potMaat", e.target.value)}
+                            >
+                                <option value="">Geen / onbekend</option>
+                                {POTMATEN.map((p) => (
+                                    <option key={p.code} value={p.code}>
+                                        {p.code}
+                                    </option>
+                                ))}
+                            </select>
+                            {getPotmaat(form.potMaat) && (
+                                <p className="aanv-help">
+                                    {(() => {
+                                        const p = getPotmaat(form.potMaat);
+                                        if (!p) return null;
+                                        const parts = [];
+                                        if (p.lxbxh) parts.push(`LxBxH ${p.lxbxh} cm`);
+                                        if (p.diameterCm) parts.push(`Ø${p.diameterCm} cm`);
+                                        if (p.volumeL) parts.push(`${p.volumeL} L`);
+                                        return parts.join(" • ");
+                                    })()}
+                                </p>
+                            )}
+                        </div>
+
                         <p className="aanv-help-inline">
-                            De veiling bepaalt de exacte tijd. Jij kiest de dag en locatie.
+                            De veilingmeester bepaalt de exacte tijd. Jij kiest de dag en locatie.
                         </p>
 
                         <div className="form-actions">
@@ -576,6 +1304,70 @@ export default function AanvoerderPage() {
                             in om een eerste kavel aan te melden.
                         </p>
                     ) : (
+                        <>
+                            <div className="aanv-search">
+                            <label
+                                htmlFor="aanmeldingSearch"
+                                className="aanv-search-label"
+                            >
+                                Zoeken
+                            </label>
+                            <input
+                                id="aanmeldingSearch"
+                                type="search"
+                                className="aanv-search-input"
+                                placeholder="Zoek op product, categorie, datum of ID"
+                                value={aanmeldingQuery}
+                                onChange={(e) => setAanmeldingQuery(e.target.value)}
+                            />
+                            <div className="aanv-filter-row">
+                                <div className="aanv-filter">
+                                    <label
+                                        htmlFor="aanmeldingSort"
+                                        className="aanv-search-label"
+                                    >
+                                        Sorteren
+                                    </label>
+                                    <select
+                                        id="aanmeldingSort"
+                                        className="aanv-search-input"
+                                        value={aanmeldingSort}
+                                        onChange={(e) =>
+                                            setAanmeldingSort(e.target.value)
+                                        }
+                                    >
+                                        <option value="az">A-Z (product)</option>
+                                        <option value="date-asc">
+                                            Veildatum (oudste eerst)
+                                        </option>
+                                        <option value="date-desc">
+                                            Veildatum (nieuwste eerst)
+                                        </option>
+                                    </select>
+                                </div>
+                                <div className="aanv-filter">
+                                    <label
+                                        htmlFor="aanmeldingStatus"
+                                        className="aanv-search-label"
+                                    >
+                                        Status
+                                    </label>
+                                    <select
+                                        id="aanmeldingStatus"
+                                        className="aanv-search-input"
+                                        value={aanmeldingStatusFilter}
+                                        onChange={(e) =>
+                                            setAanmeldingStatusFilter(e.target.value)
+                                        }
+                                    >
+                                        <option value="ALL">Alle statussen</option>
+                                        <option value="GEPLAND">Gepland</option>
+                                        <option value="ACTIEF">Actief</option>
+                                        <option value="VERLOPEN">Verlopen</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
                         <table className="aanv-table">
                             <thead>
                             <tr>
@@ -589,28 +1381,40 @@ export default function AanvoerderPage() {
                             </tr>
                             </thead>
                             <tbody>
-                            {sortedAanmeldingen.map((a) => {
-                                const status = getAanmeldingStatus(a.gewensteVeilDatum);
-                                return (
-                                    <tr key={a.aanmeldingId}>
-                                        <td>{a.aanmeldingId}</td>
-                                        <td>{a.productBeschrijving}</td>
-                                        <td>{a.categorie}</td>
-                                        <td>{a.hoeveelheid}</td>
-                                        <td>€ {formatCurrency(a.minimumPrijs)}</td>
-                                        <td>{formatDate(a.gewensteVeilDatum)}</td>
-                                        <td>
-                        <span
-                            className={`aanv-status-pill ${status.className}`}
-                        >
-                          {status.label}
-                        </span>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
+                            {filteredAanmeldingen.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="aanv-empty-cell">
+                                        Geen resultaten voor deze zoekterm.
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredAanmeldingen.map((a) => {
+                                    const status = getAanmeldingStatus(
+                                        a.gewensteVeilDatum,
+                                        veilingStatusByAanmeldingId[a.aanmeldingId]
+                                    );
+                                    return (
+                                        <tr key={a.aanmeldingId}>
+                                            <td>{a.aanmeldingId}</td>
+                                            <td>{a.productBeschrijving}</td>
+                                            <td>{a.categorie}</td>
+                                            <td>{a.hoeveelheid}</td>
+                                            <td>€ {formatCurrency(a.minimumPrijs)}</td>
+                                            <td>{formatDate(a.gewensteVeilDatum)}</td>
+                                            <td>
+                                                <span
+                                                    className={`aanv-status-pill ${status.className}`}
+                                                >
+                                                    {status.label}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
                             </tbody>
                         </table>
+                        </>
                     )}
                 </section>
 
@@ -652,3 +1456,5 @@ export default function AanvoerderPage() {
         </div>
     );
 }
+
+

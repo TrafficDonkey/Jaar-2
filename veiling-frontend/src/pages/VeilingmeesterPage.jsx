@@ -1,4 +1,4 @@
-// src/pages/VeilingmeesterPage.jsx
+﻿// src/pages/VeilingmeesterPage.jsx
 // Veilingmeester-dashboard met tabs:
 // - Nieuwe veiling: aanmeldingen → veiling starten
 // - Actieve veilingen: alle veilingen met Status = "Actief" + live timer
@@ -8,31 +8,252 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./VeilingmeesterPageStyle.css";
 import apiFetch from "../api";
-
-function formatDateTime(iso) {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  return new Intl.DateTimeFormat("nl-NL", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(d);
-}
-
-function formatDate(iso) {
-  if (!iso) return "-";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "-";
-  return new Intl.DateTimeFormat("nl-NL", { dateStyle: "medium" }).format(d);
-}
+import MessageCenter from "../components/MessageCenter";
+import {
+  formatDate,
+  formatDateTime,
+  parseApiDate,
+  toTimeMs,
+} from "../utils/date";
 
 function formatCurrency(value) {
   const nr = Number(value);
-  if (Number.isNaN(nr)) return "-";
+  if (!Number.isFinite(nr)) return "-";
   return nr.toLocaleString("nl-NL", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    style: "currency",
+    currency: "EUR",
   });
+}
+
+function getVeilingId(veiling) {
+  return veiling?.veilingId ?? veiling?.VeilingId ?? veiling?.id;
+}
+
+function getVeilingProductIds(veiling) {
+  const producten =
+    veiling?.veilingProducten ?? veiling?.VeilingProducten ?? [];
+  if (!Array.isArray(producten)) return [];
+  return producten
+    .map((p) => p?.veilingProductId ?? p?.VeilingProductId ?? p?.id)
+    .filter((id) => Number.isFinite(Number(id)))
+    .map((id) => Number(id));
+}
+
+function buildVeilingDetails({ veiling, aanmelding, startTijd }) {
+  const veilingId = veiling?.veilingId ?? veiling?.VeilingId;
+  const veilingNaam = veiling?.naam ?? veiling?.Naam ?? "";
+  const producten =
+    veiling?.veilingProducten ?? veiling?.VeilingProducten ?? [];
+  const eersteProduct =
+    Array.isArray(producten) && producten.length > 0 ? producten[0] : null;
+  const aanmeldingId =
+    aanmelding?.aanmeldingId ??
+    eersteProduct?.aanmeldingId ??
+    eersteProduct?.AanmeldingId;
+  const productBeschrijving =
+    aanmelding?.productBeschrijving ??
+    eersteProduct?.productBeschrijving ??
+    eersteProduct?.ProductBeschrijving ??
+    "";
+  const kloklocatie =
+    aanmelding?.gewensteKlokLocatie ??
+    aanmelding?.kloklocatie ??
+    eersteProduct?.kloklocatie ??
+    eersteProduct?.Kloklocatie ??
+    "";
+  const startLabel = formatDateTime(
+    veiling?.startTijd ?? veiling?.StartTijd ?? startTijd
+  );
+
+  const details = [
+    veilingId ? { label: "Veiling ID", value: `#${veilingId}` } : null,
+    veilingNaam ? { label: "Veilingnaam", value: veilingNaam } : null,
+    aanmeldingId ? { label: "Aanmelding ID", value: `#${aanmeldingId}` } : null,
+    productBeschrijving
+      ? { label: "Product", value: productBeschrijving }
+      : null,
+    kloklocatie ? { label: "Kloklocatie", value: kloklocatie } : null,
+    startLabel && startLabel !== "-"
+      ? { label: "Starttijd", value: startLabel }
+      : null,
+  ].filter(Boolean);
+
+  return details;
+}
+
+function normalizeToewijzing(raw) {
+  const veilingProductId = Number(
+    raw?.veilingProductId ?? raw?.VeilingProductId
+  );
+  const koperId = Number(raw?.koperId ?? raw?.KoperId);
+  const aantal = Number(raw?.aantal ?? raw?.Aantal);
+  const eindPrijs = Number(raw?.eindPrijs ?? raw?.EindPrijs);
+
+  if (!Number.isFinite(veilingProductId) || veilingProductId <= 0) return null;
+  if (!Number.isFinite(koperId) || koperId <= 0) return null;
+  if (!Number.isFinite(aantal) || aantal <= 0) return null;
+  if (!Number.isFinite(eindPrijs) || eindPrijs < 0) return null;
+
+  return {
+    veilingProductId,
+    koperId,
+    koperNaam: raw?.koperNaam ?? raw?.KoperNaam ?? "",
+    aantal,
+    eindPrijs,
+    productBeschrijving:
+      raw?.productBeschrijving ?? raw?.ProductBeschrijving ?? "",
+    categorie: raw?.categorie ?? raw?.Categorie ?? "",
+  };
+}
+
+function buildSummaryFromToewijzingen(toewijzingen) {
+  const koperMap = new Map();
+  let totaleHoeveelheid = 0;
+  let totaleOpbrengst = 0;
+
+  for (const item of toewijzingen) {
+    const t = normalizeToewijzing(item);
+    if (!t) continue;
+
+    const lineAmount = t.aantal * t.eindPrijs;
+    totaleHoeveelheid += t.aantal;
+    totaleOpbrengst += lineAmount;
+
+    const existing = koperMap.get(t.koperId) ?? {
+      koperId: t.koperId,
+      koperNaam: t.koperNaam,
+      hoeveelheid: 0,
+      totaalBedrag: 0,
+      _prijsRegels: new Map(),
+    };
+
+    existing.hoeveelheid += t.aantal;
+    existing.totaalBedrag += lineAmount;
+
+    const regelKey = `${t.productBeschrijving}@@${t.eindPrijs}`;
+    const regel = existing._prijsRegels.get(regelKey) ?? {
+      prijsPerStuk: t.eindPrijs,
+      hoeveelheid: 0,
+      totaalBedrag: 0,
+      productBeschrijving: t.productBeschrijving,
+    };
+
+    regel.hoeveelheid += t.aantal;
+    regel.totaalBedrag += lineAmount;
+    existing._prijsRegels.set(regelKey, regel);
+
+    koperMap.set(t.koperId, existing);
+  }
+
+  const koperSamenvattingen = [...koperMap.values()]
+    .map((k) => ({
+      koperId: k.koperId,
+      koperNaam: k.koperNaam,
+      hoeveelheid: k.hoeveelheid,
+      totaalBedrag: k.totaalBedrag,
+      prijsRegels: [...k._prijsRegels.values()].sort(
+        (a, b) => Number(b.prijsPerStuk) - Number(a.prijsPerStuk)
+      ),
+    }))
+    .sort((a, b) => Number(b.totaalBedrag) - Number(a.totaalBedrag));
+
+  return {
+    kopersCount: koperSamenvattingen.length,
+    totaleHoeveelheid,
+    totaleOpbrengst,
+    koperSamenvattingen,
+  };
+}
+
+function getBackendKopers(veiling) {
+  const kopers =
+    veiling?.koperSamenvattingen ?? veiling?.KoperSamenvattingen;
+  return Array.isArray(kopers) ? kopers : [];
+}
+
+function getKopersSearchText(veiling, summary) {
+  const kopers =
+    summary?.koperSamenvattingen?.length > 0
+      ? summary.koperSamenvattingen
+      : getBackendKopers(veiling);
+
+  if (!Array.isArray(kopers) || kopers.length === 0) {
+    return String(veiling?.winnaarNaam ?? veiling?.koperNaam ?? "");
+  }
+
+  return kopers
+    .map((k) => {
+      const koperId = k.koperId ?? k.KoperId ?? "";
+      const koperNaam = k.koperNaam ?? k.KoperNaam ?? "";
+      return `#${koperId} ${koperNaam}`.trim();
+    })
+    .join(" ");
+}
+
+function _renderKopersCell(veiling) {
+  const kopers =
+    veiling?.koperSamenvattingen ?? veiling?.KoperSamenvattingen;
+  if (!Array.isArray(kopers) || kopers.length === 0) {
+    return veiling?.winnaarNaam ?? veiling?.koperNaam ?? "-";
+  }
+
+  const summary = kopers
+    .map((k) => `#${k.koperId} (x${k.hoeveelheid ?? 0})`)
+    .join(", ");
+
+  return (
+    <details className="vm-winners">
+      <summary>{summary}</summary>
+      <div className="vm-winners-body">
+        {kopers.map((k) => {
+          const regels = Array.isArray(k.prijsRegels) ? k.prijsRegels : [];
+          return (
+            <div key={k.koperId} className="vm-winner">
+              <div className="vm-winner-head">
+                <div className="vm-winner-block">
+                  <span className="vm-winner-label">Koper</span>
+                  <span className="vm-winner-value">
+                    #{k.koperId}
+                    {k.koperNaam ? ` - ${k.koperNaam}` : ""}
+                  </span>
+                </div>
+                <div className="vm-winner-block">
+                  <span className="vm-winner-label">Gekochte stuks</span>
+                  <span className="vm-winner-value">
+                    {k.hoeveelheid ?? 0}
+                  </span>
+                </div>
+                <div className="vm-winner-block vm-winner-block--total">
+                  <span className="vm-winner-label">Totaal</span>
+                  <span className="vm-winner-value">
+                    {formatCurrency(k.totaalBedrag ?? 0)}
+                  </span>
+                </div>
+              </div>
+              {regels.length > 0 && (
+                <div className="vm-winner-lines">
+                  {regels.map((r) => (
+                    <div
+                      key={`${k.koperId}-${r.prijsPerStuk}`}
+                      className="vm-winner-line"
+                    >
+                      <span>
+                        Prijs/stuk: {formatCurrency(r.prijsPerStuk ?? 0)}
+                      </span>
+                      <span>Stuks: {r.hoeveelheid ?? 0}</span>
+                      <span>
+                        Totaal: {formatCurrency(r.totaalBedrag ?? 0)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </details>
+  );
 }
 
 // Timer-info: vaste duur = 60 seconden vanaf startTijd,
@@ -42,18 +263,26 @@ function getTimerInfo(veiling, nowMs) {
     return { progress: 0, remainingLabel: "Nog niet gestart" };
   }
 
-  const start = new Date(veiling.startTijd);
-  if (Number.isNaN(start.getTime())) {
+  const start = parseApiDate(veiling.startTijd);
+  if (!start) {
     return { progress: 0, remainingLabel: "Onbekende starttijd" };
   }
 
   const startMs = start.getTime();
   const endMs = veiling.eindTijd
-    ? new Date(veiling.eindTijd).getTime()
+    ? toTimeMs(veiling.eindTijd)
     : startMs + 60 * 1000;
 
   if (!Number.isFinite(endMs) || endMs <= startMs) {
     return { progress: 0, remainingLabel: "Onbekende looptijd" };
+  }
+
+  if (nowMs < startMs) {
+    const seconds = Math.ceil((startMs - nowMs) / 1000);
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    const countdown = m > 0 ? `${m}m ${s}s` : `${s}s`;
+    return { progress: 0, remainingLabel: `Start over ${countdown}` };
   }
 
   const total = endMs - startMs;
@@ -83,14 +312,21 @@ export default function VeilingmeesterPage() {
 
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
+  const [messages, setMessages] = useState([]);
 
   const [openAanmeldingen, setOpenAanmeldingen] = useState([]);
   const [actieveVeilingen, setActieveVeilingen] = useState([]); // eigen vorm
   const [archiefVeilingen, setArchiefVeilingen] = useState([]); // VeilingDto's uit backend
+  const [archiefToewijzingen, setArchiefToewijzingen] = useState([]);
+  const [loadingToewijzingen, setLoadingToewijzingen] = useState(false);
+
+  const [detailVeiling, setDetailVeiling] = useState(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   // Form voor nieuwe veiling
   const [selectedAanmeldingId, setSelectedAanmeldingId] = useState("");
   const [titel, setTitel] = useState("");
+  const [startTime, setStartTime] = useState(""); // "HH:MM" (lokaal)
 
   // Zoeken & sorteren
   const [activeSearch, setActiveSearch] = useState("");
@@ -109,9 +345,92 @@ export default function VeilingmeesterPage() {
     return () => clearInterval(id);
   }, []);
 
+  function pushMessage(type, text, details) {
+    const time = new Date().toLocaleTimeString("nl-NL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const cleanDetails =
+      Array.isArray(details) && details.length > 0 ? details : null;
+    if (typeof window !== "undefined") {
+      const payload = { count: 1, text, type, time };
+      if (cleanDetails) payload.details = cleanDetails;
+      window.dispatchEvent(
+        new CustomEvent("floraflow:notify", {
+          detail: payload,
+        })
+      );
+    }
+    setMessages((prev) => {
+      const next = [
+        {
+          id: `${Date.now()}-${Math.random()}`,
+          type,
+          text,
+          time,
+          ...(cleanDetails ? { details: cleanDetails } : {}),
+        },
+        ...prev,
+      ];
+      return next.slice(0, 6);
+    });
+  }
+
+  useEffect(() => {
+    if (!detailOpen) return;
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setDetailOpen(false);
+        setDetailVeiling(null);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [detailOpen]);
+
   useEffect(() => {
     loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "archief") return;
+    let cancelled = false;
+
+    const refresh = async () => {
+      try {
+        const [archiefRes, toewijzingRes] = await Promise.allSettled([
+          apiFetch("/Veilingen/archief"),
+          apiFetch("/Toewijzingen"),
+        ]);
+
+        if (cancelled) return;
+
+        if (archiefRes.status === "fulfilled") {
+          setArchiefVeilingen(
+            Array.isArray(archiefRes.value) ? archiefRes.value : []
+          );
+        }
+
+        if (toewijzingRes.status === "fulfilled") {
+          setArchiefToewijzingen(
+            Array.isArray(toewijzingRes.value) ? toewijzingRes.value : []
+          );
+        }
+      } catch {
+        // stil falen; we proberen het later opnieuw
+      }
+    };
+
+    refresh();
+    const id = setInterval(refresh, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [activeTab]);
 
   async function loadAll() {
     setLoading(true);
@@ -122,6 +441,7 @@ export default function VeilingmeesterPage() {
         loadOpenAanmeldingen(),
         loadActieveVeilingen(),
         loadArchief(),
+        loadToewijzingen(),
       ]);
     } finally {
       setLoading(false);
@@ -134,10 +454,11 @@ export default function VeilingmeesterPage() {
       const open = await apiFetch("/Aanmeldingen/open");
       setOpenAanmeldingen(Array.isArray(open) ? open : []);
     } catch (err) {
-      setError(
+      const message =
         (err?.message ?? "Fout bij ophalen van open aanmeldingen.") +
-          " (Aanmeldingen/open)"
-      );
+        " (Aanmeldingen/open)";
+      setError(message);
+      pushMessage("error", message);
     }
   }
 
@@ -150,12 +471,18 @@ export default function VeilingmeesterPage() {
       const lijst = Array.isArray(alle) ? alle : [];
 
       // Filter status "Actief"
-      const actief = lijst.filter(
+      let actief = lijst.filter(
         (v) =>
           v.status &&
           typeof v.status === "string" &&
           v.status.toLowerCase() === "actief"
       );
+
+      const now = Date.now();
+      actief = actief.filter((v) => {
+        const endMs = toTimeMs(v.eindTijd);
+        return !Number.isFinite(endMs) || endMs >= now;
+      });
 
       // Map naar vereenvoudigd object met 1 "huidigProduct"
       const mapped = actief.map((v) => {
@@ -208,18 +535,93 @@ export default function VeilingmeesterPage() {
     }
   }
 
+  async function loadToewijzingen() {
+    setLoadingToewijzingen(true);
+    try {
+      const res = await apiFetch("/Toewijzingen");
+      setArchiefToewijzingen(Array.isArray(res) ? res : []);
+    } catch (err) {
+      setArchiefToewijzingen([]);
+
+      const message = err?.message ?? "";
+      if (message && !message.includes("404")) {
+        setError(message);
+      }
+    } finally {
+      setLoadingToewijzingen(false);
+    }
+  }
+
+  const archiefSummaryByVeilingId = useMemo(() => {
+    const byProductId = new Map();
+    const toewijzingen = Array.isArray(archiefToewijzingen)
+      ? archiefToewijzingen
+      : [];
+
+    for (const raw of toewijzingen) {
+      const t = normalizeToewijzing(raw);
+      if (!t) continue;
+      const existing = byProductId.get(t.veilingProductId) ?? [];
+      existing.push(t);
+      byProductId.set(t.veilingProductId, existing);
+    }
+
+    const map = new Map();
+    for (const veiling of archiefVeilingen) {
+      const veilingId = Number(getVeilingId(veiling));
+      if (!Number.isFinite(veilingId)) continue;
+
+      const productIds = getVeilingProductIds(veiling);
+      const sales = [];
+      for (const pid of productIds) {
+        const items = byProductId.get(pid);
+        if (items?.length) sales.push(...items);
+      }
+
+      const backendKopers = getBackendKopers(veiling);
+      const backendSummary = {
+        kopersCount: backendKopers.length,
+        totaleHoeveelheid:
+          veiling?.totaleHoeveelheid ??
+          veiling?.TotaleHoeveelheid ??
+          veiling?.hoeveelheid,
+        totaleOpbrengst:
+          veiling?.totaleOpbrengst ??
+          veiling?.TotaleOpbrengst ??
+          veiling?.eindPrijs ??
+          veiling?.eindBedrag,
+        koperSamenvattingen: backendKopers,
+      };
+
+      const computedSummary =
+        sales.length > 0 ? buildSummaryFromToewijzingen(sales) : null;
+
+      map.set(veilingId, computedSummary ?? backendSummary);
+    }
+
+    return map;
+  }, [archiefVeilingen, archiefToewijzingen]);
+
   // Kleine samenvatting voor tab "Overzicht"
   const stats = useMemo(() => {
     const totaalActief = actieveVeilingen.length;
     const totaalArchief = archiefVeilingen.length;
 
     const totaalOpbrengst = archiefVeilingen.reduce((sum, v) => {
-      const nr = Number(v.totaleOpbrengst ?? v.eindPrijs ?? v.eindBedrag);
+      const summary = archiefSummaryByVeilingId.get(
+        Number(getVeilingId(v))
+      );
+      const nr = Number(
+        summary?.totaleOpbrengst ??
+          v.totaleOpbrengst ??
+          v.eindPrijs ??
+          v.eindBedrag
+      );
       return sum + (Number.isNaN(nr) ? 0 : nr);
     }, 0);
 
     return { totaalActief, totaalArchief, totaalOpbrengst };
-  }, [actieveVeilingen, archiefVeilingen]);
+  }, [actieveVeilingen, archiefVeilingen, archiefSummaryByVeilingId]);
 
   // Gefilterde & gesorteerde lijsten (actief)
   const gefilterdeActieve = useMemo(() => {
@@ -240,8 +642,7 @@ export default function VeilingmeesterPage() {
       case "start-asc":
         list.sort(
           (a, b) =>
-            new Date(a.startTijd).getTime() -
-            new Date(b.startTijd).getTime()
+            toTimeMs(a.startTijd) - toTimeMs(b.startTijd)
         );
         break;
       case "naam":
@@ -251,8 +652,7 @@ export default function VeilingmeesterPage() {
       default:
         list.sort(
           (a, b) =>
-            new Date(b.startTijd).getTime() -
-            new Date(a.startTijd).getTime()
+            toTimeMs(b.startTijd) - toTimeMs(a.startTijd)
         );
         break;
     }
@@ -268,19 +668,36 @@ export default function VeilingmeesterPage() {
       const q = archiveSearch.trim().toLowerCase();
       list = list.filter((v) => {
         const naam = (v.naam ?? "").toLowerCase();
-        const winnaar = (v.winnaarNaam ?? v.koperNaam ?? "").toLowerCase();
-        return naam.includes(q) || winnaar.includes(q);
+        const summary = archiefSummaryByVeilingId.get(
+          Number(getVeilingId(v))
+        );
+        const kopers = getKopersSearchText(v, summary).toLowerCase();
+        return naam.includes(q) || kopers.includes(q);
       });
     }
 
     list.sort((a, b) => {
-      const dateA = new Date(a.eindTijd ?? a.datum ?? 0).getTime();
-      const dateB = new Date(b.eindTijd ?? b.datum ?? 0).getTime();
+      const dateA = toTimeMs(a.eindTijd ?? a.datum ?? 0);
+      const dateB = toTimeMs(b.eindTijd ?? b.datum ?? 0);
+      const summaryA = archiefSummaryByVeilingId.get(
+        Number(getVeilingId(a))
+      );
+      const summaryB = archiefSummaryByVeilingId.get(
+        Number(getVeilingId(b))
+      );
       const amountA = Number(
-        a.totaleOpbrengst ?? a.eindPrijs ?? a.eindBedrag ?? 0
+        summaryA?.totaleOpbrengst ??
+          a.totaleOpbrengst ??
+          a.eindPrijs ??
+          a.eindBedrag ??
+          0
       );
       const amountB = Number(
-        b.totaleOpbrengst ?? b.eindPrijs ?? b.eindBedrag ?? 0
+        summaryB?.totaleOpbrengst ??
+          b.totaleOpbrengst ??
+          b.eindPrijs ??
+          b.eindBedrag ??
+          0
       );
 
       switch (archiveSort) {
@@ -297,7 +714,32 @@ export default function VeilingmeesterPage() {
     });
 
     return list;
-  }, [archiefVeilingen, archiveSearch, archiveSort]);
+  }, [archiefVeilingen, archiveSearch, archiveSort, archiefSummaryByVeilingId]);
+
+  const detailSummary = useMemo(() => {
+    if (!detailVeiling) return null;
+
+    const productIds = getVeilingProductIds(detailVeiling);
+    if (productIds.length === 0) {
+      return (
+        archiefSummaryByVeilingId.get(Number(getVeilingId(detailVeiling))) ??
+        null
+      );
+    }
+
+    const toewijzingen = Array.isArray(archiefToewijzingen)
+      ? archiefToewijzingen
+      : [];
+
+    const sales = [];
+    for (const raw of toewijzingen) {
+      const t = normalizeToewijzing(raw);
+      if (!t) continue;
+      if (productIds.includes(t.veilingProductId)) sales.push(t);
+    }
+
+    return sales.length > 0 ? buildSummaryFromToewijzingen(sales) : null;
+  }, [detailVeiling, archiefToewijzingen, archiefSummaryByVeilingId]);
 
   // Nieuwe veiling starten (vanuit een aanmelding)
   async function handleStartVeiling(e) {
@@ -319,27 +761,105 @@ export default function VeilingmeesterPage() {
         (a) => a.aanmeldingId === Number(selectedAanmeldingId)
       );
 
+      if (!chosen) {
+        setError("Kon de gekozen aanmelding niet vinden. Probeer opnieuw.");
+        return;
+      }
+
+      let startTijd = undefined;
+      const timeValue = startTime.trim();
+      if (timeValue) {
+        const [hhRaw, mmRaw] = timeValue.split(":");
+        const hh = Number(hhRaw);
+        const mm = Number(mmRaw);
+
+        if (!Number.isInteger(hh) || !Number.isInteger(mm)) {
+          setError("Ongeldige starttijd. Gebruik bijvoorbeeld 16:00.");
+          return;
+        }
+
+        const baseDate = chosen?.gewensteVeilDatum
+          ? parseApiDate(chosen.gewensteVeilDatum)
+          : new Date();
+
+        if (!baseDate) {
+          setError("Kon veildatum niet bepalen voor deze aanmelding.");
+          return;
+        }
+
+        const localStart = new Date(
+          baseDate.getFullYear(),
+          baseDate.getMonth(),
+          baseDate.getDate(),
+          hh,
+          mm,
+          0,
+          0
+        );
+
+        if (Number.isNaN(localStart.getTime())) {
+          setError("Ongeldige starttijd.");
+          return;
+        }
+
+        if (localStart.getTime() < Date.now()) {
+          setError(
+            `Starttijd ligt in het verleden (${formatDateTime(
+              localStart.toISOString()
+            )}).`
+          );
+          return;
+        }
+
+        startTijd = localStart.toISOString();
+      }
+
       const payload = {
         // PAS AAN ALS JOUW StartVeilingDto ANDERE VELDEN HEEFT
         naam:
           trimmedTitel ||
           chosen?.productBeschrijving ||
           `Veiling #${selectedAanmeldingId}`,
+        startTijd,
         aanmeldingId: Number(selectedAanmeldingId),
       };
 
-      await apiFetch("/Veilingen/start", {
+      const created = await apiFetch("/Veilingen/start", {
         method: "POST",
         body: JSON.stringify(payload),
       });
+      const details = buildVeilingDetails({
+        veiling: created,
+        aanmelding: chosen,
+        startTijd,
+      });
+
+      if (startTijd) {
+        setMsg(`Veiling ingepland voor ${formatDateTime(startTijd)}.`);
+        pushMessage(
+          "success",
+          `Veiling ingepland voor ${formatDateTime(startTijd)}.`,
+          details
+        );
+        setSelectedAanmeldingId("");
+        setTitel("");
+        setStartTime("");
+
+        await Promise.all([loadOpenAanmeldingen(), loadActieveVeilingen()]);
+        return;
+      }
 
       setMsg("✅ Veiling gestart.");
+      pushMessage("success", "Veiling gestart.", details);
       setSelectedAanmeldingId("");
       setTitel("");
+      setStartTime("");
 
       await Promise.all([loadOpenAanmeldingen(), loadActieveVeilingen()]);
     } catch (err) {
-      setError(err?.message ?? "Kon veiling niet starten.");
+      const message = err?.message ?? "Kon veiling niet starten.";
+      setError(message);
+      pushMessage("error", message);
     } finally {
       setSaving(false);
     }
@@ -357,9 +877,34 @@ export default function VeilingmeesterPage() {
       });
 
       setMsg(`Veiling #${veilingId} is gestopt.`);
+      pushMessage("success", `Veiling #${veilingId} is gestopt.`);
       await Promise.all([loadActieveVeilingen(), loadArchief()]);
     } catch (err) {
-      setError(err?.message ?? "Kon veiling niet stoppen.");
+      const message = err?.message ?? "Kon veiling niet stoppen.";
+      setError(message);
+      pushMessage("error", message);
+    }
+  }
+
+  function closeDetail() {
+    setDetailOpen(false);
+    setDetailVeiling(null);
+  }
+
+  async function openDetail(veiling) {
+    setDetailVeiling(veiling);
+    setDetailOpen(true);
+
+    const id = Number(getVeilingId(veiling));
+    if (!Number.isFinite(id) || getVeilingProductIds(veiling).length > 0) {
+      return;
+    }
+
+    try {
+      const full = await apiFetch(`/Veilingen/${id}`);
+      setDetailVeiling(full ?? veiling);
+    } catch {
+      // stil falen; we tonen de info die we al hebben
     }
   }
 
@@ -387,6 +932,12 @@ export default function VeilingmeesterPage() {
               {msg}
             </p>
           )}
+
+          <MessageCenter
+            title="Berichten"
+            messages={messages}
+            onClear={() => setMessages([])}
+          />
 
           {/* Tabs in volgorde: Nieuwe → Actief → Archief → Overzicht */}
           <nav className="vm-tabs" aria-label="Veilingweergave">
@@ -458,6 +1009,24 @@ export default function VeilingmeesterPage() {
                       </div>
 
                       <div className="field">
+                        <label htmlFor="starttijd">
+                          Starttijd (optioneel)
+                        </label>
+                        <input
+                          id="starttijd"
+                          type="time"
+                          step="60"
+                          value={startTime}
+                          onChange={(e) => setStartTime(e.target.value)}
+                          placeholder="16:00"
+                        />
+                        <p className="vm-muted">
+                          Als je een starttijd invult, is de veiling zichtbaar
+                          voor kopers maar niet live tot dat moment.
+                        </p>
+                      </div>
+
+                      <div className="field">
                         <label htmlFor="aanmelding">Te veilen product</label>
                         <select
                           id="aanmelding"
@@ -473,7 +1042,7 @@ export default function VeilingmeesterPage() {
                               value={a.aanmeldingId}
                             >
                               #{a.aanmeldingId} · {a.productBeschrijving} · min
-                              € {formatCurrency(a.minimumPrijs)}
+                              {formatCurrency(a.minimumPrijs)}
                             </option>
                           ))}
                         </select>
@@ -496,40 +1065,55 @@ export default function VeilingmeesterPage() {
                       </div>
                     </form>
                   </section>
-
-                  {/* Rechter kolom: open aanmeldingen */}
-                  <section className="vm-block">
-                    <h2>Openstaande aanmeldingen</h2>
-                    {openAanmeldingen.length === 0 ? (
-                      <p className="vm-muted">
-                        Er zijn geen openstaande aanmeldingen.
-                      </p>
-                    ) : (
-                      <div className="vm-table-wrap vm-table-wrap--small">
-                        <table className="vm-table">
-                          <thead>
-                            <tr>
-                              <th>ID</th>
-                              <th>Product</th>
-                              <th>Min. prijs</th>
-                              <th>Veildatum</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {openAanmeldingen.map((a) => (
-                              <tr key={a.aanmeldingId}>
-                                <td>{a.aanmeldingId}</td>
-                                <td>{a.productBeschrijving}</td>
-                                <td>€ {formatCurrency(a.minimumPrijs)}</td>
-                                <td>{formatDate(a.gewensteVeilDatum)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </section>
                 </div>
+
+                <section className="vm-block vm-block--stacked">
+                  <details className="vm-disclosure">
+                    <summary>
+                      <span className="vm-disclosure-main">
+                        <span className="vm-disclosure-title">
+                          Openstaande aanmeldingen
+                        </span>
+                        <span className="vm-disclosure-count">
+                          ({openAanmeldingen.length})
+                        </span>
+                      </span>
+                      <span className="vm-disclosure-hint">
+                        Klik om te openen
+                      </span>
+                    </summary>
+                    <div className="vm-disclosure-body">
+                      {openAanmeldingen.length === 0 ? (
+                        <p className="vm-muted">
+                          Er zijn geen openstaande aanmeldingen.
+                        </p>
+                      ) : (
+                        <div className="vm-table-wrap vm-table-wrap--small">
+                          <table className="vm-table">
+                            <thead>
+                              <tr>
+                                <th>ID</th>
+                                <th>Product</th>
+                                <th>Min. prijs</th>
+                                <th>Veildatum</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {openAanmeldingen.map((a) => (
+                                <tr key={a.aanmeldingId}>
+                                  <td>{a.aanmeldingId}</td>
+                                  <td>{a.productBeschrijving}</td>
+                                  <td>{formatCurrency(a.minimumPrijs)}</td>
+                                  <td>{formatDate(a.gewensteVeilDatum)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                </section>
               </section>
             )}
 
@@ -544,36 +1128,17 @@ export default function VeilingmeesterPage() {
                   </p>
                 ) : (
                   <>
-                    <div
-                      style={{
-                        marginBottom: "0.75rem",
-                        display: "flex",
-                        gap: "0.5rem",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                      }}
-                    >
+                    <div className="vm-filter-row">
                       <input
                         placeholder="Zoek op naam of product…"
                         value={activeSearch}
                         onChange={(e) => setActiveSearch(e.target.value)}
-                        style={{
-                          flex: "1 1 200px",
-                          minWidth: "0",
-                          borderRadius: "0.75rem",
-                          border: "1px solid var(--color-border)",
-                          padding: "0.4rem 0.6rem",
-                        }}
+                        className="vm-filter-input"
                       />
                       <select
                         value={activeSort}
                         onChange={(e) => setActiveSort(e.target.value)}
-                        style={{
-                          flex: "0 0 180px",
-                          borderRadius: "0.75rem",
-                          border: "1px solid var(--color-border)",
-                          padding: "0.4rem 0.6rem",
-                        }}
+                        className="vm-filter-select"
                       >
                         <option value="start-desc">Nieuwste eerst</option>
                         <option value="start-asc">Oudste eerst</option>
@@ -621,8 +1186,7 @@ export default function VeilingmeesterPage() {
                                   {p.productBeschrijving}
                                 </h3>
                                 <p className="vm-product-meta">
-                                  Min. prijs: €{" "}
-                                  {formatCurrency(p.minimumPrijs ?? 0)}
+                                  Min. prijs: {formatCurrency(p.minimumPrijs ?? 0)}
                                   {typeof p.hoeveelheid !== "undefined" && (
                                     <>
                                       {" · "}Hoeveelheid: {p.hoeveelheid}
@@ -638,7 +1202,7 @@ export default function VeilingmeesterPage() {
                                 <div
                                   className="vm-timer-bar-fill"
                                   style={{
-                                    width: `${Math.min(
+                                    "--vm-timer-progress": `${Math.min(
                                       100,
                                       Math.max(0, timer.progress * 100)
                                     ).toFixed(1)}%`,
@@ -671,7 +1235,7 @@ export default function VeilingmeesterPage() {
             {/* Archief tab */}
             {activeTab === "archief" && (
               <section aria-label="Archief van veilingen">
-                {loading || loadingArchive ? (
+                {loading || loadingArchive || loadingToewijzingen ? (
                   <p>Gegevens laden…</p>
                 ) : gefilterdeArchief.length === 0 ? (
                   <p className="vm-muted">
@@ -679,36 +1243,17 @@ export default function VeilingmeesterPage() {
                   </p>
                 ) : (
                   <>
-                    <div
-                      style={{
-                        marginBottom: "0.75rem",
-                        display: "flex",
-                        gap: "0.5rem",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                      }}
-                    >
+                    <div className="vm-filter-row">
                       <input
                         placeholder="Zoek op naam of winnaar…"
                         value={archiveSearch}
                         onChange={(e) => setArchiveSearch(e.target.value)}
-                        style={{
-                          flex: "1 1 200px",
-                          minWidth: "0",
-                          borderRadius: "0.75rem",
-                          border: "1px solid var(--color-border)",
-                          padding: "0.4rem 0.6rem",
-                        }}
+                        className="vm-filter-input"
                       />
                       <select
                         value={archiveSort}
                         onChange={(e) => setArchiveSort(e.target.value)}
-                        style={{
-                          flex: "0 0 200px",
-                          borderRadius: "0.75rem",
-                          border: "1px solid var(--color-border)",
-                          padding: "0.4rem 0.6rem",
-                        }}
+                        className="vm-filter-select vm-filter-select--wide"
                       >
                         <option value="date-desc">Nieuwste eerst</option>
                         <option value="date-asc">Oudste eerst</option>
@@ -723,37 +1268,75 @@ export default function VeilingmeesterPage() {
                           <tr>
                             <th>ID</th>
                             <th>Naam</th>
-                            <th>Winnaar</th>
+                            <th>Kopers</th>
                             <th>Hoeveelheid</th>
                             <th>Eindprijs / opbrengst</th>
                             <th>Afgerond op</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {gefilterdeArchief.map((v) => (
-                            <tr key={v.veilingId ?? v.id}>
-                              <td>{v.veilingId ?? v.id}</td>
-                              <td>{v.naam ?? "Veiling"}</td>
-                              <td>{v.winnaarNaam ?? v.koperNaam ?? "-"}</td>
-                              <td>
-                                {typeof v.totaleHoeveelheid !== "undefined"
+                          {gefilterdeArchief.map((v) => {
+                            const id = Number(getVeilingId(v));
+                            const summary = archiefSummaryByVeilingId.get(id);
+
+                            const kopersCount =
+                              typeof summary?.kopersCount === "number"
+                                ? summary.kopersCount
+                                : getBackendKopers(v).length;
+
+                            const totaleHoeveelheid =
+                              typeof summary?.totaleHoeveelheid === "number"
+                                ? summary.totaleHoeveelheid
+                                : typeof v.totaleHoeveelheid !== "undefined"
                                   ? v.totaleHoeveelheid
-                                  : v.hoeveelheid ?? "-"}
+                                  : typeof v.TotaleHoeveelheid !== "undefined"
+                                    ? v.TotaleHoeveelheid
+                                    : v.hoeveelheid;
+
+                            const totaleOpbrengst =
+                              typeof summary?.totaleOpbrengst !== "undefined"
+                                ? summary.totaleOpbrengst
+                                : v.totaleOpbrengst ??
+                                  v.TotaleOpbrengst ??
+                                  v.eindPrijs ??
+                                  v.eindBedrag ??
+                                  0;
+
+                            return (
+                              <tr
+                                key={id || v.veilingId || v.id}
+                                className="vm-archief-row"
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => openDetail(v)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    openDetail(v);
+                                  }
+                                }}
+                              >
+                              <td>{id || v.veilingId || v.id}</td>
+                              <td>{v.naam ?? "Veiling"}</td>
+                              <td>
+                                {Number.isFinite(kopersCount)
+                                  ? kopersCount
+                                  : "-"}
                               </td>
                               <td>
-                                €{" "}
-                                {formatCurrency(
-                                  v.totaleOpbrengst ??
-                                    v.eindPrijs ??
-                                    v.eindBedrag ??
-                                    0
-                                )}
+                                {typeof totaleHoeveelheid !== "undefined"
+                                  ? totaleHoeveelheid
+                                  : "-"}
+                              </td>
+                              <td>
+                                {formatCurrency(totaleOpbrengst)}
                               </td>
                               <td>
                                 {formatDateTime(v.eindTijd ?? v.datum)}
                               </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -779,17 +1362,155 @@ export default function VeilingmeesterPage() {
                   <div className="vm-stat">
                     <span className="vm-stat-label">Totale opbrengst</span>
                     <span className="vm-stat-value">
-                      € {formatCurrency(stats.totaalOpbrengst)}
+                      {formatCurrency(stats.totaalOpbrengst)}
                     </span>
                   </div>
                 </div>
-                <p className="vm-muted" style={{ marginTop: "0.9rem" }}>
+                <p className="vm-muted vm-overview-note">
                   Dit tabblad geeft een snel overzicht van het aantal actieve en
                   afgeronde veilingen en de totale opbrengst.
                 </p>
               </section>
             )}
           </div>
+
+          {detailOpen && detailVeiling && (
+            <div className="vm-modal-backdrop" onMouseDown={closeDetail}>
+              <div
+                className="vm-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Veilingdetails"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <header className="vm-modal-header">
+                  <div>
+                    <h2 className="vm-modal-title">
+                      Veiling #{getVeilingId(detailVeiling) ?? "-"}{" "}
+                      {detailVeiling?.naam ? `– ${detailVeiling.naam}` : ""}
+                    </h2>
+                    <p className="vm-muted">
+                      Afgerond op{" "}
+                      {formatDateTime(detailVeiling?.eindTijd ?? detailVeiling?.datum)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={closeDetail}
+                  >
+                    Sluiten
+                  </button>
+                </header>
+
+                <div className="vm-modal-body">
+                  <div className="vm-header-stats vm-modal-stats">
+                    <div className="vm-stat">
+                      <span className="vm-stat-label">Kopers</span>
+                      <span className="vm-stat-value">
+                        {detailSummary?.kopersCount ?? "-"}
+                      </span>
+                    </div>
+                    <div className="vm-stat">
+                      <span className="vm-stat-label">Verkocht</span>
+                      <span className="vm-stat-value">
+                        {typeof detailSummary?.totaleHoeveelheid === "number"
+                          ? detailSummary.totaleHoeveelheid
+                          : "-"}
+                      </span>
+                    </div>
+                    <div className="vm-stat">
+                      <span className="vm-stat-label">Opbrengst</span>
+                      <span className="vm-stat-value">
+                        {formatCurrency(detailSummary?.totaleOpbrengst ?? 0)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {!detailSummary ||
+                  !Array.isArray(detailSummary.koperSamenvattingen) ||
+                  detailSummary.koperSamenvattingen.length === 0 ? (
+                    <p className="vm-muted">
+                      Geen aankoopgegevens gevonden voor deze veiling.
+                    </p>
+                  ) : (
+                    <div className="vm-winners-body">
+                      {detailSummary.koperSamenvattingen.map((k) => {
+                        const koperId = k.koperId ?? k.KoperId;
+                        const koperNaam = k.koperNaam ?? k.KoperNaam ?? "";
+                        const hoeveelheid = k.hoeveelheid ?? k.Hoeveelheid ?? 0;
+                        const totaalBedrag = k.totaalBedrag ?? k.TotaalBedrag ?? 0;
+                        const regels = Array.isArray(k.prijsRegels)
+                          ? k.prijsRegels
+                          : Array.isArray(k.PrijsRegels)
+                            ? k.PrijsRegels
+                            : [];
+
+                        return (
+                          <div key={koperId} className="vm-winner">
+                            <div className="vm-winner-head">
+                              <div className="vm-winner-block">
+                                <span className="vm-winner-label">Koper</span>
+                                <span className="vm-winner-value">
+                                  #{koperId}
+                                  {koperNaam ? ` - ${koperNaam}` : ""}
+                                </span>
+                              </div>
+                              <div className="vm-winner-block">
+                                <span className="vm-winner-label">
+                                  Gekochte stuks
+                                </span>
+                                <span className="vm-winner-value">
+                                  {hoeveelheid}
+                                </span>
+                              </div>
+                              <div className="vm-winner-block vm-winner-block--total">
+                                <span className="vm-winner-label">Totaal</span>
+                                <span className="vm-winner-value">
+                                  {formatCurrency(totaalBedrag)}
+                                </span>
+                              </div>
+                            </div>
+                            {regels.length > 0 && (
+                              <div className="vm-winner-lines">
+                                {regels.map((r) => {
+                                  const prijsPerStuk = r.prijsPerStuk ?? r.PrijsPerStuk ?? 0;
+                                  const regelHoeveelheid = r.hoeveelheid ?? r.Hoeveelheid ?? 0;
+                                  const regelTotaal = r.totaalBedrag ?? r.TotaalBedrag ?? 0;
+                                  const product = r.productBeschrijving ?? r.ProductBeschrijving ?? "";
+                                  const labelProduct = product || "Onbekend product";
+
+                                  return (
+                                    <div
+                                      key={`${koperId}-${product}-${prijsPerStuk}`}
+                                      className="vm-winner-line"
+                                    >
+                                      <span>
+                                        Product: {labelProduct}
+                                      </span>
+                                      <span>
+                                        Prijs/stuk: {formatCurrency(prijsPerStuk)}
+                                      </span>
+                                      <span>
+                                        Stuks: {regelHoeveelheid}
+                                      </span>
+                                      <span>
+                                        Totaal: {formatCurrency(regelTotaal)}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       </main>
     </div>

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using VeilingApi.Models;
 using VeilingApi.Services;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace VeilingApi.Controllers;
 
@@ -39,7 +40,16 @@ public class AuthController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var result = await _svc.LoginAsync(dto.Email, dto.Wachtwoord);
+        var result = await _svc.LoginAsync(dto.Email, dto.Wachtwoord, dto.TwoFactorCode);
+
+        if (result.TwoFactorRequired)
+        {
+            return Unauthorized(new
+            {
+                message = result.TwoFactorInvalid ? "Ongeldige verificatiecode" : "2FA-code vereist",
+                twoFactorRequired = true
+            });
+        }
         if (result.Token == null)
             return Unauthorized(new { message = "Onjuiste inloggegevens" });
 
@@ -51,6 +61,69 @@ public class AuthController : ControllerBase
             gebruikerId = result.GebruikerId
         });
     }
+
+    [HttpPost("2fa/setup")]
+    [Authorize]
+    public async Task<IActionResult> StartTwoFactorSetup()
+    {
+        var gebruikerId = GetUserId();
+        if (!gebruikerId.HasValue)
+            return Unauthorized(new { message = "Geen geldig gebruikers-ID in token." });
+
+        var result = await _svc.StartTwoFactorSetupAsync(gebruikerId.Value);
+        if (!result.Success)
+            return BadRequest(new { message = result.ErrorMessage });
+
+        return Ok(new
+        {
+            secret = result.Secret,
+            otpauthUrl = result.OtpAuthUrl
+        });
+    }
+
+    [HttpPost("2fa/enable")]
+    [Authorize]
+    public async Task<IActionResult> EnableTwoFactor([FromBody] TwoFactorCodeDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var gebruikerId = GetUserId();
+        if (!gebruikerId.HasValue)
+            return Unauthorized(new { message = "Geen geldig gebruikers-ID in token." });
+
+        var result = await _svc.EnableTwoFactorAsync(gebruikerId.Value, dto.Code);
+        if (!result.Success)
+            return BadRequest(new { message = result.ErrorMessage });
+
+        return Ok(new { enabled = true });
+    }
+
+    [HttpPost("2fa/disable")]
+    [Authorize]
+    public async Task<IActionResult> DisableTwoFactor([FromBody] TwoFactorCodeDto dto)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var gebruikerId = GetUserId();
+        if (!gebruikerId.HasValue)
+            return Unauthorized(new { message = "Geen geldig gebruikers-ID in token." });
+
+        var result = await _svc.DisableTwoFactorAsync(gebruikerId.Value, dto.Code);
+        if (!result.Success)
+            return BadRequest(new { message = result.ErrorMessage });
+
+        return Ok(new { enabled = false });
+    }
+
+    private int? GetUserId()
+    {
+        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(idClaim, out var id) ? id : null;
+    }
+
+    //───────────────────── Admin: gebruiker met rol aanmaken ─────────────────────
 
     // ────────────────────────────── Admin: nieuwe gebruiker maken ──────────────────────────────
     // Route: POST /api/auth/admin/create-user

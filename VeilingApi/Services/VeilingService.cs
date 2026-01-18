@@ -20,6 +20,52 @@ namespace VeilingApi.Services
         /// </summary>
         private static VeilingDto MapToDto(Veiling v)
         {
+            var toewijzingen = v.VeilingProducten?
+                .SelectMany(vp => vp.Toewijzingen ?? Enumerable.Empty<Toewijzing>())
+                .ToList() ?? new List<Toewijzing>();
+
+            var koperSamenvattingen = toewijzingen
+                .GroupBy(t => t.KoperId)
+                .Select(g =>
+                {
+                    var prijsRegels = g
+                        .GroupBy(t => t.EindPrijs)
+                        .Select(pg =>
+                        {
+                            var qty = pg.Sum(t => t.Aantal > 0 ? t.Aantal : 0);
+                            var total = pg.Sum(t => (t.Aantal > 0 ? t.Aantal : 0) * t.EindPrijs);
+                            return new VeilingKoperPrijsRegelDto
+                            {
+                                PrijsPerStuk = pg.Key,
+                                Hoeveelheid = qty,
+                                TotaalBedrag = total
+                            };
+                        })
+                        .Where(r => r.Hoeveelheid > 0)
+                        .OrderByDescending(r => r.PrijsPerStuk)
+                        .ToList();
+
+                    var totalQty = prijsRegels.Sum(r => r.Hoeveelheid);
+                    var totalAmount = prijsRegels.Sum(r => r.TotaalBedrag);
+
+                    return new VeilingKoperSamenvattingDto
+                    {
+                        KoperId = g.Key,
+                        KoperNaam = g.Select(t => t.Koper != null ? t.Koper.Naam : string.Empty)
+                            .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? string.Empty,
+                        Hoeveelheid = totalQty,
+                        TotaalBedrag = totalAmount,
+                        PrijsRegels = prijsRegels
+                    };
+                })
+                .Where(k => k.Hoeveelheid > 0)
+                .OrderByDescending(k => k.TotaalBedrag)
+                .ThenBy(k => k.KoperId)
+                .ToList();
+
+            var totaleHoeveelheid = koperSamenvattingen.Sum(k => k.Hoeveelheid);
+            var totaleOpbrengst = koperSamenvattingen.Sum(k => k.TotaalBedrag);
+
             return new VeilingDto
             {
                 VeilingId = v.VeilingId,
@@ -27,6 +73,9 @@ namespace VeilingApi.Services
                 Status    = v.Status,
                 StartTijd = v.StartTijd,
                 EindTijd  = v.EindTijd,
+                TotaleHoeveelheid = totaleHoeveelheid,
+                TotaleOpbrengst = totaleOpbrengst,
+                KoperSamenvattingen = koperSamenvattingen,
                 VeilingProducten = v.VeilingProducten?
                     .Select(MapVeilingProductToDto)
                     .ToList() ?? new List<VeilingProductDto>()
@@ -38,17 +87,33 @@ namespace VeilingApi.Services
         /// Haalt gegevens in principe uit de gekoppelde Aanmelding,
         /// maar zet Categorie expliciet vanuit VeilingProduct/Aanmelding.
         /// </summary>
+        private static int CalculateRemaining(VeilingProduct vp)
+        {
+            var total = vp.Aanmelding?.Hoeveelheid ?? 0;
+            var sold = vp.Toewijzingen?.Sum(t => t.Aantal > 0 ? t.Aantal : 1) ?? 0;
+            return Math.Max(0, total - sold);
+        }
+
+        private static string? BuildFotoUrl(Aanmelding? a)
+        {
+            if (a == null || string.IsNullOrWhiteSpace(a.FotoContentType))
+                return null;
+            return $"/api/Aanmeldingen/{a.AanmeldingId}/foto";
+        }
+
         private static VeilingProductDto MapVeilingProductToDto(VeilingProduct vp)
         {
             var a = vp.Aanmelding;
+            var remaining = CalculateRemaining(vp);
 
             return new VeilingProductDto
             {
                 VeilingProductId     = vp.VeilingProductId,
                 AanmeldingId         = vp.AanmeldingId,
                 ProductBeschrijving  = a?.ProductBeschrijving ?? string.Empty,
-                FotoUrl              = a?.FotoUrl,
+                FotoUrl              = BuildFotoUrl(a),
                 Aantal               = a?.Hoeveelheid ?? 0,
+                ResterendAantal      = remaining,
                 StartPrijs           = a?.MinimumPrijs ?? 0,
                 HuidigePrijs         = a?.MinimumPrijs ?? 0,
                 Kloklocatie          = a?.GewensteKlokLocatie ?? string.Empty,
@@ -73,6 +138,9 @@ namespace VeilingApi.Services
             var veilingen = await _db.Veilingen
                 .Include(v => v.VeilingProducten)
                     .ThenInclude(vp => vp.Aanmelding)
+                .Include(v => v.VeilingProducten)
+                    .ThenInclude(vp => vp.Toewijzingen)
+                        .ThenInclude(t => t.Koper)
                 .OrderByDescending(v => v.StartTijd)
                 .ToListAsync();
 
@@ -84,6 +152,9 @@ namespace VeilingApi.Services
             var v = await _db.Veilingen
                 .Include(v => v.VeilingProducten)
                     .ThenInclude(vp => vp.Aanmelding)
+                .Include(v => v.VeilingProducten)
+                    .ThenInclude(vp => vp.Toewijzingen)
+                        .ThenInclude(t => t.Koper)
                 .FirstOrDefaultAsync(v => v.VeilingId == id);
 
             return v is null ? null : MapToDto(v);
@@ -145,6 +216,8 @@ namespace VeilingApi.Services
             var veiling = await _db.Veilingen
                 .Include(v => v.VeilingProducten)
                     .ThenInclude(vp => vp.Aanmelding)
+                .Include(v => v.VeilingProducten)
+                    .ThenInclude(vp => vp.Toewijzingen)
                 .Where(v =>
                     v.Status == "Actief" &&
                     v.StartTijd <= now &&
@@ -166,8 +239,9 @@ namespace VeilingApi.Services
                         AanmeldingId         = vp.AanmeldingId,
                         ProductBeschrijving  = a.ProductBeschrijving,
                         Hoeveelheid          = a.Hoeveelheid,
+                        ResterendAantal      = CalculateRemaining(vp),
                         MinimumPrijs         = a.MinimumPrijs,
-                        FotoUrl              = a.FotoUrl,
+                        FotoUrl              = BuildFotoUrl(a),
                         Kloklocatie          = a.GewensteKlokLocatie,
                         Categorie            = a.Categorie
                     };
@@ -193,12 +267,24 @@ namespace VeilingApi.Services
             if (aanmelding is null)
                 throw new InvalidOperationException("Aanmelding bestaat niet.");
 
+            var start = dto.StartTijd ?? DateTime.UtcNow;
+            if (start.Kind == DateTimeKind.Unspecified)
+            {
+                start = DateTime.SpecifyKind(start, DateTimeKind.Utc);
+            }
+            else
+            {
+                start = start.ToUniversalTime();
+            }
+
+            var end = start.AddSeconds(60);
+
             var veiling = new Veiling
             {
                 Naam            = string.IsNullOrWhiteSpace(dto.Naam) ? "Veiling" : dto.Naam!,
                 Status          = "Actief",
-                StartTijd       = dto.StartTijd ?? DateTime.UtcNow,
-                EindTijd        = null,
+                StartTijd       = start,
+                EindTijd        = end,
                 GestartDoorId   = gestartDoorId,
                 VeilingProducten = new List<VeilingProduct>()
             };
@@ -236,6 +322,9 @@ namespace VeilingApi.Services
             var query = _db.Veilingen
                 .Include(v => v.VeilingProducten)
                     .ThenInclude(vp => vp.Aanmelding)
+                .Include(v => v.VeilingProducten)
+                    .ThenInclude(vp => vp.Toewijzingen)
+                        .ThenInclude(t => t.Koper)
                 .Where(v =>
                     v.Status == "Afgerond" ||
                     (v.EindTijd != null && v.EindTijd <= now));

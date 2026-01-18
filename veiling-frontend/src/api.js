@@ -33,10 +33,14 @@ export default async function apiFetch(path, options = {}) {
   const token = sessionStorage.getItem("token");
   // Bestaande headers uit options meenemen
   const existingHeaders = options.headers ?? {};
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
   // Standaard headers + Authorization
   const headers = {
     ...existingHeaders,
-    "Content-Type": existingHeaders["Content-Type"] || "application/json",
+    ...(isFormData
+      ? {}
+      : { "Content-Type": existingHeaders["Content-Type"] || "application/json" }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
   const fetchOptions = {
@@ -59,8 +63,32 @@ export default async function apiFetch(path, options = {}) {
   }
   // Andere fouten netjes doorgeven
   if (!res.ok) {
+    const contentType = res.headers.get("Content-Type") || "";
     const text = await res.text();
-    throw new Error(text || `${res.status} ${res.statusText}`);
+    const trimmed = text.trim();
+    let message = text;
+
+    if (
+      trimmed &&
+      (contentType.includes("application/json") || trimmed.startsWith("{"))
+    ) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        message =
+          parsed?.message ||
+          parsed?.Message ||
+          parsed?.title ||
+          parsed?.detail ||
+          parsed?.error ||
+          text;
+      } catch {
+        message = text;
+      }
+    }
+
+    const err = new Error(message || `${res.status} ${res.statusText}`);
+    err.status = res.status;
+    throw err;
   }
   // Geen content
   if (res.status === 204) {
