@@ -3,8 +3,11 @@
 // Voegt automatisch het JWT-token toe (indien aanwezig) en handelt fouten en 401-status af.
 
 function normalizeApiBase(raw) {
-  const fallbackOrigin =
-    "https://floraflow-dxdtbhedcjdganbw.francecentral-01.azurewebsites.net";
+  // In production (Vercel) gebruiken we een same-origin proxy (`/api/*` -> Azure)
+  // zodat CORS geen blocker meer is.
+  const fallbackOrigin = import.meta.env.PROD
+    ? "/api"
+    : "http://localhost:5146/api";
 
   const input = (raw ?? "").toString().trim() || fallbackOrigin;
   const withoutTrailingSlash = input.replace(/\/+$/, "");
@@ -14,7 +17,16 @@ function normalizeApiBase(raw) {
   return lower.endsWith("/api") ? withoutTrailingSlash : `${withoutTrailingSlash}/api`;
 }
 
-export const API_BASE = normalizeApiBase(import.meta.env.VITE_API_BASE);
+const runtimeHostname =
+  typeof window !== "undefined" ? window.location.hostname : "";
+const useVercelProxy =
+  import.meta.env.PROD && runtimeHostname.toLowerCase().endsWith("vercel.app");
+
+// In production op Vercel: forceer de same-origin proxy om CORS issues te vermijden,
+// ook als er per ongeluk nog een VITE_API_BASE env var is ingesteld.
+export const API_BASE = normalizeApiBase(
+  useVercelProxy ? "/api" : import.meta.env.VITE_API_BASE
+);
 export const API_ORIGIN = API_BASE.replace(/\/api$/i, "");
 
 export default async function apiFetch(path, options = {}) {
