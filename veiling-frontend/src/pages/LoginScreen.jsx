@@ -66,10 +66,10 @@ export default function LoginScreen() {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // ✅ LoginDto verwacht: Email + Wachtwoord
+        // ✅ FIXED: Backend expects "password" not "wachtwoord"
         body: JSON.stringify({
           email: cleanEmail,
-          wachtwoord: pw,
+          password: pw,
         }),
       });
 
