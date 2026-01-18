@@ -74,7 +74,7 @@ builder.Services.AddCors(options =>
             "http://127.0.0.1:5174",
             "https://jaar-2frontendsem3.vercel.app",
             "https://jaar-2frontendsem3-5adthyzyh-khalid3385s-projects.vercel.app",
-            "https://fefaafaa.vercel.app"  
+            "https://floraflow1223.vercel.app"  
         )
         .AllowAnyHeader()
         .AllowAnyMethod()
