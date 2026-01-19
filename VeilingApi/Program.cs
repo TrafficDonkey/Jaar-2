@@ -193,10 +193,32 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
+var enableSqlDiagnostics =
+    string.Equals(Environment.GetEnvironmentVariable("ENABLE_SQL_DIAGNOSTICS"), "true", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(builder.Configuration["ENABLE_SQL_DIAGNOSTICS"], "true", StringComparison.OrdinalIgnoreCase);
+
+static SqlException? FindSqlException(Exception ex)
+{
+    for (var e = ex; e != null; e = e.InnerException)
+    {
+        if (e is SqlException sql) return sql;
+    }
+    return null;
+}
+
+string? dbDiagSource = connectionStringSource;
+string? dbDiagDataSource = null;
+string? dbDiagCatalog = null;
+string? dbDiagUserId = null;
+
 // Log (zonder secrets) welke connection string bron is gekozen.
 try
 {
     var csb = new SqlConnectionStringBuilder(connectionString);
+    dbDiagDataSource = csb.DataSource;
+    dbDiagCatalog = csb.InitialCatalog;
+    dbDiagUserId = csb.UserID;
+
     app.Logger.LogInformation(
         "DB config: source={Source} dataSource={DataSource} initialCatalog={Catalog} userId={UserId}",
         connectionStringSource,
@@ -351,10 +373,40 @@ app.Use(async (context, next) =>
         var msg = IsSqlException(ex)
             ? "Database is niet beschikbaar. Controleer Azure SQL/SQL Server (firewall + connection string) en probeer opnieuw."
             : "Er is iets misgegaan. Probeer het later opnieuw.";
-        await context.Response.WriteAsJsonAsync(new
+        if (IsSqlException(ex) && enableSqlDiagnostics)
         {
-            Message = msg
-        });
+            var sql = FindSqlException(ex);
+            await context.Response.WriteAsJsonAsync(new
+            {
+                Message = msg,
+                Debug = new
+                {
+                    Db = new
+                    {
+                        Source = dbDiagSource,
+                        DataSource = dbDiagDataSource,
+                        InitialCatalog = dbDiagCatalog,
+                        UserId = dbDiagUserId
+                    },
+                    Sql = sql == null
+                        ? null
+                        : new
+                        {
+                            sql.Number,
+                            sql.State,
+                            sql.Class,
+                            sql.Message
+                        }
+                }
+            });
+        }
+        else
+        {
+            await context.Response.WriteAsJsonAsync(new
+            {
+                Message = msg
+            });
+        }
     }
 });
 
