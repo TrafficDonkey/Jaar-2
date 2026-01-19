@@ -21,12 +21,19 @@ import VeilingmeesterPage from "./pages/VeilingmeesterPage";
 import AdminPage from "./pages/AdminPage";
 import HelpPage from "./pages/HelpPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import CookieConsentBanner from "./components/CookieConsentBanner";
+import CookieSettingsPage from "./pages/CookieSettingsPage";
 
 export default function App() {
   return (
-    <Routes>
-      {/* Publieke landingspagina */}
-      <Route path="/" element={<HomePage />} />
+    <>
+      <CookieConsentBanner />
+      <Routes>
+        {/* Publieke landingspagina */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/cookies" element={<CookieSettingsPage />} />
 
       {/* Publieke auth-pagina's */}
       <Route path="/login" element={<LoginScreen />} />
@@ -48,8 +55,10 @@ export default function App() {
         {/* /app/instellingen */}
         <Route path="instellingen" element={<SettingsPage />} />
 
-        <Route path="hulp" element={<HelpPage />} />
-        <Route path="meldingen" element={<NotificationsPage />} />
+          <Route path="hulp" element={<HelpPage />} />
+          <Route path="meldingen" element={<NotificationsPage />} />
+          <Route path="privacy" element={<PrivacyPage />} />
+          <Route path="cookies" element={<CookieSettingsPage />} />
 
         <Route 
           path="koper" 
@@ -96,6 +105,7 @@ export default function App() {
 
       {/* Onbekende routes → terug naar landingspagina */}
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }

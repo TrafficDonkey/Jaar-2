@@ -763,7 +763,8 @@ export default function AanvoerderPage() {
                             <h1 id="aanv-title">Product aanmelden</h1>
                             <p className="aanv-sub">
                                 Meld hier je kavels aan voor de veiling. Vul minimaal
-                                beschrijving, hoeveelheid, minimumprijs en veildatum in.
+                                categorie, productnaam, hoeveelheid, minimumprijs, kloklocatie
+                                en veildatum in.
                             </p>
                             {gebruikerNaam && (
                                 <p className="aanv-meta">
@@ -825,9 +826,15 @@ export default function AanvoerderPage() {
                     />
 
                     <form className="aanv-form" onSubmit={handleSubmit} noValidate>
+                        <p className="form-hint" role="note">
+                            <span className="field-required" aria-hidden="true">*</span>{" "}
+                            verplicht ·{" "}
+                            <span className="field-optional">(optioneel)</span> optioneel
+                        </p>
                         <div className="field">
                             <label htmlFor="foto">
-                                Foto (optioneel: {FOTO_FORMAT_LABEL})
+                                Foto <span className="field-optional">(optioneel)</span> (
+                                {FOTO_FORMAT_LABEL})
                             </label>
                             <input
                                 id="foto"
@@ -844,7 +851,10 @@ export default function AanvoerderPage() {
                         </div>
 
                         <div className="field">
-                            <label htmlFor="beschrijving">Beschrijving (optioneel)</label>
+                            <label htmlFor="beschrijving">
+                                Beschrijving{" "}
+                                <span className="field-optional">(optioneel)</span>
+                            </label>
                             <input
                                 id="beschrijving"
                                 type="text"
@@ -861,7 +871,10 @@ export default function AanvoerderPage() {
 
                         <div className="field-row">
                             <div className="field">
-                                <label htmlFor="categorie">Categorie</label>
+                                <label htmlFor="categorie">
+                                    Categorie{" "}
+                                    <span className="field-required" aria-hidden="true">*</span>
+                                </label>
                                 <div
                                     className="aanv-autocomplete"
                                     ref={categorieSuggestRef}
@@ -975,7 +988,10 @@ export default function AanvoerderPage() {
                         </div>
 
                         <div className="field">
-                            <label htmlFor="productNaam">Productnaam</label>
+                            <label htmlFor="productNaam">
+                                Productnaam{" "}
+                                <span className="field-required" aria-hidden="true">*</span>
+                            </label>
                             {form.categorie === PLANTEN_CATEGORIEEN.overigeLabel ? (
                                 <input
                                     id="productNaam"
@@ -1113,7 +1129,10 @@ export default function AanvoerderPage() {
 
                         <div className="field-row">
                             <div className="field">
-                                <label htmlFor="hoeveelheid">Hoeveelheid (stuks)</label>
+                                <label htmlFor="hoeveelheid">
+                                    Hoeveelheid (stuks){" "}
+                                    <span className="field-required" aria-hidden="true">*</span>
+                                </label>
                                 <input
                                     id="hoeveelheid"
                                     type="number"
@@ -1143,7 +1162,10 @@ export default function AanvoerderPage() {
 
                         <div className="field-row">
                             <div className="field">
-                                <label htmlFor="klok">Kloklocatie</label>
+                                <label htmlFor="klok">
+                                    Kloklocatie{" "}
+                                    <span className="field-required" aria-hidden="true">*</span>
+                                </label>
                                 <select
                                     id="klok"
                                     value={form.kloklocatie}
@@ -1163,7 +1185,10 @@ export default function AanvoerderPage() {
                             </div>
 
                             <div className="field">
-                                <label htmlFor="datum">Veildatum</label>
+                                <label htmlFor="datum">
+                                    Veildatum{" "}
+                                    <span className="field-required" aria-hidden="true">*</span>
+                                </label>
                                 <input
                                     id="datum"
                                     type="date"
@@ -1176,7 +1201,10 @@ export default function AanvoerderPage() {
 
                         <div className="field-row">
                             <div className="field">
-                                <label htmlFor="plantDiameter">Plant diameter (cm)</label>
+                                <label htmlFor="plantDiameter">
+                                    Plant diameter (cm){" "}
+                                    <span className="field-optional">(optioneel)</span>
+                                </label>
                                 <input
                                     id="plantDiameter"
                                     type="number"
@@ -1189,7 +1217,10 @@ export default function AanvoerderPage() {
                                 />
                             </div>
                             <div className="field">
-                                <label htmlFor="plantLengte">Plant lengte (cm)</label>
+                                <label htmlFor="plantLengte">
+                                    Plant lengte (cm){" "}
+                                    <span className="field-optional">(optioneel)</span>
+                                </label>
                                 <input
                                     id="plantLengte"
                                     type="number"
@@ -1205,7 +1236,9 @@ export default function AanvoerderPage() {
 
                         <div className="field">
                             <div className="field-labelRow">
-                                <label htmlFor="potMaat">Potmaat</label>
+                                <label htmlFor="potMaat">
+                                    Potmaat <span className="field-optional">(optioneel)</span>
+                                </label>
                                 <details className="aanv-tip">
                                     <summary
                                         className="aanv-tip__btn"

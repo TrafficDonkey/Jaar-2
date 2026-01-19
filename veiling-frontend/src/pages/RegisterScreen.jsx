@@ -40,7 +40,7 @@ const validatePhone = (country, number) => {
 
 export default function RegisterScreen() {
   const [naam, setNaam] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => localStorage.getItem("lastEmail") || "");
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [telefoonLand, setTelefoonLand] = useState("NL");
@@ -66,8 +66,6 @@ export default function RegisterScreen() {
 
   useEffect(() => {
     document.title = "FloraFlow - Account aanmaken";
-    const last = localStorage.getItem("lastEmail");
-    if (last) setEmail(last);
   }, []);
 
   async function handleSubmit(e) {
@@ -202,14 +200,14 @@ export default function RegisterScreen() {
       <a href="#main" className="skip-link">
         Ga naar hoofdinhoud
       </a>
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
+      <header className="auth-topbar" aria-label="Hoofdnavigatie">
+        <div className="auth-brand">
+          <span className="auth-brand-mark" aria-hidden="true">
             dYOи
           </span>
-          <span className="brand-name">FloraFlow</span>
+          <span className="auth-brand-name">FloraFlow</span>
         </div>
-        <Link to="/login" className="topbar-link">
+        <Link to="/login" className="auth-topbar-link">
           Inloggen
         </Link>
       </header>
@@ -229,9 +227,16 @@ export default function RegisterScreen() {
             </div>
           )}
 
+          <p className="form-hint" role="note">
+            <span className="field-required" aria-hidden="true">*</span> verplicht ·{" "}
+            <span className="field-optional">(optioneel)</span> optioneel
+          </p>
+
           <form onSubmit={handleSubmit} className="auth-form" noValidate>
             <div className="field">
-              <label htmlFor="naam">Naam</label>
+              <label htmlFor="naam">
+                Naam <span className="field-required" aria-hidden="true">*</span>
+              </label>
               <input
                 id="naam"
                 placeholder="Bijv. Jan de Kweker"
@@ -250,7 +255,9 @@ export default function RegisterScreen() {
             </div>
 
             <div className="field">
-              <label htmlFor="reg-email">E-mailadres</label>
+              <label htmlFor="reg-email">
+                E-mailadres <span className="field-required" aria-hidden="true">*</span>
+              </label>
               <input
                 id="reg-email"
                 type="email"
@@ -271,7 +278,9 @@ export default function RegisterScreen() {
 
             <div className="field-row">
               <div className="field">
-                <label htmlFor="reg-telefoon-land">Land (telefoon)</label>
+                <label htmlFor="reg-telefoon-land">
+                  Land (telefoon) <span className="field-required" aria-hidden="true">*</span>
+                </label>
                 <select
                   id="reg-telefoon-land"
                   value={telefoonLand}
@@ -302,7 +311,9 @@ export default function RegisterScreen() {
               </div>
 
               <div className="field">
-                <label htmlFor="reg-telefoon">Telefoonnummer</label>
+                <label htmlFor="reg-telefoon">
+                  Telefoonnummer <span className="field-required" aria-hidden="true">*</span>
+                </label>
                 <input
                   id="reg-telefoon"
                   type="tel"
@@ -330,7 +341,9 @@ export default function RegisterScreen() {
             </div>
 
             <div className="field">
-              <label htmlFor="reg-adres">Adres (straat, optioneel)</label>
+              <label htmlFor="reg-adres">
+                Adres (straat) <span className="field-optional">(optioneel)</span>
+              </label>
               <input
                 id="reg-adres"
                 placeholder="Bijv. Marktstraat"
@@ -351,7 +364,9 @@ export default function RegisterScreen() {
 
             <div className="field-row">
               <div className="field">
-                <label htmlFor="reg-huisnummer">Huisnummer (optioneel)</label>
+                <label htmlFor="reg-huisnummer">
+                  Huisnummer <span className="field-optional">(optioneel)</span>
+                </label>
                 <input
                   id="reg-huisnummer"
                   placeholder="Bijv. 12A"
@@ -371,7 +386,9 @@ export default function RegisterScreen() {
               </div>
 
               <div className="field">
-                <label htmlFor="reg-postcode">Postcode (optioneel)</label>
+                <label htmlFor="reg-postcode">
+                  Postcode <span className="field-optional">(optioneel)</span>
+                </label>
                 <input
                   id="reg-postcode"
                   placeholder="Bijv. 1234 AB"
@@ -392,38 +409,42 @@ export default function RegisterScreen() {
             </div>
 
             <div className="field password-field">
-              <label htmlFor="reg-password">Wachtwoord</label>
-              <input
-                id="reg-password"
-                type={showPw ? "text" : "password"}
-                placeholder={passwordPlaceholder}
-                value={pw}
-                onChange={(e) => setPw(e.target.value)}
-                onKeyUp={(e) =>
-                  setCaps(
-                    e.getModifierState && e.getModifierState("CapsLock")
-                  )
-                }
-                required
-                aria-invalid={Boolean(errors.fields.password || errors.fields.wachtwoord)}
-                aria-describedby={
-                  errors.fields.password || errors.fields.wachtwoord
-                    ? "password-error"
-                    : undefined
-                }
-                className={
-                  errors.fields.password || errors.fields.wachtwoord
-                    ? "input-error"
-                    : ""
-                }
-              />
-              <button
-                type="button"
-                className="ghost-btn"
-                onClick={() => setShowPw((s) => !s)}
-              >
-                {showPw ? "Verberg" : "Toon"}
-              </button>
+              <label htmlFor="reg-password">
+                Wachtwoord <span className="field-required" aria-hidden="true">*</span>
+              </label>
+              <div className="password-control">
+                <input
+                  id="reg-password"
+                  type={showPw ? "text" : "password"}
+                  placeholder={passwordPlaceholder}
+                  value={pw}
+                  onChange={(e) => setPw(e.target.value)}
+                  onKeyUp={(e) =>
+                    setCaps(
+                      e.getModifierState && e.getModifierState("CapsLock")
+                    )
+                  }
+                  required
+                  aria-invalid={Boolean(errors.fields.password || errors.fields.wachtwoord)}
+                  aria-describedby={
+                    errors.fields.password || errors.fields.wachtwoord
+                      ? "password-error"
+                      : undefined
+                  }
+                  className={
+                    errors.fields.password || errors.fields.wachtwoord
+                      ? "input-error"
+                      : ""
+                  }
+                />
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  onClick={() => setShowPw((s) => !s)}
+                >
+                  {showPw ? "Verberg" : "Toon"}
+                </button>
+              </div>
               {caps && <p className="caps-hint">Caps Lock staat aan</p>}
               {(errors.fields.password || errors.fields.wachtwoord) && (
                 <p
@@ -437,7 +458,9 @@ export default function RegisterScreen() {
             </div>
 
             <div className="field">
-              <label htmlFor="reg-password2">Herhaal wachtwoord</label>
+              <label htmlFor="reg-password2">
+                Herhaal wachtwoord <span className="field-required" aria-hidden="true">*</span>
+              </label>
               <input
                 id="reg-password2"
                 type={showPw ? "text" : "password"}

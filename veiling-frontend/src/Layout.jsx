@@ -5,6 +5,7 @@ import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import notificationSound from "./assets/new-notification-09-352705.mp3";
 import "./Layout.css";
+import AppFooter from "./components/AppFooter";
 
 export default function Layout() {
   const nav = useNavigate();
@@ -41,7 +42,6 @@ export default function Layout() {
   // Rol komt uit de backend (bij login) en wordt opgeslagen in sessionStorage.
   // We gebruiken dit om menu-items te tonen/verbergen en (via ProtectedRoute) routes te beschermen.
   const [role] = useState(() => sessionStorage.getItem("role") || "");
-  const [notifCount, setNotifCount] = useState(0);
   const [isRinging, setIsRinging] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -57,8 +57,42 @@ export default function Layout() {
       return [];
     }
   });
+  const notifCount = notifLog.filter((n) => !n.read).length;
   const [audioReady, setAudioReady] = useState(false);
   const notificationAudioRef = useRef(null);
+
+  function ensureAudio() {
+    if (!notificationAudioRef.current) {
+      const audio = new Audio(notificationSound);
+      audio.preload = "auto";
+      audio.volume = 0.7;
+      notificationAudioRef.current = audio;
+    }
+    setAudioReady(true);
+  }
+
+  function triggerRing() {
+    setIsRinging(true);
+    window.setTimeout(() => setIsRinging(false), 500);
+  }
+
+  function playNotificationSound() {
+    if (notificationsMuted) return;
+    ensureAudio();
+    const audio = notificationAudioRef.current;
+    if (!audio) return;
+    if (!audioReady) setAudioReady(true);
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => {});
+      }
+    } catch {
+      // ignore audio errors
+    }
+  }
 
   // Dark/light theme toepassen op <html> element
   useEffect(() => {
@@ -74,11 +108,9 @@ export default function Layout() {
 
   useEffect(() => {
     // Notificaties opslaan in sessionStorage zodat ze ook op een ander scherm (Meldingen) zichtbaar zijn.
-    const unread = notifLog.filter((n) => !n.read).length;
-    setNotifCount(unread);
     sessionStorage.setItem("notifLog", JSON.stringify(notifLog));
-    sessionStorage.setItem("notifCount", String(unread));
-  }, [notifLog]);
+    sessionStorage.setItem("notifCount", String(notifCount));
+  }, [notifLog, notifCount]);
 
   useEffect(() => {
     // Event-bus voor meldingen:
@@ -168,39 +200,6 @@ export default function Layout() {
       document.removeEventListener("touchstart", unlockAudio);
     };
   }, []);
-
-  function ensureAudio() {
-    if (!notificationAudioRef.current) {
-      const audio = new Audio(notificationSound);
-      audio.preload = "auto";
-      audio.volume = 0.7;
-      notificationAudioRef.current = audio;
-    }
-    setAudioReady(true);
-  }
-
-  function triggerRing() {
-    setIsRinging(true);
-    window.setTimeout(() => setIsRinging(false), 500);
-  }
-
-  function playNotificationSound() {
-    if (notificationsMuted) return;
-    ensureAudio();
-    const audio = notificationAudioRef.current;
-    if (!audio) return;
-    if (!audioReady) setAudioReady(true);
-    try {
-      audio.pause();
-      audio.currentTime = 0;
-      const playPromise = audio.play();
-      if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch(() => {});
-      }
-    } catch {
-      // ignore audio errors
-    }
-  }
 
   function handleBellClick() {
     if (!notificationsMuted) {
@@ -430,6 +429,8 @@ export default function Layout() {
       <main className="main-content" aria-live="polite">
         <Outlet />
       </main>
+
+      <AppFooter />
     </div>
   );
 }

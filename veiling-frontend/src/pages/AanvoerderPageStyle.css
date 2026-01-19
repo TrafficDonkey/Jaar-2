@@ -107,6 +107,12 @@
   gap: 0.9rem;
 }
 
+.aanv-form label[for="minprijs"]::after {
+  content: " *";
+  color: #fbbf24;
+  font-weight: 900;
+}
+
 .field,
 .field-row {
   display: flex;

@@ -6,8 +6,13 @@ import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import "./HomePageStyle.css";
 import NeuralSphere from "../components/NeuralSphere";
+import AppFooter from "../components/AppFooter";
+import PublicTopbar from "../components/PublicTopbar";
+import { useLocation } from "react-router-dom";
 
 export default function HomePage() {
+  const location = useLocation();
+  const isAppRoute = location.pathname.startsWith("/app");
   const isLoggedIn = Boolean(sessionStorage.getItem("token"));
 
   useEffect(() => {
@@ -15,7 +20,9 @@ export default function HomePage() {
   }, []);
   // ────────────────────────────── Weergave ──────────────────────────────
   return (
-    <div className="lp-shell">
+    <>
+      {!isAppRoute && <PublicTopbar />}
+      <div className="lp-shell">
       {/* ───────── Hero: korte pitch + primaire CTA’s ───────── */}
       <header className="lp-hero" aria-labelledby="lp-title">
         <div className="lp-hero__content">
@@ -116,6 +123,9 @@ export default function HomePage() {
           )}
         </div>
       </section>
-    </div>
+
+        {!isAppRoute && <AppFooter />}
+      </div>
+    </>
   );
 }

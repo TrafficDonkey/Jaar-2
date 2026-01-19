@@ -135,6 +135,24 @@ input[type="file"]::-webkit-file-upload-button:hover {
   background: var(--control-bg);
 }
 
+/* ────────────────────────────── FORM-HELPERS ────────────────────────────── */
+.form-hint {
+  margin: 0 0 1rem;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.field-required {
+  color: #fbbf24;
+  font-weight: 900;
+}
+
+.field-optional {
+  color: var(--color-muted);
+  font-weight: 600;
+  font-size: 0.9em;
+}
+
 /* ────────────────────────────── TOEGANKELIJKHEID ────────────────────────────── */
 /* Link om direct naar hoofdinhoud te springen (voor screenreaders) */
 .skip-link {
@@ -208,7 +226,15 @@ main {
   background: var(--color-accent);
   display: grid;
   place-items: center;
-  font-size: 0.9rem;
+  font-size: 0;
+  line-height: 0;
+}
+
+.logo-circle::before {
+  content: "🌿";
+  font-size: 0.95rem;
+  line-height: 1;
+  color: #fff;
 }
 
 .brand-text {
@@ -260,6 +286,38 @@ main {
   cursor: pointer;
 }
 
+.topbar__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.topbar__btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.topbar__btn:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.55);
+  outline-offset: 2px;
+}
+
+.topbar__btn--primary {
+  background: var(--color-accent);
+  border-color: transparent;
+}
+
+.topbar__btn--primary:hover {
+  background: color-mix(in oklab, var(--color-accent) 80%, #000);
+}
+
 /* ─────────── INHOUD ─────────── */
 .main-content {
   padding: 1.5rem;
@@ -274,4 +332,35 @@ main {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.app-footer {
+  padding: 1.25rem 1rem 1.5rem;
+  color: var(--color-muted);
+}
+
+.app-footer__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.app-footer__links {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.app-footer__links a {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.app-footer__copy {
+  font-size: 0.85rem;
 }

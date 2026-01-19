@@ -7,7 +7,7 @@ const API = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
 const getDefaultTarget = () => "/app";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => localStorage.getItem("lastEmail") || "");
   const [pw, setPw] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [caps, setCaps] = useState(false);
@@ -27,8 +27,6 @@ export default function LoginScreen() {
   // Prefill email (mag rustig in localStorage blijven)
   useEffect(() => {
     document.title = "FloraFlow — Inloggen";
-    const last = localStorage.getItem("lastEmail");
-    if (last) setEmail(last);
   }, []);
 
   async function handleSubmit(e) {
@@ -129,14 +127,14 @@ export default function LoginScreen() {
       <a href="#main" className="skip-link">
         Ga naar hoofdinhoud
       </a>
-      <header className="topbar" aria-label="Hoofdnavigatie">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
+      <header className="auth-topbar" aria-label="Hoofdnavigatie">
+        <div className="auth-brand">
+          <span className="auth-brand-mark" aria-hidden="true">
             🌿
           </span>
-          <span className="brand-name">FloraFlow</span>
+          <span className="auth-brand-name">FloraFlow</span>
         </div>
-        <Link to="/register" className="topbar-link">
+        <Link to="/register" className="auth-topbar-link">
           Account aanmaken
         </Link>
       </header>
@@ -150,7 +148,9 @@ export default function LoginScreen() {
 
           <form onSubmit={handleSubmit} className="auth-form" noValidate>
             <div className="field">
-              <label htmlFor="email">E-mailadres</label>
+              <label htmlFor="email">
+                E-mailadres <span className="field-required" aria-hidden="true">*</span>
+              </label>
               <input
                 id="email"
                 type="email"
@@ -166,38 +166,45 @@ export default function LoginScreen() {
             </div>
 
             <div className="field password-field">
-              <label htmlFor="password">Wachtwoord</label>
-              <input
-                id="password"
-                type={showPw ? "text" : "password"}
-                autoComplete="current-password"
-                placeholder="Wachtwoord"
-                value={pw}
-                onChange={(e) => {
-                  setPw(e.target.value);
-                  if (needsTwoFactor) setNeedsTwoFactor(false);
-                }}
-                onKeyUp={(e) =>
-                  setCaps(
-                    e.getModifierState && e.getModifierState("CapsLock")
-                  )
-                }
-                required
-              />
-              <button
-                type="button"
-                className="ghost-btn"
-                onClick={() => setShowPw((s) => !s)}
-                aria-pressed={showPw}
-              >
-                {showPw ? "Verberg" : "Toon"}
-              </button>
+              <label htmlFor="password">
+                Wachtwoord <span className="field-required" aria-hidden="true">*</span>
+              </label>
+              <div className="password-control">
+                <input
+                  id="password"
+                  type={showPw ? "text" : "password"}
+                  autoComplete="current-password"
+                  placeholder="Wachtwoord"
+                  value={pw}
+                  onChange={(e) => {
+                    setPw(e.target.value);
+                    if (needsTwoFactor) setNeedsTwoFactor(false);
+                  }}
+                  onKeyUp={(e) =>
+                    setCaps(
+                      e.getModifierState && e.getModifierState("CapsLock")
+                    )
+                  }
+                  required
+                />
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  onClick={() => setShowPw((s) => !s)}
+                  aria-pressed={showPw}
+                >
+                  {showPw ? "Verberg" : "Toon"}
+                </button>
+              </div>
               {caps && <p className="caps-hint">⚠️ Caps Lock staat aan</p>}
             </div>
 
             {needsTwoFactor && (
               <div className="field">
-                <label htmlFor="twoFactorCode">Authenticator-code</label>
+                <label htmlFor="twoFactorCode">
+                  Authenticator-code{" "}
+                  <span className="field-required" aria-hidden="true">*</span>
+                </label>
                 <input
                   id="twoFactorCode"
                   inputMode="numeric"

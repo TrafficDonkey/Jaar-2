@@ -1001,8 +1001,15 @@ export default function VeilingmeesterPage() {
                       className="vm-form"
                       noValidate
                     >
+                      <p className="form-hint" role="note">
+                        <span className="field-required" aria-hidden="true">*</span>{" "}
+                        verplicht ·{" "}
+                        <span className="field-optional">(optioneel)</span> optioneel
+                      </p>
                       <div className="field">
-                        <label htmlFor="titel">Titel (optioneel)</label>
+                        <label htmlFor="titel">
+                          Titel <span className="field-optional">(optioneel)</span>
+                        </label>
                         <input
                           id="titel"
                           value={titel}
@@ -1013,7 +1020,7 @@ export default function VeilingmeesterPage() {
 
                       <div className="field">
                         <label htmlFor="starttijd">
-                          Starttijd (optioneel)
+                          Starttijd <span className="field-optional">(optioneel)</span>
                         </label>
                         <input
                           id="starttijd"
@@ -1030,15 +1037,19 @@ export default function VeilingmeesterPage() {
                       </div>
 
                       <div className="field">
-                        <label htmlFor="aanmelding">Te veilen product</label>
+                        <label htmlFor="aanmelding">
+                          Te veilen product{" "}
+                          <span className="field-required" aria-hidden="true">*</span>
+                        </label>
                         <select
                           id="aanmelding"
                           value={selectedAanmeldingId}
                           onChange={(e) =>
                             setSelectedAanmeldingId(e.target.value)
                           }
+                          required
                         >
-                          <option value="">— Kies een aanmelding —</option>
+                          <option value="">- Kies een aanmelding -</option>
                           {openAanmeldingen.map((a) => (
                             <option
                               key={a.aanmeldingId}
