@@ -127,6 +127,8 @@ builder.Services.AddCors(options =>
             // Production frontend (Vercel)
             if (string.Equals(origin, "https://floraflow1223.vercel.app", StringComparison.OrdinalIgnoreCase))
                 return true;
+            if (string.Equals(origin, "https://jaar-2-red.vercel.app", StringComparison.OrdinalIgnoreCase))
+                return true;
 
             // Allow Vercel preview deployments
             if (origin.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)) return true;
