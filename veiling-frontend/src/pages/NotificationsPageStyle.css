@@ -25,7 +25,7 @@
 
 .notif-tab {
   border: 1px solid var(--color-border);
-  background: #ffffff;
+  background: var(--color-surface-2);
   color: var(--color-text);
   border-radius: 0.7rem;
   padding: 0.4rem 0.75rem;
@@ -36,7 +36,7 @@
 .notif-tab[aria-pressed="true"] {
   border-color: var(--color-accent);
   background: rgba(21, 128, 61, 0.08);
-  color: #14532d;
+  color: var(--color-text);
 }
 
 .notif-clear {
@@ -84,7 +84,7 @@
 
 .notif-item {
   border-radius: 0.75rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--color-border);
   padding: 0.6rem 0.75rem;
   display: flex;
   flex-direction: column;
@@ -94,13 +94,13 @@
 }
 
 .notif-item.is-unread {
-  background: #ecfdf3;
-  border-color: rgba(22, 163, 74, 0.2);
+  background: var(--color-success-soft);
+  border-color: var(--color-success-border);
 }
 
 .notif-item.is-read {
   opacity: 0.7;
-  background: #f1f5f9;
+  background: var(--color-surface-2);
 }
 
 .notif-item--success {
@@ -139,8 +139,8 @@
 }
 
 .notif-item__delete {
-  border: 1px solid rgba(15, 23, 42, 0.16);
-  background: #ffffff;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
   color: #7f1d1d;
   border-radius: 999px;
   width: 26px;
@@ -154,14 +154,14 @@
 }
 
 .notif-item__delete:hover {
-  background: #fee2e2;
+  background: rgba(220, 38, 38, 0.12);
   border-color: rgba(127, 29, 29, 0.3);
 }
 
 .notif-item__details {
   margin: 0;
   padding: 0.5rem 0 0;
-  border-top: 1px dashed rgba(15, 23, 42, 0.12);
+  border-top: 1px dashed var(--color-border);
   display: flex;
   flex-direction: column;
   gap: 0.4rem;

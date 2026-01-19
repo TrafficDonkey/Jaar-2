@@ -1,30 +1,23 @@
-body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #0a100a, #142014, #0d260d); 
-    color: #f0f0f0;
-}
-
 .auction-container {
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 50px;
-    min-height: 100vh;
+    min-height: calc(100vh - var(--topbar-height));
+    padding: 20px;
 }
 
 .auction-card {
-    background: linear-gradient(145deg, #1a3d1a, #0d260d);
+    background: var(--card-background);
     padding: 30px;
     border-radius: 20px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+    box-shadow: var(--card-shadow);
     display: flex;
     flex-direction: column;
     gap: 20px;
     width: 350px;
     text-align: center;
-    color: #c8facc;
+    color: var(--card-fg);
     transition: transform 0.2s ease;
 }
 
@@ -35,7 +28,7 @@ body {
 .auction-card h1 {
     font-size: 2.5em;
     margin-bottom: 15px;
-    text-shadow: 1px 1px 6px rgba(0, 255, 0, 0.5);
+    text-shadow: var(--heading-shadow);
 }
 
 .auction-form {
@@ -48,16 +41,16 @@ body {
     padding: 12px;
     font-size: 1em;
     border-radius: 12px;
-    border: 1px solid #2e7d32;
-    background-color: #111a11;
-    color: #c8facc;
+    border: 1px solid var(--input-border);
+    background-color: var(--input-background);
+    color: var(--input-fg);
     transition: border-color 0.3s ease, background-color 0.3s ease;
 }
 
 .auction-form input:focus {
     outline: none;
-    border-color: #69f0ae;
-    background-color: #142214;
+    border-color: var(--input-focus-border);
+    background-color: var(--input-focus-background);
 }
 
 .auction-form button {
@@ -65,19 +58,19 @@ body {
     font-size: 1em;
     border-radius: 12px;
     border: none;
-    color: #fff;
+    color: var(--button-fg);
     cursor: pointer;
-    background: linear-gradient(90deg, #1b5e20, #69f0ae);
+    background: linear-gradient(90deg, var(--button-gradient-from), var(--button-gradient-to));
     transition: background 0.3s ease, transform 0.2s ease;
 }
 
 .auction-form button:disabled {
-    background-color: #555;
+    background: var(--button-disabled);
     cursor: not-allowed;
 }
 
 .auction-form button:not(:disabled):hover {
-    background: linear-gradient(90deg, #69f0ae, #1b5e20);
+    background: linear-gradient(90deg, var(--button-gradient-to), var(--button-gradient-from));
     transform: scale(1.05);
 }
 
@@ -98,7 +91,7 @@ body {
     flex-direction: column;
     justify-content: space-between;
     height: 300px;
-    color: #c8facc;
+    color: var(--axis-fg);
     font-size: 12px;  
 
 
@@ -109,8 +102,8 @@ body {
     position: relative;
     width: 80px;
     height: 300px;
-    background: linear-gradient(to bottom, #0d260d, #111);
-    border: 2px solid #1b5e20;
+    background: var(--rectangle-background);
+    border: 2px solid var(--rectangle-border);
     border-radius: 12px;
     overflow: hidden;
 }
@@ -121,7 +114,7 @@ body {
     left: 0;
     width: 100%;
     height: 3px;
-    background: linear-gradient(90deg, #69f0ae, #00e676);
-    box-shadow: 0 0 8px #00ff88;
+    background: linear-gradient(90deg, var(--progress-gradient-from), var(--progress-gradient-to));
+    box-shadow: var(--progress-glow);
     transition: top 0.1s linear;
 }

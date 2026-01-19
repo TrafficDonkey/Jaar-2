@@ -5,9 +5,9 @@
 .reg-shell {
   background: radial-gradient(
     circle at top,
-    #ffffff 0%,
-    #f3f7f4 55%,
-    #e1efe7 100%
+    var(--color-surface) 0%,
+    var(--color-bg) 55%,
+    var(--color-bg) 100%
   );
 }
 
@@ -59,7 +59,7 @@
   border: 1px solid var(--color-border);
   border-radius: 0.75rem;
   padding: 0.55rem 0.65rem;
-  background: #fff;
+  background: var(--control-bg);
   color: var(--color-text);
 }
 
@@ -125,13 +125,13 @@
 
 /* Kleine 'ghost'-knop (wachtwoord tonen) */
 .ghost-btn {
-  background: #edf3f2;
-  border: 1px solid rgba(15, 118, 110, 0.2);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
   border-radius: 999px;
   padding: 0.25rem 0.6rem;
   font-size: 0.65rem;
   cursor: pointer;
-  color: var(--color-primary);
+  color: var(--color-text);
 }
 
 /* --------------------------- EXTRA UI-ELEMENTEN -------------------------- */
@@ -206,20 +206,20 @@
 
 /* Foutstijlen voor veld- en formuliermeldingen */
 .input-error {
-  border-color: #c53030;
-  background: #fff5f5;
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-soft);
 }
 
 .field-error {
-  color: #c53030;
+  color: #ef4444;
   font-size: 0.85rem;
   margin: 0;
 }
 
 .form-error {
-  background: #fdeaea;
-  border: 1px solid #f4b4b4;
-  color: #8a1c1c;
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-text);
   padding: 0.75rem 0.85rem;
   border-radius: 0.65rem;
   margin-bottom: 0.5rem;

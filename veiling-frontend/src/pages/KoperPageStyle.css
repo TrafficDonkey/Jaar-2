@@ -63,7 +63,7 @@
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
   font-size: 0.95rem;
-  background: #ffffff;
+  background: var(--color-surface-2);
   color: var(--color-text);
 }
 
@@ -75,7 +75,7 @@
 
 .kop-veiling-card:hover {
   transform: translateY(-1px);
-  background: #f9fafb;
+  background: var(--color-surface);
 }
 
 .kop-veiling-card--active {
@@ -107,8 +107,8 @@
   padding: 0.12rem 0.5rem;
   font-size: 0.75rem;
   font-weight: 600;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--color-border);
+  background: rgba(148, 163, 184, 0.12);
   color: var(--color-text);
   white-space: nowrap;
 }
@@ -178,9 +178,9 @@
 .kop-filter-select {
   width: 100%;
   border-radius: 0.75rem;
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  border: 1px solid var(--color-border);
   padding: 0.35rem 0.5rem;
-  background: #fff;
+  background: var(--control-bg);
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   transition: box-shadow 0.2s ease;
 }
@@ -188,9 +188,9 @@
 .kop-filter-input {
   width: 100%;
   border-radius: 0.75rem;
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  border: 1px solid var(--color-border);
   padding: 0.35rem 0.5rem;
-  background: #fff;
+  background: var(--control-bg);
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   transition: box-shadow 0.2s ease;
 }
@@ -400,15 +400,15 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  background: #ffffff;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
   color: var(--color-text);
   font-weight: 800;
   cursor: pointer;
 }
 
 .kop-info-btn:hover {
-  background: #f8fafc;
+  background: var(--color-surface-2);
 }
 
 .kop-startinfo-popover {
@@ -460,7 +460,7 @@
   border-radius: 8px;
   font-size: 0.95rem;
 
-  background: #ffffff;
+  background: var(--control-bg);
   border: 1px solid var(--color-border);
   color: var(--color-text);
 }
@@ -489,13 +489,13 @@
 }
 
 .kop-koop-btn--ghost {
-  background: #ffffff;
+  background: var(--color-surface-2);
   color: var(--color-text);
   border: 1px solid var(--color-border);
 }
 
 .kop-koop-btn--ghost:hover {
-  background: #f8fafc;
+  background: var(--color-surface);
 }
 
 .kop-koop-btn:disabled {
@@ -523,13 +523,13 @@
 .kop-quick-btn {
   padding: 0.25rem 0.6rem;
   border-radius: 999px;
-  border: 1px solid rgba(15, 23, 42, 0.16);
-  background: #ffffff;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
   cursor: pointer;
 }
 
 .kop-quick-btn:hover {
-  background: #f8fafc;
+  background: var(--color-surface);
 }
 
 .kop-extra-text--strong {
@@ -617,7 +617,7 @@
 }
 
 .kop-modal-section {
-  background: #ffffff;
+  background: var(--color-surface-2);
   border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 0.9rem 1rem;

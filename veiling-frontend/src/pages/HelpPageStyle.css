@@ -32,7 +32,7 @@
 
 .help-role-btn {
   border: 1px solid var(--color-border);
-  background: #ffffff;
+  background: var(--color-surface-2);
   color: var(--color-text);
   border-radius: 999px;
   padding: 0.35rem 0.75rem;
@@ -43,7 +43,7 @@
 .help-role-btn.is-active {
   border-color: var(--color-accent);
   background: rgba(21, 128, 61, 0.08);
-  color: #14532d;
+  color: var(--color-text);
 }
 
 .help-card {
@@ -106,14 +106,14 @@
   padding: 0.5rem 0.9rem;
   border-radius: 0.75rem;
   border: 1px solid var(--color-border);
-  background: #ffffff;
+  background: var(--color-surface-2);
   color: var(--color-text);
   font-weight: 600;
   text-decoration: none;
 }
 
 .help-link-btn:hover {
-  background: #f8fafc;
+  background: var(--color-surface);
 }
 
 @media (max-width: 640px) {

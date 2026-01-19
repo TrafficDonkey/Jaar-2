@@ -33,9 +33,10 @@ export default function Layout() {
     });
   }
 
-  const [dark] = useState(() => {
+  const [dark, setDark] = useState(() => {
     return localStorage.getItem("theme") === "dark";
   });
+  const themeName = dark ? "Donker" : "Licht";
 
   // Rol komt uit de backend (bij login) en wordt opgeslagen in sessionStorage.
   // We gebruiken dit om menu-items te tonen/verbergen en (via ProtectedRoute) routes te beschermen.
@@ -312,6 +313,36 @@ export default function Layout() {
             >
               {notifCount}
             </span>
+          </button>
+
+          <button
+            type="button"
+            className="theme-btn"
+            aria-label={dark ? "Schakel naar lichte modus" : "Schakel naar donkere modus"}
+            aria-pressed={dark}
+            onClick={() => setDark((value) => !value)}
+            title={`Weergave: ${themeName}`}
+          >
+            {dark ? (
+              <svg
+                className="theme-btn__icon"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path d="M21.64 13.65A9 9 0 0110.35 2.36a.75.75 0 00-1.02-.86A10.5 10.5 0 1022.5 14.67a.75.75 0 00-.86-1.02z" />
+              </svg>
+            ) : (
+              <svg
+                className="theme-btn__icon"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path d="M6.76 4.84l-1.8-1.79L3.17 4.84l1.79 1.79 1.8-1.79zM1 13h3v-2H1v2zm10 10h2v-3h-2v3zm9-10v-2h3v2h-3zm-2.17-8.16l1.79-1.79-1.79-1.8-1.79 1.8 1.79 1.79zM17.24 19.16l1.79 1.79 1.8-1.79-1.8-1.79-1.79 1.79zM4.84 17.24l-1.79 1.79 1.79 1.8 1.79-1.8-1.79-1.79zM12 6a6 6 0 100 12 6 6 0 000-12z" />
+              </svg>
+            )}
+            <span className="theme-btn__text">{themeName}</span>
           </button>
 
           {showNotif && (
