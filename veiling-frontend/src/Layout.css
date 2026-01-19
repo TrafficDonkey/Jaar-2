@@ -72,13 +72,13 @@
 }
 
 /* Knoppen met transparante stijl (zoals logout) */
-.logout-btn,
 .ghost-btn {
   border: 1px solid rgba(255, 255, 255, 0.32);
   background: transparent;
   color: #fff;
   border-radius: 0.5rem;
-  padding: 0.4rem 0.75rem;
+  min-height: 44px;
+  padding: 0.55rem 0.85rem;
   cursor: pointer;
 }
 
@@ -88,8 +88,8 @@
   background: rgba(255, 255, 255, 0.12);
   color: #f0fff4;
   border-radius: 0.6rem;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -100,7 +100,7 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
-.notif-btn:focus {
+.notif-btn:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.6);
   outline-offset: 2px;
 }
@@ -110,8 +110,8 @@
   background: rgba(255, 255, 255, 0.12);
   color: #f0fff4;
   border-radius: 0.6rem;
-  height: 36px;
-  padding: 0 0.65rem;
+  min-height: 44px;
+  padding: 0 0.85rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -123,7 +123,7 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
-.theme-btn:focus {
+.theme-btn:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.6);
   outline-offset: 2px;
 }
@@ -142,7 +142,7 @@
 
 @media (max-width: 560px) {
   .theme-btn {
-    width: 36px;
+    width: 44px;
     padding: 0;
   }
 

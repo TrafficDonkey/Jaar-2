@@ -9,6 +9,7 @@ import AppFooter from "./components/AppFooter";
 
 export default function Layout() {
   const nav = useNavigate();
+  const logoutCancelRef = useRef(null);
 
   function normalizeDetails(raw) {
     if (!Array.isArray(raw)) return null;
@@ -220,6 +221,27 @@ export default function Layout() {
     setShowLogoutConfirm(true);
   }
 
+  useEffect(() => {
+    if (!showLogoutConfirm) return;
+    logoutCancelRef.current?.focus();
+  }, [showLogoutConfirm]);
+
+  useEffect(() => {
+    if (!showNotif && !showLogoutConfirm) return;
+
+    function onKeyDown(event) {
+      if (event.key !== "Escape") return;
+      if (showLogoutConfirm) {
+        setShowLogoutConfirm(false);
+        return;
+      }
+      if (showNotif) setShowNotif(false);
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showNotif, showLogoutConfirm]);
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -278,6 +300,8 @@ export default function Layout() {
             type="button"
             className="notif-btn"
             aria-label={notificationsMuted ? "Meldingen (uit)" : "Meldingen (aan)"}
+            aria-expanded={showNotif}
+            aria-controls="notif-panel"
             onClick={handleBellClick}
           >
             {notificationsMuted ? (
@@ -345,7 +369,7 @@ export default function Layout() {
           </button>
 
           {showNotif && (
-            <div className="notif-panel" role="status" aria-live="polite">
+            <div id="notif-panel" className="notif-panel" role="status" aria-live="polite">
               <div className="notif-panel__head">
                 <span>Meldingen</span>
                 <Link
@@ -418,6 +442,7 @@ export default function Layout() {
                 type="button"
                 className="logout-modal__btn logout-modal__btn--ghost"
                 onClick={() => setShowLogoutConfirm(false)}
+                ref={logoutCancelRef}
               >
                 Annuleer
               </button>

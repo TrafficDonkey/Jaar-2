@@ -5,7 +5,7 @@
 // - Archief: afgeronde veilingen
 // - Overzicht: kleine samenvatting/statistieken
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./VeilingmeesterPageStyle.css";
 import apiFetch from "../api";
 import MessageCenter from "../components/MessageCenter";
@@ -322,6 +322,7 @@ export default function VeilingmeesterPage() {
 
   const [detailVeiling, setDetailVeiling] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const detailCloseBtnRef = useRef(null);
 
   // Form voor nieuwe veiling
   const [selectedAanmeldingId, setSelectedAanmeldingId] = useState("");
@@ -380,6 +381,7 @@ export default function VeilingmeesterPage() {
 
   useEffect(() => {
     if (!detailOpen) return;
+    detailCloseBtnRef.current?.focus();
 
     const onKeyDown = (e) => {
       if (e.key === "Escape") {
@@ -1394,16 +1396,17 @@ export default function VeilingmeesterPage() {
                 className="vm-modal"
                 role="dialog"
                 aria-modal="true"
-                aria-label="Veilingdetails"
+                aria-labelledby="vm-detail-title"
+                aria-describedby="vm-detail-desc"
                 onMouseDown={(e) => e.stopPropagation()}
               >
                 <header className="vm-modal-header">
                   <div>
-                    <h2 className="vm-modal-title">
+                    <h2 id="vm-detail-title" className="vm-modal-title">
                       Veiling #{getVeilingId(detailVeiling) ?? "-"}{" "}
-                      {detailVeiling?.naam ? `– ${detailVeiling.naam}` : ""}
+                      {detailVeiling?.naam ? `- ${detailVeiling.naam}` : ""}
                     </h2>
-                    <p className="vm-muted">
+                    <p id="vm-detail-desc" className="vm-muted">
                       Afgerond op{" "}
                       {formatDateTime(detailVeiling?.eindTijd ?? detailVeiling?.datum)}
                     </p>
@@ -1412,6 +1415,7 @@ export default function VeilingmeesterPage() {
                     type="button"
                     className="btn btn-outline"
                     onClick={closeDetail}
+                    ref={detailCloseBtnRef}
                   >
                     Sluiten
                   </button>

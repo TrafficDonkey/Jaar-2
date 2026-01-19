@@ -525,16 +525,18 @@ export default function SettingsPage() {
                   </div>
                 )}
                 <div className="field">
-                  <label>Authenticator sleutel</label>
+                  <label htmlFor="twoFactorSecret">Authenticator sleutel</label>
                   <input
+                    id="twoFactorSecret"
                     className="twofa-key"
                     readOnly
                     value={twoFactorSetup.secret || ""}
                   />
                 </div>
                 <div className="field">
-                  <label>Authenticator link</label>
+                  <label htmlFor="twoFactorLink">Authenticator link</label>
                   <input
+                    id="twoFactorLink"
                     className="twofa-key"
                     readOnly
                     value={twoFactorSetup.otpauthUrl || ""}

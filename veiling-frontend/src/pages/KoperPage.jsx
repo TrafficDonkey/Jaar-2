@@ -140,6 +140,7 @@ export default function KoperPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyErr, setHistoryErr] = useState("");
   const [historyData, setHistoryData] = useState(null);
+  const historyCloseBtnRef = React.useRef(null);
 
   // tab: "veilingen" | "aankopen"
   const [activeTab, setActiveTab] = useState("veilingen");
@@ -373,6 +374,7 @@ export default function KoperPage() {
   // Popup: sluit met ESC
   useEffect(() => {
     if (!showHistory) return;
+    historyCloseBtnRef.current?.focus();
     function onKeyDown(e) {
       if (e.key === "Escape") setShowHistory(false);
     }
@@ -1176,18 +1178,22 @@ export default function KoperPage() {
       {showHistory && (
         <div
           className="kop-modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Historische prijzen"
           onClick={(e) => {
             if (e.target === e.currentTarget) setShowHistory(false);
           }}
+          role="presentation"
         >
-          <div className="kop-modal">
+          <div
+            className="kop-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="kop-history-title"
+            aria-describedby="kop-history-desc"
+          >
             <div className="kop-modal-header">
               <div>
-                <h3>Historische prijzen</h3>
-                <p className="kop-modal-sub">
+                <h3 id="kop-history-title">Historische prijzen</h3>
+                <p id="kop-history-desc" className="kop-modal-sub">
                   Inzicht in eerdere prijzen voor deze bloemsoort.
                 </p>
               </div>
@@ -1195,6 +1201,7 @@ export default function KoperPage() {
                 type="button"
                 className="kop-koop-btn kop-koop-btn--ghost"
                 onClick={() => setShowHistory(false)}
+                ref={historyCloseBtnRef}
               >
                 Sluiten
               </button>

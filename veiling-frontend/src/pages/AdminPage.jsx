@@ -21,6 +21,7 @@ export default function AdminPage() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const deleteConfirmInputRef = React.useRef(null);
 
   const [form, setForm] = useState({
     naam: "",
@@ -131,6 +132,21 @@ export default function AdminPage() {
 
     load();
   }, []);
+
+  useEffect(() => {
+    if (!deleteTarget) return;
+    deleteConfirmInputRef.current?.focus();
+
+    function onKeyDown(event) {
+      if (event.key !== "Escape") return;
+      setDeleteTarget(null);
+      setDeleteConfirm("");
+      setDeleteError("");
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [deleteTarget]);
 
   async function reloadUsers() {
     try {
@@ -480,10 +496,11 @@ export default function AdminPage() {
                       className="admin-deleteBox"
                       role="dialog"
                       aria-modal="true"
-                      aria-label="Account verwijderen"
+                      aria-labelledby="admin-delete-title"
+                      aria-describedby="admin-delete-desc"
                     >
                       <div className="admin-deleteHeader">
-                        <strong>Account verwijderen</strong>
+                        <strong id="admin-delete-title">Account verwijderen</strong>
                         <button
                           type="button"
                           className="admin-delete-cancel"
@@ -496,7 +513,7 @@ export default function AdminPage() {
                           Annuleren
                         </button>
                       </div>
-                      <p className="admin-deleteText">
+                      <p id="admin-delete-desc" className="admin-deleteText">
                         Type Delete om het account van{" "}
                         <strong>
                           {deleteTarget.naam ?? deleteTarget.email ?? "Onbekend"}
@@ -504,9 +521,14 @@ export default function AdminPage() {
                         te verwijderen.
                       </p>
                       <div className="admin-deleteRow">
+                        <label htmlFor="adminDeleteConfirm" className="visually-hidden">
+                          Type Delete om te bevestigen
+                        </label>
                         <input
+                          id="adminDeleteConfirm"
                           type="text"
                           value={deleteConfirm}
+                          ref={deleteConfirmInputRef}
                           onChange={(e) => {
                             setDeleteConfirm(e.target.value);
                             if (deleteError) setDeleteError("");
