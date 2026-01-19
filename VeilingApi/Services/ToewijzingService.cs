@@ -17,46 +17,54 @@ public class ToewijzingService : IToewijzingService
     private readonly AppDbContext _db;
     public ToewijzingService(AppDbContext db) => _db = db;
 
-    private static ToewijzingDto MapToDto(Toewijzing t) => new()
-    {
-        ToewijzingId    = t.ToewijzingId,
-        KoperId         = t.KoperId,
-        KoperNaam       = t.Koper != null ? t.Koper.Naam : string.Empty,
-        VeilingProductId= t.VeilingProductId,
-        Categorie       = t.VeilingProduct?.Categorie
-                          ?? t.VeilingProduct?.Aanmelding?.Categorie
-                          ?? string.Empty,
-        ProductBeschrijving = t.VeilingProduct?.Aanmelding?.ProductBeschrijving
-                          ?? string.Empty,
-        Aantal          = t.Aantal,
-        EindPrijs       = t.EindPrijs,
-        Datum           = t.Datum
-    };
+    private static IQueryable<ToewijzingDto> SelectDto(IQueryable<Toewijzing> query)
+        => query.Select(t => new ToewijzingDto
+        {
+            ToewijzingId = t.ToewijzingId,
+            KoperId = t.KoperId,
+            KoperNaam = t.Koper != null ? t.Koper.Naam : string.Empty,
+            VeilingProductId = t.VeilingProductId,
+            Categorie =
+                (t.VeilingProduct != null ? t.VeilingProduct.Categorie : null)
+                ?? (t.VeilingProduct != null && t.VeilingProduct.Aanmelding != null
+                    ? t.VeilingProduct.Aanmelding.Categorie
+                    : null)
+                ?? string.Empty,
+            ProductBeschrijving =
+                t.VeilingProduct != null && t.VeilingProduct.Aanmelding != null
+                    ? t.VeilingProduct.Aanmelding.ProductBeschrijving
+                    : string.Empty,
+            Aantal = t.Aantal,
+            EindPrijs = t.EindPrijs,
+            Datum = t.Datum
+        });
 
     // ────────────────────────────── READ: alle toewijzingen ──────────────────────────────
 
     public async Task<List<ToewijzingDto>> GetAllAsync()
     {
-        return await _db.Toewijzingen
+        var query = _db.Toewijzingen
+            .AsNoTracking()
             .Include(t => t.Koper)
             .Include(t => t.VeilingProduct)
                 .ThenInclude(vp => vp!.Aanmelding)
-            .OrderByDescending(t => t.Datum)
-            .Select(t => MapToDto(t))
-            .ToListAsync();
+            .OrderByDescending(t => t.Datum);
+
+        return await SelectDto(query).ToListAsync();
     }
 
     // ────────────────────────────── READ: detail ──────────────────────────────
 
     public async Task<ToewijzingDto?> GetByIdAsync(int id)
     {
-        return await _db.Toewijzingen
+        var query = _db.Toewijzingen
+            .AsNoTracking()
             .Include(t => t.Koper)
             .Include(t => t.VeilingProduct)
                 .ThenInclude(vp => vp!.Aanmelding)
-            .Where(t => t.ToewijzingId == id)
-            .Select(t => MapToDto(t))
-            .FirstOrDefaultAsync();
+            .Where(t => t.ToewijzingId == id);
+
+        return await SelectDto(query).FirstOrDefaultAsync();
     }
 
     // ────────────────────────────── READ: toewijzingen voor aanvoerder ────────
@@ -66,30 +74,32 @@ public class ToewijzingService : IToewijzingService
     {
         // We gaan ervan uit dat een Toewijzing altijd een VeilingProduct + Aanmelding heeft.
         // Met de ! vertellen we de compiler dat we dat zeker weten (anders CS8602 warning).
-        return await _db.Toewijzingen
+        var query = _db.Toewijzingen
+            .AsNoTracking()
             .Include(t => t.Koper)
             .Include(t => t.VeilingProduct)
                 .ThenInclude(vp => vp!.Aanmelding)
             .Where(t => t.VeilingProduct != null
                 && t.VeilingProduct.Aanmelding != null
                 && t.VeilingProduct.Aanmelding.GebruikerId == gebruikerId)
-            .OrderByDescending(t => t.Datum)
-            .Select(t => MapToDto(t))
-            .ToListAsync();
+            .OrderByDescending(t => t.Datum);
+
+        return await SelectDto(query).ToListAsync();
     }
 
     // ────────────────────────────── READ: toewijzingen waar gebruiker koper is ───────────
 
     public async Task<List<ToewijzingDto>> GetByGebruikerAsync(int gebruikerId)
     {
-        return await _db.Toewijzingen
+        var query = _db.Toewijzingen
+            .AsNoTracking()
             .Include(t => t.Koper)
             .Include(t => t.VeilingProduct)
                 .ThenInclude(vp => vp!.Aanmelding)
             .Where(t => t.KoperId == gebruikerId)
-            .OrderByDescending(t => t.Datum)
-            .Select(t => MapToDto(t))
-            .ToListAsync();
+            .OrderByDescending(t => t.Datum);
+
+        return await SelectDto(query).ToListAsync();
     }
 
     // ────────────────────────────── CREATE ──────────────────────────────
@@ -158,7 +168,24 @@ public class ToewijzingService : IToewijzingService
                 .ThenInclude(vp => vp!.Aanmelding)
             .FirstAsync(x => x.ToewijzingId == t.ToewijzingId);
 
-        return MapToDto(created);
+        // handmatig mappen; created is al gematerialiseerd
+        return new ToewijzingDto
+        {
+            ToewijzingId = created.ToewijzingId,
+            KoperId = created.KoperId,
+            KoperNaam = created.Koper != null ? created.Koper.Naam : string.Empty,
+            VeilingProductId = created.VeilingProductId,
+            Categorie =
+                created.VeilingProduct?.Categorie
+                ?? created.VeilingProduct?.Aanmelding?.Categorie
+                ?? string.Empty,
+            ProductBeschrijving =
+                created.VeilingProduct?.Aanmelding?.ProductBeschrijving
+                ?? string.Empty,
+            Aantal = created.Aantal,
+            EindPrijs = created.EindPrijs,
+            Datum = created.Datum
+        };
     }
 
     // ────────────────────────────── DELETE ──────────────────────────────

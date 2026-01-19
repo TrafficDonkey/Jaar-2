@@ -294,6 +294,15 @@ static async Task EnsureCoreSchemaAsync(string connectionString, ILogger logger)
         return result is not null;
     }
 
+    static async Task<bool> AnyObjectExistsAsync(SqlConnection con, string name)
+    {
+        await using var cmd = con.CreateCommand();
+        cmd.CommandText = "SELECT 1 FROM sys.objects WHERE [name] = @t";
+        cmd.Parameters.AddWithValue("@t", name);
+        var result = await cmd.ExecuteScalarAsync();
+        return result is not null;
+    }
+
     static async Task<HashSet<string>> GetColumnsAsync(SqlConnection con, string tableName)
     {
         var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -312,39 +321,95 @@ WHERE o.[type] = 'U' AND o.[name] = @t";
         return cols;
     }
 
-    static async Task EnsureTableAsync(
+    static async Task EnsureColumnsAsync(
         SqlConnection con,
         ILogger logger,
-        string preferredName,
-        string createTableSql,
+        string tableName,
         Dictionary<string, string> requiredColumns
     )
     {
-        var exists = await TableExistsAsync(con, preferredName);
-        if (!exists)
-        {
-            await using var create = con.CreateCommand();
-            create.CommandText = createTableSql;
-            await create.ExecuteNonQueryAsync();
-            logger.LogInformation("DB schema: created table {Table}", preferredName);
-        }
-
-        var existing = await GetColumnsAsync(con, preferredName);
+        var existing = await GetColumnsAsync(con, tableName);
         foreach (var (col, definition) in requiredColumns)
         {
             if (existing.Contains(col)) continue;
             await using var cmd = con.CreateCommand();
-            cmd.CommandText = $"ALTER TABLE [dbo].[{preferredName}] ADD [{col}] {definition};";
+            cmd.CommandText = $"ALTER TABLE [dbo].[{tableName}] ADD [{col}] {definition};";
             await cmd.ExecuteNonQueryAsync();
-            logger.LogInformation("DB schema: added column {Table}.{Column}", preferredName, col);
+            logger.LogInformation("DB schema: added column {Table}.{Column}", tableName, col);
         }
     }
 
-    await EnsureTableAsync(
+    static async Task EnsureViewAliasAsync(
+        SqlConnection con,
+        ILogger logger,
+        string aliasName,
+        string sourceTableName
+    )
+    {
+        if (await AnyObjectExistsAsync(con, aliasName)) return;
+        if (!await TableExistsAsync(con, sourceTableName)) return;
+
+        await using var cmd = con.CreateCommand();
+        // CREATE VIEW moet in een aparte batch => EXEC dynamic SQL
+        cmd.CommandText =
+            $"EXEC(N'CREATE VIEW [dbo].[{aliasName}] AS SELECT * FROM [dbo].[{sourceTableName}]');";
+        await cmd.ExecuteNonQueryAsync();
+        logger.LogInformation("DB schema: created view {View} -> {Table}", aliasName, sourceTableName);
+    }
+
+    static async Task EnsureTablePairAsync(
+        SqlConnection con,
+        ILogger logger,
+        string pluralName,
+        string singularName,
+        string createPluralSql,
+        Dictionary<string, string> requiredColumns
+    )
+    {
+        var pluralTable = await TableExistsAsync(con, pluralName);
+        var singularTable = await TableExistsAsync(con, singularName);
+
+        if (!pluralTable && !singularTable)
+        {
+            await using var create = con.CreateCommand();
+            create.CommandText = createPluralSql;
+            await create.ExecuteNonQueryAsync();
+            pluralTable = await TableExistsAsync(con, pluralName);
+            if (pluralTable)
+            {
+                logger.LogInformation("DB schema: created table {Table}", pluralName);
+            }
+        }
+
+        // Voeg kolommen toe op alle bestaande tabellen (zowel enkelvoud als meervoud),
+        // omdat we niet 100% zeker weten welke naam in de Azure DB al bestaat.
+        if (pluralTable)
+        {
+            await EnsureColumnsAsync(con, logger, pluralName, requiredColumns);
+        }
+        if (singularTable)
+        {
+            await EnsureColumnsAsync(con, logger, singularName, requiredColumns);
+        }
+
+        // Alias: als er maar 1 variant als TABLE bestaat, maak dan een VIEW voor de andere naam
+        // zodat zowel oude als nieuwe code blijft werken.
+        if (pluralTable && !await AnyObjectExistsAsync(con, singularName))
+        {
+            await EnsureViewAliasAsync(con, logger, singularName, pluralName);
+        }
+        if (singularTable && !await AnyObjectExistsAsync(con, pluralName))
+        {
+            await EnsureViewAliasAsync(con, logger, pluralName, singularName);
+        }
+    }
+
+    await EnsureTablePairAsync(
         con,
         logger,
-        preferredName: "Gebruikers",
-        createTableSql: @"
+        pluralName: "Gebruikers",
+        singularName: "Gebruiker",
+        createPluralSql: @"
 IF OBJECT_ID(N'[dbo].[Gebruikers]', N'U') IS NULL
 BEGIN
   CREATE TABLE [dbo].[Gebruikers](
@@ -378,11 +443,12 @@ END",
         }
     );
 
-    await EnsureTableAsync(
+    await EnsureTablePairAsync(
         con,
         logger,
-        preferredName: "Aanmeldingen",
-        createTableSql: @"
+        pluralName: "Aanmeldingen",
+        singularName: "Aanmelding",
+        createPluralSql: @"
 IF OBJECT_ID(N'[dbo].[Aanmeldingen]', N'U') IS NULL
 BEGIN
   CREATE TABLE [dbo].[Aanmeldingen](
@@ -414,11 +480,12 @@ END",
         }
     );
 
-    await EnsureTableAsync(
+    await EnsureTablePairAsync(
         con,
         logger,
-        preferredName: "Veilingen",
-        createTableSql: @"
+        pluralName: "Veilingen",
+        singularName: "Veiling",
+        createPluralSql: @"
 IF OBJECT_ID(N'[dbo].[Veilingen]', N'U') IS NULL
 BEGIN
   CREATE TABLE [dbo].[Veilingen](
@@ -440,11 +507,12 @@ END",
         }
     );
 
-    await EnsureTableAsync(
+    await EnsureTablePairAsync(
         con,
         logger,
-        preferredName: "VeilingProducten",
-        createTableSql: @"
+        pluralName: "VeilingProducten",
+        singularName: "VeilingProduct",
+        createPluralSql: @"
 IF OBJECT_ID(N'[dbo].[VeilingProducten]', N'U') IS NULL
 BEGIN
   CREATE TABLE [dbo].[VeilingProducten](
@@ -464,11 +532,12 @@ END",
         }
     );
 
-    await EnsureTableAsync(
+    await EnsureTablePairAsync(
         con,
         logger,
-        preferredName: "Biedingen",
-        createTableSql: @"
+        pluralName: "Biedingen",
+        singularName: "Bieding",
+        createPluralSql: @"
 IF OBJECT_ID(N'[dbo].[Biedingen]', N'U') IS NULL
 BEGIN
   CREATE TABLE [dbo].[Biedingen](
@@ -488,11 +557,12 @@ END",
         }
     );
 
-    await EnsureTableAsync(
+    await EnsureTablePairAsync(
         con,
         logger,
-        preferredName: "Toewijzingen",
-        createTableSql: @"
+        pluralName: "Toewijzingen",
+        singularName: "Toewijzing",
+        createPluralSql: @"
 IF OBJECT_ID(N'[dbo].[Toewijzingen]', N'U') IS NULL
 BEGIN
   CREATE TABLE [dbo].[Toewijzingen](
