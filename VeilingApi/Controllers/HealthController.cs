@@ -17,21 +17,20 @@ public class HealthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> Get()
     {
+        static string GetConnectionString(AppDbContext db)
+            => db.Database.GetDbConnection().ConnectionString;
+
         static async Task<(bool Exists, string? Type)> ObjectExistsAsync(AppDbContext db, string name)
         {
-            await using var con = db.Database.GetDbConnection();
-            if (con.State != System.Data.ConnectionState.Open)
-                await con.OpenAsync();
+            await using var con = new SqlConnection(GetConnectionString(db));
+            await con.OpenAsync();
 
             await using var cmd = con.CreateCommand();
             cmd.CommandText = @"
 SELECT TOP (1) o.[type]
 FROM sys.objects o
 WHERE o.[name] = @name AND o.[type] IN ('U','V');";
-            var p = cmd.CreateParameter();
-            p.ParameterName = "@name";
-            p.Value = name;
-            cmd.Parameters.Add(p);
+            cmd.Parameters.Add(new SqlParameter("@name", name));
 
             var result = await cmd.ExecuteScalarAsync();
             if (result is null) return (false, null);
@@ -41,9 +40,8 @@ WHERE o.[name] = @name AND o.[type] IN ('U','V');";
 
         static async Task<HashSet<string>> GetColumnsAsync(AppDbContext db, string objectName)
         {
-            await using var con = db.Database.GetDbConnection();
-            if (con.State != System.Data.ConnectionState.Open)
-                await con.OpenAsync();
+            await using var con = new SqlConnection(GetConnectionString(db));
+            await con.OpenAsync();
 
             await using var cmd = con.CreateCommand();
             cmd.CommandText = @"
@@ -51,10 +49,7 @@ SELECT c.[name]
 FROM sys.columns c
 JOIN sys.objects o ON c.object_id = o.object_id
 WHERE o.[name] = @name AND o.[type] IN ('U','V');";
-            var p = cmd.CreateParameter();
-            p.ParameterName = "@name";
-            p.Value = objectName;
-            cmd.Parameters.Add(p);
+            cmd.Parameters.Add(new SqlParameter("@name", objectName));
 
             var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             await using var rdr = await cmd.ExecuteReaderAsync();
@@ -73,7 +68,7 @@ WHERE o.[name] = @name AND o.[type] IN ('U','V');";
             string? catalog = null;
             try
             {
-                var csb = new SqlConnectionStringBuilder(_db.Database.GetDbConnection().ConnectionString);
+                var csb = new SqlConnectionStringBuilder(GetConnectionString(_db));
                 dataSource = csb.DataSource;
                 catalog = csb.InitialCatalog;
             }
