@@ -208,6 +208,71 @@ static SqlException? FindSqlException(Exception ex)
     return null;
 }
 
+static async Task EnsureGebruikerColumnsAsync(string connectionString, ILogger logger)
+{
+    await using var con = new SqlConnection(connectionString);
+    await con.OpenAsync();
+
+    static async Task<string?> FindUserTableAsync(SqlConnection con)
+    {
+        var candidates = new[] { "Gebruikers", "Gebruiker" };
+        await using var cmd = con.CreateCommand();
+        cmd.CommandText =
+            "SELECT TOP (1) [name] FROM sys.objects WHERE [type] = 'U' AND [name] IN (@t1, @t2)";
+        cmd.Parameters.AddWithValue("@t1", candidates[0]);
+        cmd.Parameters.AddWithValue("@t2", candidates[1]);
+        var result = await cmd.ExecuteScalarAsync();
+        return result?.ToString();
+    }
+
+    static async Task<HashSet<string>> GetColumnsAsync(SqlConnection con, string tableName)
+    {
+        var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using var cmd = con.CreateCommand();
+        cmd.CommandText = @"
+SELECT c.[name]
+FROM sys.columns c
+JOIN sys.objects o ON c.object_id = o.object_id
+WHERE o.[type] = 'U' AND o.[name] = @t";
+        cmd.Parameters.AddWithValue("@t", tableName);
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+        {
+            cols.Add(rdr.GetString(0));
+        }
+        return cols;
+    }
+
+    var table = await FindUserTableAsync(con);
+    if (string.IsNullOrWhiteSpace(table))
+    {
+        logger.LogWarning("Geen gebruikers-tabel gevonden; schema-fix wordt overgeslagen.");
+        return;
+    }
+
+    var existing = await GetColumnsAsync(con, table);
+
+    var required = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["TelefoonLand"] = "nvarchar(2) NULL",
+        ["TelefoonNummer"] = "nvarchar(25) NULL",
+        ["AdresStraat"] = "nvarchar(120) NULL",
+        ["Huisnummer"] = "nvarchar(20) NULL",
+        ["Postcode"] = "nvarchar(16) NULL",
+        ["TwoFactorEnabled"] = "bit NOT NULL DEFAULT(0)",
+        ["TwoFactorSecret"] = "nvarchar(64) NULL"
+    };
+
+    foreach (var (col, definition) in required)
+    {
+        if (existing.Contains(col)) continue;
+        await using var cmd = con.CreateCommand();
+        cmd.CommandText = $"ALTER TABLE [dbo].[{table}] ADD [{col}] {definition};";
+        await cmd.ExecuteNonQueryAsync();
+        logger.LogInformation("DB schema: added column {Table}.{Column}", table, col);
+    }
+}
+
 string? dbDiagSource = connectionStringSource;
 string? dbDiagDataSource = null;
 string? dbDiagCatalog = null;
@@ -280,6 +345,10 @@ using (var scope = app.Services.CreateScope())
             {
                 db.Database.EnsureCreated();
             }
+
+            // Als de DB ooit is aangemaakt zonder de nieuwste kolommen (bijv. eerder EnsureCreated),
+            // voeg ontbrekende kolommen toe zodat login/register niet stuk gaat.
+            EnsureGebruikerColumnsAsync(connectionString, app.Logger).GetAwaiter().GetResult();
 
             var admin = db.Gebruikers.FirstOrDefault(g => g.Email == "admin@floraflow.nl");
             if (admin == null)
