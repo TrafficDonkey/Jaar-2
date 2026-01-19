@@ -1,5 +1,6 @@
 // HistorischePrijsService.cs
-// Haalt historische prijsinformatie op via raw SQL voor performance.
+// Haalt historische prijsinformatie op met eigen SQL queries (geen Entity Framework voor dit scherm),
+// zodat we gericht kunnen optimaliseren (bijv. met indexen op Categorie en Datum).
 
 using Microsoft.Data.SqlClient;
 using VeilingApi.Models;

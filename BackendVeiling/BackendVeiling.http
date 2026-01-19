@@ -1,6 +1,0 @@
-@BackendVeiling_HostAddress = http://localhost:5035
-
-GET {{BackendVeiling_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

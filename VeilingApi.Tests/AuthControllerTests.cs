@@ -16,8 +16,8 @@ public class AuthControllerTests
         var mockSvc = new Mock<IAuthService>();
 
         // Mock tuple return value
-        mockSvc.Setup(s => s.LoginAsync("test@test.nl", "wrong"))
-            .ReturnsAsync((Token: (string?)null, Role: (string?)null, GebruikerId: (int?)null));
+        mockSvc.Setup(s => s.LoginAsync("test@test.nl", "wrong", null))
+            .ReturnsAsync((Token: (string?)null, Role: (string?)null, GebruikerId: (int?)null, TwoFactorRequired: false, TwoFactorInvalid: false));
 
         var controller = new AuthController(mockSvc.Object);
 
@@ -39,8 +39,8 @@ public class AuthControllerTests
     {
         // Test: Login geeft 200 terug als er een token is.
         var mockSvc = new Mock<IAuthService>();
-        mockSvc.Setup(s => s.LoginAsync("test@test.nl", "pass"))
-            .ReturnsAsync((Token: "jwt", Role: "Klant", GebruikerId: 5));
+        mockSvc.Setup(s => s.LoginAsync("test@test.nl", "pass", null))
+            .ReturnsAsync((Token: "jwt", Role: "Klant", GebruikerId: 5, TwoFactorRequired: false, TwoFactorInvalid: false));
 
         var controller = new AuthController(mockSvc.Object);
         var dto = new LoginDto { Email = "test@test.nl", Wachtwoord = "pass" };

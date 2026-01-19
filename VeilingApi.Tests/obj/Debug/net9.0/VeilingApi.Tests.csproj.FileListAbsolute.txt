@@ -1,6 +1,0 @@
-C:\Users\khali\RiderProjects\Jaar-2\VeilingApi.Tests\obj\Debug\net9.0\VeilingApi.Tests.csproj.AssemblyReference.cache
-C:\Users\khali\RiderProjects\Jaar-2\VeilingApi.Tests\obj\Debug\net9.0\VeilingApi.Tests.GeneratedMSBuildEditorConfig.editorconfig
-C:\Users\khali\RiderProjects\Jaar-2\VeilingApi.Tests\obj\Debug\net9.0\VeilingApi.Tests.AssemblyInfoInputs.cache
-C:\Users\khali\RiderProjects\Jaar-2\VeilingApi.Tests\obj\Debug\net9.0\VeilingApi.Tests.AssemblyInfo.cs
-C:\Users\khali\RiderProjects\Jaar-2\VeilingApi.Tests\obj\Debug\net9.0\VeilingApi.Tests.csproj.CoreCompileInputs.cache
-C:\Users\khali\RiderProjects\Jaar-2\VeilingApi.Tests\obj\Debug\net9.0\VeilingApi.Tests.sourcelink.json

@@ -15,6 +15,9 @@ public interface IAanmeldingService
     // Haal één aanmelding op via ID
     Task<AanmeldingDto?> GetByIdAsync(int id);
 
+    // Haal foto-data op voor een aanmelding
+    Task<AanmeldingFotoDto?> GetFotoAsync(int id);
+
     // Maak een nieuwe aanmelding aan
     Task<AanmeldingDto> CreateAsync(CreateAanmeldingDto dto);
 

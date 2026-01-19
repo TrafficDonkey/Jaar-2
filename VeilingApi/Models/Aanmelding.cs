@@ -9,7 +9,9 @@ namespace VeilingApi.Models;
 public class Aanmelding
 {
     public int AanmeldingId { get; set; }
-    public string FotoUrl { get; set; } = string.Empty;
+    public byte[]? FotoData { get; set; }
+    public string? FotoContentType { get; set; }
+    public string? FotoFileName { get; set; }
     public string ProductBeschrijving { get; set; } = string.Empty;
     public int Hoeveelheid { get; set; }
     public decimal MinimumPrijs { get; set; }

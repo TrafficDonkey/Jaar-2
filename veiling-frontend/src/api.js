@@ -1,53 +1,90 @@
 // api.js
 // Centrale helperfunctie voor API-verzoeken naar de backend.
-// Voegt automatisch het JWT-token toe (indien aanwezig) en handelt fouten en 401-status af.
+// - Leest VITE_API_BASE uit `.env`
+// - Voegt Authorization header toe (JWT uit sessionStorage)
+// - Normaliseert fouten naar bruikbare Error messages voor de UI
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
+export const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:5146/api";
 
 export default async function apiFetch(path, options = {}) {
+  // Auth: token wordt bij login opgeslagen in sessionStorage en hier automatisch meegestuurd.
   const token = sessionStorage.getItem("token");
 
-  // Bestaande headers uit options meenemen
+  // Bestaande headers uit options meenemen.
   const existingHeaders = options.headers ?? {};
 
-  // Standaard headers + Authorization
+  // FormData mag geen handmatige Content-Type krijgen; de browser zet dan boundary + multipart correct.
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
+
+  // Standaard headers + Authorization.
   const headers = {
     ...existingHeaders,
-    "Content-Type": existingHeaders["Content-Type"] || "application/json",
+    ...(isFormData
+      ? {}
+      : {
+          "Content-Type":
+            existingHeaders["Content-Type"] || "application/json",
+        }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
   const fetchOptions = {
     ...options,
     headers,
-    // als je ooit cookies gaat gebruiken kun je deze laten staan:
+    // Als je ooit cookies gaat gebruiken kun je deze laten staan:
     // credentials: "include",
   };
 
+  // Netwerkrequest: frontend -> backend API (VITE_API_BASE).
   const res = await fetch(`${API_BASE}${path}`, fetchOptions);
 
-  // Eerst 401 checken → user uitloggen
+  // 401 = niet ingelogd / token verlopen: client-side sessie opruimen en terug naar login.
   if (res.status === 401) {
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("role");
     sessionStorage.removeItem("gebruikerId");
-    // Globale redirect naar login
     window.location.href = "/login";
     throw new Error("Niet ingelogd of sessie verlopen");
   }
 
-  // Andere fouten netjes doorgeven
+  // Andere fouten netjes doorgeven.
   if (!res.ok) {
+    // Probeer backend-json errors te lezen (maar val terug op text).
+    const contentType = res.headers.get("Content-Type") || "";
     const text = await res.text();
-    throw new Error(text || `${res.status} ${res.statusText}`);
+    const trimmed = text.trim();
+    let message = text;
+
+    if (
+      trimmed &&
+      (contentType.includes("application/json") || trimmed.startsWith("{"))
+    ) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        message =
+          parsed?.message ||
+          parsed?.Message ||
+          parsed?.title ||
+          parsed?.detail ||
+          parsed?.error ||
+          text;
+      } catch {
+        message = text;
+      }
+    }
+
+    const err = new Error(message || `${res.status} ${res.statusText}`);
+    err.status = res.status;
+    throw err;
   }
 
-  // Geen content
+  // 204 No Content.
   if (res.status === 204) {
     return null;
   }
 
-  // Probeer JSON te parsen, val anders terug op text
+  // Probeer JSON te parsen, val anders terug op text.
   const contentType = res.headers.get("Content-Type") || "";
   if (contentType.includes("application/json")) {
     return res.json();
@@ -55,3 +92,4 @@ export default async function apiFetch(path, options = {}) {
 
   return res.text();
 }
+

@@ -12,6 +12,7 @@ public class Toewijzing
     // ────────────────────────────── Primaire gegevens ──────────────────────────────
 
     public int ToewijzingId { get; set; }              // Unieke ID van de toewijzing
+    public int Aantal { get; set; }                    // Aantal verkochte stuks
     public decimal EindPrijs { get; set; }             // Eindprijs waarvoor het product is verkocht
     public DateTime Datum { get; set; }                // Datum van de toewijzing
 

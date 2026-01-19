@@ -13,6 +13,13 @@ public class Gebruiker
     public string Email { get; set; } = null!;
     public string WachtwoordHash { get; set; } = null!;
     public string Rol { get; set; } = null!; // "Klant", "Aanvoerder", "Veilingmeester", "Admin"
+    public string? TelefoonLand { get; set; }
+    public string? TelefoonNummer { get; set; }
+    public string? AdresStraat { get; set; }
+    public string? Huisnummer { get; set; }
+    public string? Postcode { get; set; }
+    public bool TwoFactorEnabled { get; set; }
+    public string? TwoFactorSecret { get; set; }
 
     // Biedingen gedaan door deze gebruiker
     [JsonIgnore][ValidateNever]
