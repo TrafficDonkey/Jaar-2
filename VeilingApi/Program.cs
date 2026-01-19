@@ -41,17 +41,38 @@ static string? GetAzureAppServiceConnStr(string name)
         ?? Environment.GetEnvironmentVariable($"CUSTOMCONNSTR_{name}");
 }
 
-var connectionString =
-    builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? builder.Configuration.GetConnectionString("Default")
-    // Alternatieve keys (bijv. als iemand het als app setting zet)
-    ?? builder.Configuration["ConnectionStrings:DefaultConnection"]
-    ?? builder.Configuration["ConnectionStrings:Default"]
-    ?? builder.Configuration["DefaultConnection"]
-    ?? builder.Configuration["Default"]
-    // Azure App Service "Connection strings" slot
-    ?? GetAzureAppServiceConnStr("DefaultConnection")
-    ?? GetAzureAppServiceConnStr("Default");
+static (string? ConnectionString, string Source) ResolveConnectionString(WebApplicationBuilder builder)
+{
+    string? cs;
+
+    cs = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (!string.IsNullOrWhiteSpace(cs)) return (cs, "appsettings:ConnectionStrings:DefaultConnection");
+
+    cs = builder.Configuration.GetConnectionString("Default");
+    if (!string.IsNullOrWhiteSpace(cs)) return (cs, "appsettings:ConnectionStrings:Default");
+
+    cs = builder.Configuration["ConnectionStrings:DefaultConnection"];
+    if (!string.IsNullOrWhiteSpace(cs)) return (cs, "config:ConnectionStrings:DefaultConnection");
+
+    cs = builder.Configuration["ConnectionStrings:Default"];
+    if (!string.IsNullOrWhiteSpace(cs)) return (cs, "config:ConnectionStrings:Default");
+
+    cs = builder.Configuration["DefaultConnection"];
+    if (!string.IsNullOrWhiteSpace(cs)) return (cs, "config:DefaultConnection");
+
+    cs = builder.Configuration["Default"];
+    if (!string.IsNullOrWhiteSpace(cs)) return (cs, "config:Default");
+
+    cs = GetAzureAppServiceConnStr("DefaultConnection");
+    if (!string.IsNullOrWhiteSpace(cs)) return (cs, "appservice:SQL*CONNSTR_DefaultConnection");
+
+    cs = GetAzureAppServiceConnStr("Default");
+    if (!string.IsNullOrWhiteSpace(cs)) return (cs, "appservice:SQL*CONNSTR_Default");
+
+    return (null, "none");
+}
+
+var (connectionString, connectionStringSource) = ResolveConnectionString(builder);
 
 if (string.IsNullOrWhiteSpace(connectionString))
 {
@@ -172,6 +193,23 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
+// Log (zonder secrets) welke connection string bron is gekozen.
+try
+{
+    var csb = new SqlConnectionStringBuilder(connectionString);
+    app.Logger.LogInformation(
+        "DB config: source={Source} dataSource={DataSource} initialCatalog={Catalog} userId={UserId}",
+        connectionStringSource,
+        csb.DataSource,
+        csb.InitialCatalog,
+        csb.UserID
+    );
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "DB config kon niet worden geparsed (source={Source}).", connectionStringSource);
+}
+
 using (var scope = app.Services.CreateScope())
 {
     try
@@ -278,6 +316,20 @@ app.Use(async (context, next) =>
     }
     catch (Exception ex)
     {
+        // Log de echte fout in Log Stream (zonder connection string).
+        try
+        {
+            if (IsSqlException(ex))
+            {
+                app.Logger.LogError(ex, "SQL error bij request {Method} {Path}", context.Request.Method, context.Request.Path);
+            }
+            else
+            {
+                app.Logger.LogError(ex, "Unhandled error bij request {Method} {Path}", context.Request.Method, context.Request.Path);
+            }
+        }
+        catch { }
+
         context.Response.StatusCode = IsSqlException(ex) ? 503 : 500;
         var msg = IsSqlException(ex)
             ? "Database is niet beschikbaar. Controleer Azure SQL/SQL Server (firewall + connection string) en probeer opnieuw."
