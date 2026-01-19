@@ -775,10 +775,13 @@ app.Use(async (context, next) =>
     }
     catch (Exception ex)
     {
+        var isSql = IsSqlException(ex);
+        var sql = isSql ? FindSqlException(ex) : null;
+
         // Log de echte fout in Log Stream (zonder connection string).
         try
         {
-            if (IsSqlException(ex))
+            if (isSql)
             {
                 app.Logger.LogError(ex, "SQL error bij request {Method} {Path}", context.Request.Method, context.Request.Path);
             }
@@ -789,7 +792,7 @@ app.Use(async (context, next) =>
         }
         catch { }
 
-        if (IsSqlException(ex))
+        if (isSql)
         {
             Console.WriteLine($"SQL error bij request {context.Request.Method} {context.Request.Path}: {ex.GetType().Name}: {ex.Message}");
         }
@@ -798,13 +801,34 @@ app.Use(async (context, next) =>
             Console.WriteLine($"Unhandled error bij request {context.Request.Method} {context.Request.Path}: {ex.GetType().Name}: {ex.Message}");
         }
 
-        context.Response.StatusCode = IsSqlException(ex) ? 503 : 500;
-        var msg = IsSqlException(ex)
-            ? "Database is niet beschikbaar. Controleer Azure SQL/SQL Server (firewall + connection string) en probeer opnieuw."
-            : "Er is iets misgegaan. Probeer het later opnieuw.";
-        if (IsSqlException(ex) && enableSqlDiagnostics)
+        context.Response.StatusCode = isSql ? 503 : 500;
+
+        var msg = "Er is iets misgegaan. Probeer het later opnieuw.";
+        if (isSql)
         {
-            var sql = FindSqlException(ex);
+            msg = "Database is niet beschikbaar. Controleer Azure SQL/SQL Server (firewall + connection string) en probeer opnieuw.";
+
+            // Maak het minder misleidend als de DB wél bereikbaar is maar het schema/rechten ontbreken.
+            // Veelvoorkomende SqlException codes:
+            // - 208: Invalid object name (tabel/view ontbreekt)
+            // - 207: Invalid column name (kolom ontbreekt)
+            // - 229: Permission denied (rechten ontbreken)
+            // - 18456: Login failed
+            if (sql != null)
+            {
+                msg = sql.Number switch
+                {
+                    208 => "Database schema ontbreekt (ontbrekende tabellen/views). Zorg dat de DB is aangemaakt en migraties/seed zijn uitgevoerd.",
+                    207 => "Database schema is niet up-to-date (ontbrekende kolommen). Werk de DB tabellen bij en probeer opnieuw.",
+                    229 => "Database rechten ontbreken voor deze actie. Controleer SQL-permissions (CREATE/ALTER/INSERT) en probeer opnieuw.",
+                    18456 => "Database login mislukt. Controleer de connection string (gebruikersnaam/wachtwoord) en probeer opnieuw.",
+                    _ => msg
+                };
+            }
+        }
+
+        if (isSql && enableSqlDiagnostics)
+        {
             await context.Response.WriteAsJsonAsync(new
             {
                 Message = msg,
