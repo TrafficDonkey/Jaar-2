@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "hyupZ0FDCz8=",
+  "dgSpecHash": "pFmvTjzo2WA=",
   "success": true,
   "projectFilePath": "C:\\Users\\huber\\Documents\\dumps\\Jaar-2\\VeilingApi\\VeilingApi.csproj",
   "expectedPackageFiles": [
@@ -46,7 +46,7 @@
     "C:\\Users\\huber\\.nuget\\packages\\microsoft.identitymodel.protocols\\7.1.2\\microsoft.identitymodel.protocols.7.1.2.nupkg.sha512",
     "C:\\Users\\huber\\.nuget\\packages\\microsoft.identitymodel.protocols.openidconnect\\7.1.2\\microsoft.identitymodel.protocols.openidconnect.7.1.2.nupkg.sha512",
     "C:\\Users\\huber\\.nuget\\packages\\microsoft.identitymodel.tokens\\7.5.2\\microsoft.identitymodel.tokens.7.5.2.nupkg.sha512",
-    "C:\\Users\\huber\\.nuget\\packages\\microsoft.openapi\\3.0.1\\microsoft.openapi.3.0.1.nupkg.sha512",
+    "C:\\Users\\huber\\.nuget\\packages\\microsoft.openapi\\2.3.0\\microsoft.openapi.2.3.0.nupkg.sha512",
     "C:\\Users\\huber\\.nuget\\packages\\microsoft.sqlserver.server\\1.0.0\\microsoft.sqlserver.server.1.0.0.nupkg.sha512",
     "C:\\Users\\huber\\.nuget\\packages\\mono.texttemplating\\3.0.0\\mono.texttemplating.3.0.0.nupkg.sha512",
     "C:\\Users\\huber\\.nuget\\packages\\swashbuckle.aspnetcore\\10.0.1\\swashbuckle.aspnetcore.10.0.1.nupkg.sha512",

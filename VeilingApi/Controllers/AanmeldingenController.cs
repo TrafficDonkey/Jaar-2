@@ -143,7 +143,7 @@ public class AanmeldingenController : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = created.AanmeldingId }, created);
     }
 
-    [HttpPost]
+    [HttpPost("json")]
     [Consumes("application/json")]
     public async Task<ActionResult<AanmeldingDto>> CreateJson([FromBody] CreateAanmeldingDto dto)
     {

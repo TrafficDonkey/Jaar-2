@@ -73,11 +73,37 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("web", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "http://localhost:5174",
-                "http://127.0.0.1:5174")
+        var devOrigins = new[]
+        {
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:5174"
+        };
+
+        var configuredOrigins = builder.Configuration
+            .GetSection("Cors:AllowedOrigins")
+            .Get<string[]>();
+
+        var configuredOriginsRaw =
+            builder.Configuration["Cors:AllowedOrigins"]
+            ?? builder.Configuration["CORS_ORIGINS"];
+
+        if ((configuredOrigins == null || configuredOrigins.Length == 0) &&
+            !string.IsNullOrWhiteSpace(configuredOriginsRaw))
+        {
+            configuredOrigins = configuredOriginsRaw
+                .Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(o => o.Trim())
+                .Where(o => !string.IsNullOrWhiteSpace(o))
+                .ToArray();
+        }
+
+        var allowedOrigins = (configuredOrigins != null && configuredOrigins.Length > 0)
+            ? configuredOrigins
+            : devOrigins;
+
+        policy.WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -182,18 +208,44 @@ using (var scope = app.Services.CreateScope())
             db.Database.Migrate();
         }
 
-        if (dbAvailable && !db.Gebruikers.Any(g => g.Email == "admin@floraflow.nl"))
-        {
-            var admin = new Gebruiker
-            {
-                Naam = "Beheerder",
-                Email = "admin@floraflow.nl",
-                Rol = "Admin",
-                WachtwoordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!")
-            };
+        var seedAdminEnabled =
+            app.Environment.IsDevelopment()
+            || app.Configuration.GetValue<bool>("Seed:AdminEnabled");
 
-            db.Gebruikers.Add(admin);
-            db.SaveChanges();
+        if (dbAvailable && seedAdminEnabled)
+        {
+            var adminEmail = app.Configuration["Seed:AdminEmail"] ?? "admin@floraflow.nl";
+            var adminName = app.Configuration["Seed:AdminName"] ?? "Beheerder";
+            var adminPassword = app.Configuration["Seed:AdminPassword"];
+
+            if (string.IsNullOrWhiteSpace(adminPassword))
+            {
+                if (app.Environment.IsDevelopment())
+                {
+                    adminPassword = "Admin123!";
+                }
+                else
+                {
+                    app.Logger.LogWarning(
+                        "Seed:AdminEnabled is true maar Seed:AdminPassword ontbreekt; admin-seed wordt overgeslagen."
+                    );
+                    seedAdminEnabled = false;
+                }
+            }
+
+            if (seedAdminEnabled && !db.Gebruikers.Any(g => g.Email == adminEmail))
+            {
+                var admin = new Gebruiker
+                {
+                    Naam = adminName,
+                    Email = adminEmail,
+                    Rol = "Admin",
+                    WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword)
+                };
+
+                db.Gebruikers.Add(admin);
+                db.SaveChanges();
+            }
         }
     }
     catch (Exception ex)
