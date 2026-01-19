@@ -204,10 +204,14 @@ try
         csb.InitialCatalog,
         csb.UserID
     );
+    Console.WriteLine(
+        $"DB config: source={connectionStringSource} dataSource={csb.DataSource} initialCatalog={csb.InitialCatalog} userId={csb.UserID}"
+    );
 }
 catch (Exception ex)
 {
     app.Logger.LogWarning(ex, "DB config kon niet worden geparsed (source={Source}).", connectionStringSource);
+    Console.WriteLine($"DB config parse failed: source={connectionStringSource} err={ex.Message}");
 }
 
 using (var scope = app.Services.CreateScope())
@@ -236,6 +240,8 @@ using (var scope = app.Services.CreateScope())
                 app.Logger.LogWarning(ex, "Database niet beschikbaar; migraties/seed worden overgeslagen.");
             }
             catch { }
+
+            Console.WriteLine($"DB connect failed: {ex.GetType().Name}: {ex.Message}");
         }
 
         if (dbAvailable)
@@ -294,6 +300,8 @@ using (var scope = app.Services.CreateScope())
             app.Logger.LogError(ex, "Database initialisatie mislukt; controleer SQL Server/LocalDB.");
         }
         catch { }
+
+        Console.WriteLine($"DB init failed: {ex.GetType().Name}: {ex.Message}");
     }
 }
 
@@ -329,6 +337,15 @@ app.Use(async (context, next) =>
             }
         }
         catch { }
+
+        if (IsSqlException(ex))
+        {
+            Console.WriteLine($"SQL error bij request {context.Request.Method} {context.Request.Path}: {ex.GetType().Name}: {ex.Message}");
+        }
+        else
+        {
+            Console.WriteLine($"Unhandled error bij request {context.Request.Method} {context.Request.Path}: {ex.GetType().Name}: {ex.Message}");
+        }
 
         context.Response.StatusCode = IsSqlException(ex) ? 503 : 500;
         var msg = IsSqlException(ex)
