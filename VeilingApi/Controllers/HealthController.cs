@@ -60,62 +60,85 @@ WHERE o.[name] = @name AND o.[type] IN ('U','V');";
             return cols;
         }
 
+        string? dataSource = null;
+        string? catalog = null;
         try
         {
-            var dbOk = await _db.Database.CanConnectAsync();
+            var csb = new SqlConnectionStringBuilder(GetConnectionString(_db));
+            dataSource = csb.DataSource;
+            catalog = csb.InitialCatalog;
+        }
+        catch
+        {
+            // ignore connection-string parse errors
+        }
 
-            string? dataSource = null;
-            string? catalog = null;
+        var dbOk = false;
+        string? dbError = null;
+        string? dbMessage = null;
+        try
+        {
+            dbOk = await _db.Database.CanConnectAsync();
+        }
+        catch (Exception ex)
+        {
+            dbOk = false;
+            dbError = ex.GetType().Name;
+            dbMessage = ex.Message;
+        }
+
+        object? schema = null;
+        if (dbOk)
+        {
             try
             {
-                var csb = new SqlConnectionStringBuilder(GetConnectionString(_db));
-                dataSource = csb.DataSource;
-                catalog = csb.InitialCatalog;
-            }
-            catch
-            {
-                // ignore connection-string parse errors
-            }
+                var (aanmeldingenExists, aanmeldingenType) = await ObjectExistsAsync(_db, "Aanmeldingen");
+                var (aanmeldingExists, aanmeldingType) = await ObjectExistsAsync(_db, "Aanmelding");
 
-            var (aanmeldingenExists, aanmeldingenType) = await ObjectExistsAsync(_db, "Aanmeldingen");
-            var (aanmeldingExists, aanmeldingType) = await ObjectExistsAsync(_db, "Aanmelding");
-
-            var targetName = aanmeldingenExists ? "Aanmeldingen" : aanmeldingExists ? "Aanmelding" : null;
-            var missingColumns = new List<string>();
-            if (targetName != null)
-            {
-                var cols = await GetColumnsAsync(_db, targetName);
-                var required = new[]
+                var targetName = aanmeldingenExists ? "Aanmeldingen" : aanmeldingExists ? "Aanmelding" : null;
+                var missingColumns = new List<string>();
+                if (targetName != null)
                 {
-                    "ProductBeschrijving",
-                    "Hoeveelheid",
-                    "MinimumPrijs",
-                    "GewensteKlokLocatie",
-                    "GewensteVeilDatum",
-                    "Categorie",
-                    "GebruikerId"
-                };
-                missingColumns.AddRange(required.Where(c => !cols.Contains(c)));
-            }
+                    var cols = await GetColumnsAsync(_db, targetName);
+                    var required = new[]
+                    {
+                        "ProductBeschrijving",
+                        "Hoeveelheid",
+                        "MinimumPrijs",
+                        "GewensteKlokLocatie",
+                        "GewensteVeilDatum",
+                        "Categorie",
+                        "GebruikerId"
+                    };
+                    missingColumns.AddRange(required.Where(c => !cols.Contains(c)));
+                }
 
-            var schemaOk = (aanmeldingenExists || aanmeldingExists) && missingColumns.Count == 0;
+                var schemaOk = (aanmeldingenExists || aanmeldingExists) && missingColumns.Count == 0;
 
-            return Ok(new
-            {
-                ok = true,
-                db = new { ok = dbOk, dataSource, catalog },
                 schema = new
                 {
                     ok = schemaOk,
                     aanmeldingen = aanmeldingenExists ? new { exists = true, type = aanmeldingenType } : new { exists = false, type = (string?)null },
                     aanmelding = aanmeldingExists ? new { exists = true, type = aanmeldingType } : new { exists = false, type = (string?)null },
                     missingColumns = missingColumns.Count == 0 ? null : missingColumns
-                }
-            });
+                };
+            }
+            catch (Exception ex)
+            {
+                schema = new
+                {
+                    ok = false,
+                    error = ex.GetType().Name,
+                    message = ex.Message
+                };
+            }
         }
-        catch (Exception ex)
+
+        return Ok(new
         {
-            return Ok(new { ok = true, db = new { ok = false, error = ex.GetType().Name } });
-        }
+            ok = true,
+            db = new { ok = dbOk, dataSource, catalog, error = dbError, message = dbMessage },
+            schema
+        });
     }
 }
