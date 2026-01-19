@@ -213,18 +213,6 @@ static async Task EnsureGebruikerColumnsAsync(string connectionString, ILogger l
     await using var con = new SqlConnection(connectionString);
     await con.OpenAsync();
 
-    static async Task<string?> FindUserTableAsync(SqlConnection con)
-    {
-        var candidates = new[] { "Gebruikers", "Gebruiker" };
-        await using var cmd = con.CreateCommand();
-        cmd.CommandText =
-            "SELECT TOP (1) [name] FROM sys.objects WHERE [type] = 'U' AND [name] IN (@t1, @t2)";
-        cmd.Parameters.AddWithValue("@t1", candidates[0]);
-        cmd.Parameters.AddWithValue("@t2", candidates[1]);
-        var result = await cmd.ExecuteScalarAsync();
-        return result?.ToString();
-    }
-
     static async Task<HashSet<string>> GetColumnsAsync(SqlConnection con, string tableName)
     {
         var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -243,7 +231,26 @@ WHERE o.[type] = 'U' AND o.[name] = @t";
         return cols;
     }
 
-    var table = await FindUserTableAsync(con);
+    static async Task<string?> FindTableAsync(SqlConnection con, params string[] candidates)
+    {
+        if (candidates is null || candidates.Length == 0) return null;
+
+        await using var cmd = con.CreateCommand();
+        var names = new List<string>();
+        for (var i = 0; i < candidates.Length; i++)
+        {
+            var p = $"@t{i}";
+            names.Add(p);
+            cmd.Parameters.AddWithValue(p, candidates[i]);
+        }
+
+        cmd.CommandText =
+            $"SELECT TOP (1) [name] FROM sys.objects WHERE [type] = 'U' AND [name] IN ({string.Join(", ", names)})";
+        var result = await cmd.ExecuteScalarAsync();
+        return result?.ToString();
+    }
+
+    var table = await FindTableAsync(con, "Gebruikers", "Gebruiker");
     if (string.IsNullOrWhiteSpace(table))
     {
         logger.LogWarning("Geen gebruikers-tabel gevonden; schema-fix wordt overgeslagen.");
@@ -271,6 +278,241 @@ WHERE o.[type] = 'U' AND o.[name] = @t";
         await cmd.ExecuteNonQueryAsync();
         logger.LogInformation("DB schema: added column {Table}.{Column}", table, col);
     }
+}
+
+static async Task EnsureCoreSchemaAsync(string connectionString, ILogger logger)
+{
+    await using var con = new SqlConnection(connectionString);
+    await con.OpenAsync();
+
+    static async Task<bool> TableExistsAsync(SqlConnection con, string tableName)
+    {
+        await using var cmd = con.CreateCommand();
+        cmd.CommandText = "SELECT 1 FROM sys.objects WHERE [type] = 'U' AND [name] = @t";
+        cmd.Parameters.AddWithValue("@t", tableName);
+        var result = await cmd.ExecuteScalarAsync();
+        return result is not null;
+    }
+
+    static async Task<HashSet<string>> GetColumnsAsync(SqlConnection con, string tableName)
+    {
+        var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using var cmd = con.CreateCommand();
+        cmd.CommandText = @"
+SELECT c.[name]
+FROM sys.columns c
+JOIN sys.objects o ON c.object_id = o.object_id
+WHERE o.[type] = 'U' AND o.[name] = @t";
+        cmd.Parameters.AddWithValue("@t", tableName);
+        await using var rdr = await cmd.ExecuteReaderAsync();
+        while (await rdr.ReadAsync())
+        {
+            cols.Add(rdr.GetString(0));
+        }
+        return cols;
+    }
+
+    static async Task EnsureTableAsync(
+        SqlConnection con,
+        ILogger logger,
+        string preferredName,
+        string createTableSql,
+        Dictionary<string, string> requiredColumns
+    )
+    {
+        var exists = await TableExistsAsync(con, preferredName);
+        if (!exists)
+        {
+            await using var create = con.CreateCommand();
+            create.CommandText = createTableSql;
+            await create.ExecuteNonQueryAsync();
+            logger.LogInformation("DB schema: created table {Table}", preferredName);
+        }
+
+        var existing = await GetColumnsAsync(con, preferredName);
+        foreach (var (col, definition) in requiredColumns)
+        {
+            if (existing.Contains(col)) continue;
+            await using var cmd = con.CreateCommand();
+            cmd.CommandText = $"ALTER TABLE [dbo].[{preferredName}] ADD [{col}] {definition};";
+            await cmd.ExecuteNonQueryAsync();
+            logger.LogInformation("DB schema: added column {Table}.{Column}", preferredName, col);
+        }
+    }
+
+    await EnsureTableAsync(
+        con,
+        logger,
+        preferredName: "Gebruikers",
+        createTableSql: @"
+IF OBJECT_ID(N'[dbo].[Gebruikers]', N'U') IS NULL
+BEGIN
+  CREATE TABLE [dbo].[Gebruikers](
+    [GebruikerId] int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [Naam] nvarchar(100) NOT NULL DEFAULT(''),
+    [Email] nvarchar(256) NOT NULL DEFAULT(''),
+    [WachtwoordHash] nvarchar(255) NOT NULL DEFAULT(''),
+    [Rol] nvarchar(40) NOT NULL DEFAULT('Klant'),
+    [TelefoonLand] nvarchar(2) NULL,
+    [TelefoonNummer] nvarchar(25) NULL,
+    [AdresStraat] nvarchar(120) NULL,
+    [Huisnummer] nvarchar(20) NULL,
+    [Postcode] nvarchar(16) NULL,
+    [TwoFactorEnabled] bit NOT NULL DEFAULT(0),
+    [TwoFactorSecret] nvarchar(64) NULL
+  );
+END",
+        requiredColumns: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Naam"] = "nvarchar(100) NOT NULL DEFAULT('')",
+            ["Email"] = "nvarchar(256) NOT NULL DEFAULT('')",
+            ["WachtwoordHash"] = "nvarchar(255) NOT NULL DEFAULT('')",
+            ["Rol"] = "nvarchar(40) NOT NULL DEFAULT('Klant')",
+            ["TelefoonLand"] = "nvarchar(2) NULL",
+            ["TelefoonNummer"] = "nvarchar(25) NULL",
+            ["AdresStraat"] = "nvarchar(120) NULL",
+            ["Huisnummer"] = "nvarchar(20) NULL",
+            ["Postcode"] = "nvarchar(16) NULL",
+            ["TwoFactorEnabled"] = "bit NOT NULL DEFAULT(0)",
+            ["TwoFactorSecret"] = "nvarchar(64) NULL"
+        }
+    );
+
+    await EnsureTableAsync(
+        con,
+        logger,
+        preferredName: "Aanmeldingen",
+        createTableSql: @"
+IF OBJECT_ID(N'[dbo].[Aanmeldingen]', N'U') IS NULL
+BEGIN
+  CREATE TABLE [dbo].[Aanmeldingen](
+    [AanmeldingId] int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [FotoData] varbinary(max) NULL,
+    [FotoContentType] nvarchar(100) NULL,
+    [FotoFileName] nvarchar(255) NULL,
+    [ProductBeschrijving] nvarchar(max) NOT NULL DEFAULT(''),
+    [Hoeveelheid] int NOT NULL DEFAULT(0),
+    [MinimumPrijs] decimal(10,2) NOT NULL DEFAULT(0),
+    [GewensteKlokLocatie] nvarchar(max) NOT NULL DEFAULT(''),
+    [GewensteVeilDatum] datetime2 NOT NULL DEFAULT(sysutcdatetime()),
+    [Categorie] nvarchar(100) NOT NULL DEFAULT(''),
+    [GebruikerId] int NOT NULL DEFAULT(0)
+  );
+END",
+        requiredColumns: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["FotoData"] = "varbinary(max) NULL",
+            ["FotoContentType"] = "nvarchar(100) NULL",
+            ["FotoFileName"] = "nvarchar(255) NULL",
+            ["ProductBeschrijving"] = "nvarchar(max) NOT NULL DEFAULT('')",
+            ["Hoeveelheid"] = "int NOT NULL DEFAULT(0)",
+            ["MinimumPrijs"] = "decimal(10,2) NOT NULL DEFAULT(0)",
+            ["GewensteKlokLocatie"] = "nvarchar(max) NOT NULL DEFAULT('')",
+            ["GewensteVeilDatum"] = "datetime2 NOT NULL DEFAULT(sysutcdatetime())",
+            ["Categorie"] = "nvarchar(100) NOT NULL DEFAULT('')",
+            ["GebruikerId"] = "int NOT NULL DEFAULT(0)"
+        }
+    );
+
+    await EnsureTableAsync(
+        con,
+        logger,
+        preferredName: "Veilingen",
+        createTableSql: @"
+IF OBJECT_ID(N'[dbo].[Veilingen]', N'U') IS NULL
+BEGIN
+  CREATE TABLE [dbo].[Veilingen](
+    [VeilingId] int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [Naam] nvarchar(100) NOT NULL DEFAULT(''),
+    [Status] nvarchar(40) NOT NULL DEFAULT('Concept'),
+    [StartTijd] datetime2 NOT NULL DEFAULT(sysutcdatetime()),
+    [EindTijd] datetime2 NULL,
+    [GestartDoorId] int NOT NULL DEFAULT(0)
+  );
+END",
+        requiredColumns: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Naam"] = "nvarchar(100) NOT NULL DEFAULT('')",
+            ["Status"] = "nvarchar(40) NOT NULL DEFAULT('Concept')",
+            ["StartTijd"] = "datetime2 NOT NULL DEFAULT(sysutcdatetime())",
+            ["EindTijd"] = "datetime2 NULL",
+            ["GestartDoorId"] = "int NOT NULL DEFAULT(0)"
+        }
+    );
+
+    await EnsureTableAsync(
+        con,
+        logger,
+        preferredName: "VeilingProducten",
+        createTableSql: @"
+IF OBJECT_ID(N'[dbo].[VeilingProducten]', N'U') IS NULL
+BEGIN
+  CREATE TABLE [dbo].[VeilingProducten](
+    [VeilingProductId] int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [VeilingId] int NOT NULL DEFAULT(0),
+    [AanmeldingId] int NOT NULL DEFAULT(0),
+    [VolgordeVeiling] int NOT NULL DEFAULT(0),
+    [Categorie] nvarchar(100) NOT NULL DEFAULT('')
+  );
+END",
+        requiredColumns: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["VeilingId"] = "int NOT NULL DEFAULT(0)",
+            ["AanmeldingId"] = "int NOT NULL DEFAULT(0)",
+            ["VolgordeVeiling"] = "int NOT NULL DEFAULT(0)",
+            ["Categorie"] = "nvarchar(100) NOT NULL DEFAULT('')"
+        }
+    );
+
+    await EnsureTableAsync(
+        con,
+        logger,
+        preferredName: "Biedingen",
+        createTableSql: @"
+IF OBJECT_ID(N'[dbo].[Biedingen]', N'U') IS NULL
+BEGIN
+  CREATE TABLE [dbo].[Biedingen](
+    [BiedingId] int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [Bedrag] decimal(10,2) NOT NULL DEFAULT(0),
+    [Tijdstip] datetime2 NOT NULL DEFAULT(sysutcdatetime()),
+    [VeilingProductId] int NOT NULL DEFAULT(0),
+    [GebruikerId] int NOT NULL DEFAULT(0)
+  );
+END",
+        requiredColumns: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Bedrag"] = "decimal(10,2) NOT NULL DEFAULT(0)",
+            ["Tijdstip"] = "datetime2 NOT NULL DEFAULT(sysutcdatetime())",
+            ["VeilingProductId"] = "int NOT NULL DEFAULT(0)",
+            ["GebruikerId"] = "int NOT NULL DEFAULT(0)"
+        }
+    );
+
+    await EnsureTableAsync(
+        con,
+        logger,
+        preferredName: "Toewijzingen",
+        createTableSql: @"
+IF OBJECT_ID(N'[dbo].[Toewijzingen]', N'U') IS NULL
+BEGIN
+  CREATE TABLE [dbo].[Toewijzingen](
+    [ToewijzingId] int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [Aantal] int NOT NULL DEFAULT(0),
+    [EindPrijs] decimal(10,2) NOT NULL DEFAULT(0),
+    [Datum] datetime2 NOT NULL DEFAULT(sysutcdatetime()),
+    [VeilingProductId] int NOT NULL DEFAULT(0),
+    [KoperId] int NOT NULL DEFAULT(0)
+  );
+END",
+        requiredColumns: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Aantal"] = "int NOT NULL DEFAULT(0)",
+            ["EindPrijs"] = "decimal(10,2) NOT NULL DEFAULT(0)",
+            ["Datum"] = "datetime2 NOT NULL DEFAULT(sysutcdatetime())",
+            ["VeilingProductId"] = "int NOT NULL DEFAULT(0)",
+            ["KoperId"] = "int NOT NULL DEFAULT(0)"
+        }
+    );
 }
 
 string? dbDiagSource = connectionStringSource;
@@ -347,7 +589,10 @@ using (var scope = app.Services.CreateScope())
             }
 
             // Als de DB ooit is aangemaakt zonder de nieuwste kolommen (bijv. eerder EnsureCreated),
-            // voeg ontbrekende kolommen toe zodat login/register niet stuk gaat.
+            // voeg ontbrekende tabellen/kolommen toe zodat pagina's niet stuk gaan.
+            EnsureCoreSchemaAsync(connectionString, app.Logger).GetAwaiter().GetResult();
+
+            // Extra kolommen op de gebruikers-tabel voor profiel + 2FA.
             EnsureGebruikerColumnsAsync(connectionString, app.Logger).GetAwaiter().GetResult();
 
             var admin = db.Gebruikers.FirstOrDefault(g => g.Email == "admin@floraflow.nl");

@@ -109,7 +109,10 @@ export default function Layout() {
       };
 
       setNotifLog((prev) =>
-        normalizeLog([item, ...prev]).slice(0, 50)
+        // voorkom spam: dezelfde melding direct achter elkaar maar 1x opslaan
+        normalizeLog(
+          prev?.[0]?.text === text && prev?.[0]?.type === type ? prev : [item, ...prev]
+        ).slice(0, 50)
       );
       if (!notificationsMuted) {
         triggerRing();
@@ -312,13 +315,22 @@ export default function Layout() {
             <div className="notif-panel" role="status" aria-live="polite">
               <div className="notif-panel__head">
                 <span>Meldingen</span>
-                <Link
-                  to="/app/meldingen"
-                  className="notif-panel__viewall"
-                  onClick={() => setShowNotif(false)}
-                >
-                  View all
-                </Link>
+                <div className="notif-panel__actions">
+                  <button
+                    type="button"
+                    className="notif-panel__viewall"
+                    onClick={() => setNotifLog([])}
+                  >
+                    Wissen
+                  </button>
+                  <Link
+                    to="/app/meldingen"
+                    className="notif-panel__viewall"
+                    onClick={() => setShowNotif(false)}
+                  >
+                    View all
+                  </Link>
+                </div>
               </div>
               {notifLog.length === 0 ? (
                 <div className="notif-panel__empty">

@@ -12,8 +12,12 @@ public class HistorischePrijsService : IHistorischePrijsService
 
     public HistorischePrijsService(IConfiguration configuration)
     {
-        _connectionString = configuration.GetConnectionString("Default")
-            ?? throw new InvalidOperationException("Connection string 'Default' ontbreekt.");
+        _connectionString =
+            configuration.GetConnectionString("DefaultConnection")
+            ?? configuration.GetConnectionString("Default")
+            ?? configuration["ConnectionStrings:DefaultConnection"]
+            ?? configuration["ConnectionStrings:Default"]
+            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' ontbreekt.");
     }
 
     public async Task<HistorischePrijzenResponseDto?> GetHistorischePrijzenAsync(int veilingProductId)
@@ -56,7 +60,7 @@ SELECT TOP 1
     vp.Categorie,
     a.GebruikerId,
     g.Naam
-FROM VeilingProduct vp
+FROM VeilingProducten vp
 INNER JOIN Aanmeldingen a ON a.AanmeldingId = vp.AanmeldingId
 INNER JOIN Gebruikers g ON g.GebruikerId = a.GebruikerId
 WHERE vp.VeilingProductId = @VeilingProductId;";
@@ -89,7 +93,7 @@ SELECT TOP 10
     t.Datum,
     t.EindPrijs
 FROM Toewijzingen t
-INNER JOIN VeilingProduct vp ON vp.VeilingProductId = t.VeilingProductId
+INNER JOIN VeilingProducten vp ON vp.VeilingProductId = t.VeilingProductId
 INNER JOIN Aanmeldingen a ON a.AanmeldingId = vp.AanmeldingId
 INNER JOIN Gebruikers g ON g.GebruikerId = a.GebruikerId
 WHERE vp.Categorie = @Categorie";
@@ -134,7 +138,7 @@ WHERE vp.Categorie = @Categorie";
         var sql = @"
 SELECT AVG(CAST(t.EindPrijs AS decimal(10,2)))
 FROM Toewijzingen t
-INNER JOIN VeilingProduct vp ON vp.VeilingProductId = t.VeilingProductId
+INNER JOIN VeilingProducten vp ON vp.VeilingProductId = t.VeilingProductId
 INNER JOIN Aanmeldingen a ON a.AanmeldingId = vp.AanmeldingId
 WHERE vp.Categorie = @Categorie";
 
