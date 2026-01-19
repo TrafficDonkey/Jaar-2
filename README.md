@@ -6,7 +6,7 @@ Wat is er toegevoegd of aangepast?
 - [ ] Project werkt nog volledig
 - [ ] Commitbericht volgt Conventional Commits
 - [ ] Console errors opgelost
-- [ ] Branch is up-to-date met dev
+- [ ] Branch is up-to-date met dev  
 
 
 ## Uitleg voor Git-hub

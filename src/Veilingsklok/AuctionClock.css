@@ -1,0 +1,120 @@
+.auction-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 50px;
+    min-height: calc(100vh - var(--topbar-height));
+    padding: 20px;
+}
+
+.auction-card {
+    background: var(--card-background);
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: var(--card-shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 350px;
+    text-align: center;
+    color: var(--card-fg);
+    transition: transform 0.2s ease;
+}
+
+.auction-card:hover {
+    transform: scale(1.02);
+}
+
+.auction-card h1 {
+    font-size: 2.5em;
+    margin-bottom: 15px;
+    text-shadow: var(--heading-shadow);
+}
+
+.auction-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.auction-form input {
+    padding: 12px;
+    font-size: 1em;
+    border-radius: 12px;
+    border: 1px solid var(--input-border);
+    background-color: var(--input-background);
+    color: var(--input-fg);
+    transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+.auction-form input:focus {
+    outline: none;
+    border-color: var(--input-focus-border);
+    background-color: var(--input-focus-background);
+}
+
+.auction-form button {
+    padding: 12px;
+    font-size: 1em;
+    border-radius: 12px;
+    border: none;
+    color: var(--button-fg);
+    cursor: pointer;
+    background: linear-gradient(90deg, var(--button-gradient-from), var(--button-gradient-to));
+    transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.auction-form button:disabled {
+    background: var(--button-disabled);
+    cursor: not-allowed;
+}
+
+.auction-form button:not(:disabled):hover {
+    background: linear-gradient(90deg, var(--button-gradient-to), var(--button-gradient-from));
+    transform: scale(1.05);
+}
+
+.auction-status {
+    margin-top: 20px;
+    font-size: 1.2em;
+}
+
+.auction-rectangle-container {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: relative;
+}
+
+.price-axis, .time-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 300px;
+    color: var(--axis-fg);
+    font-size: 12px;  
+
+
+
+}
+
+.auction-rectangle {
+    position: relative;
+    width: 80px;
+    height: 300px;
+    background: var(--rectangle-background);
+    border: 2px solid var(--rectangle-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.progress-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--progress-gradient-from), var(--progress-gradient-to));
+    box-shadow: var(--progress-glow);
+    transition: top 0.1s linear;
+}

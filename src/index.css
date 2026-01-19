@@ -1,0 +1,126 @@
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  --topbar-height: 56px;
+  --topbar-background: rgba(255, 255, 255, 0.75);
+  --topbar-border: rgba(0, 0, 0, 0.1);
+  --topbar-fg: var(--page-fg);
+
+  --page-background: linear-gradient(135deg, #f2fbf2, #dff3df, #ffffff);
+  --page-fg: #183018;
+  --link: #2563eb;
+  --link-hover: #1d4ed8;
+
+  --card-background: linear-gradient(145deg, #f5fff5, #daf0da);
+  --card-fg: #143114;
+  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+
+  --heading-shadow: 1px 1px 6px rgba(0, 120, 0, 0.35);
+
+  --input-border: #2e7d32;
+  --input-background: #ffffff;
+  --input-fg: #0f2210;
+  --input-focus-border: #1b5e20;
+  --input-focus-background: #f0fff2;
+
+  --button-gradient-from: #1b5e20;
+  --button-gradient-to: #69f0ae;
+  --button-disabled: #7b7b7b;
+  --button-fg: #ffffff;
+
+  --axis-fg: #184018;
+  --rectangle-background: linear-gradient(to bottom, #e7ffe7, #f7fff7);
+  --rectangle-border: #1b5e20;
+  --progress-gradient-from: #34d399;
+  --progress-gradient-to: #22c55e;
+  --progress-glow: 0 0 8px rgba(34, 197, 94, 0.55);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme="dark"] {
+  --page-background: linear-gradient(135deg, #0a100a, #142014, #0d260d);
+  --page-fg: #f0f0f0;
+  --link: #a5b4fc;
+  --link-hover: #c7d2fe;
+
+  --topbar-background: rgba(0, 0, 0, 0.35);
+  --topbar-border: rgba(255, 255, 255, 0.1);
+  --topbar-fg: var(--page-fg);
+
+  --card-background: linear-gradient(145deg, #1a3d1a, #0d260d);
+  --card-fg: #c8facc;
+  --card-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
+
+  --heading-shadow: 1px 1px 6px rgba(0, 255, 0, 0.5);
+
+  --input-border: #2e7d32;
+  --input-background: #111a11;
+  --input-fg: #c8facc;
+  --input-focus-border: #69f0ae;
+  --input-focus-background: #142214;
+
+  --button-gradient-from: #1b5e20;
+  --button-gradient-to: #69f0ae;
+  --button-disabled: #555555;
+  --button-fg: #ffffff;
+
+  --axis-fg: #c8facc;
+  --rectangle-background: linear-gradient(to bottom, #0d260d, #111);
+  --rectangle-border: #1b5e20;
+  --progress-gradient-from: #69f0ae;
+  --progress-gradient-to: #00e676;
+  --progress-glow: 0 0 8px #00ff88;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+a {
+  font-weight: 500;
+  color: var(--link);
+  text-decoration: inherit;
+}
+a:hover {
+  color: var(--link-hover);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-width: 320px;
+  color: var(--page-fg);
+  background: var(--page-background);
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: var(--link);
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}

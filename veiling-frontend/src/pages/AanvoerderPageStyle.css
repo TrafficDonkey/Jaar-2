@@ -20,7 +20,7 @@
   color: var(--color-text);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--color-border);
   padding: 1.6rem 1.4rem;
 }
 
@@ -64,7 +64,8 @@
 .aanv-stat-card {
   border-radius: 0.75rem;
   padding: 0.55rem 0.7rem;
-  background: #f9fafb;
+  background: var(--color-surface-2);
+  color: var(--color-text);
   border: 1px solid var(--color-border);
 }
 
@@ -106,6 +107,12 @@
   gap: 0.9rem;
 }
 
+.aanv-form label[for="minprijs"]::after {
+  content: " *";
+  color: #fbbf24;
+  font-weight: 900;
+}
+
 .field,
 .field-row {
   display: flex;
@@ -122,6 +129,94 @@
   flex: 1;
 }
 
+.field-labelRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.aanv-tip {
+  position: relative;
+  margin: 0;
+}
+
+.aanv-tip__btn {
+  list-style: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* verberg default triangle */
+.aanv-tip__btn::-webkit-details-marker {
+  display: none;
+}
+
+.aanv-tip[open] .aanv-tip__btn {
+  border-color: rgba(21, 128, 61, 0.5);
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.15);
+}
+
+.aanv-tip__panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: min(520px, 78vw);
+  padding: 0.85rem;
+  border-radius: 0.85rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+  z-index: 40;
+}
+
+.aanv-tip__title {
+  margin: 0 0 0.5rem;
+  font-weight: 800;
+}
+
+.aanv-tip__tableWrap {
+  overflow: auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border);
+}
+
+.aanv-tip__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.aanv-tip__table th,
+.aanv-tip__table td {
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.aanv-tip__table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--color-surface-2);
+  font-weight: 800;
+}
+
+.aanv-tip__hint {
+  margin: 0.6rem 0 0;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+}
+
 .aanv-form input,
 .aanv-form select,
 .aanv-form textarea {
@@ -130,6 +225,41 @@
   padding: 0.5rem 0.6rem;
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+.aanv-autocomplete {
+  position: relative;
+}
+
+.aanv-autocomplete-list {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 340px;
+  overflow: auto;
+  border-radius: 0.85rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  padding: 0.25rem 0;
+}
+
+.aanv-autocomplete-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.95rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.aanv-autocomplete-item:hover,
+.aanv-autocomplete-item--active {
+  background: rgba(21, 128, 61, 0.10);
 }
 
 .aanv-form input:focus,
@@ -182,7 +312,49 @@
 }
 
 .btn-ghost:hover {
-  background: #f9fafb;
+  background: var(--color-surface-2);
+}
+
+.aanv-search {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.aanv-filter-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.65rem;
+}
+
+.aanv-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.aanv-search-label {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+.aanv-search-input {
+  border: 1px solid var(--color-border);
+  border-radius: 0.7rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.aanv-search-input:focus {
+  outline: none;
+  border-color: rgba(21, 128, 61, 0.4);
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.12);
 }
 
 /* ────────────────────────────── Tabellen ────────────────────────────── */
@@ -207,6 +379,12 @@
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.aanv-empty-cell {
+  text-align: center;
+  color: var(--color-muted);
+  padding: 0.75rem 0.4rem;
 }
 
 .aanv-empty {

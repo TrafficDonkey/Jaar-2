@@ -1,14 +1,16 @@
-// AuctionClock.jsx
+﻿// AuctionClock.jsx
 // Visuele veilingklok: prijs daalt lineair van maxPrice naar minPrice in durationSeconds.
 // Geen eigen backend-calls meer; volledig aangestuurd door props.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./AuctionClockStyle.css";
+import { toTimeMs } from "../utils/date";
 
 export default function AuctionClock({
   minPrice,
   maxPrice,
   durationSeconds = 60,
+  startTime, // ISO string van backend; bepaalt "waar" de klok nu is
   runId, // verander dit getal om de klok opnieuw te starten
   onPriceChange,
   onFinished,
@@ -23,42 +25,77 @@ export default function AuctionClock({
       ? durationSeconds
       : 60;
 
-  const [timeRemaining, setTimeRemaining] = useState(safeDuration);
+  const windowSpan = Math.max(safeMax * 0.1, 1);
+
+  const segmentTopRef = useRef(safeMax);
+  const segmentBottomRef = useRef(Math.max(safeMax - windowSpan, safeMin));
+
+  const [segmentTop, setSegmentTop] = useState(segmentTopRef.current);
+  const [segmentBottom, setSegmentBottom] = useState(
+    segmentBottomRef.current
+  );
+
   const [currentPrice, setCurrentPrice] = useState(safeMax);
+  const [nowMs, setNowMs] = useState(Date.now());
+  const finishedRef = useRef(false);
+  const fallbackStartRef = useRef(Date.now());
 
-  // herstart klok wanneer runId, min, max of duration verandert
+  const startMs = toTimeMs(startTime);
+  const totalMs = safeDuration * 1000;
+
   useEffect(() => {
-    setTimeRemaining(safeDuration);
-    setCurrentPrice(safeMax);
-    onPriceChange?.(safeMax);
-
     const intervalMs = 100; // elke 0.1 seconde updaten
-    const step = intervalMs / 1000;
-
-    let t = safeDuration;
-    const id = setInterval(() => {
-      t -= step;
-      if (t <= 0) {
-        setTimeRemaining(0);
-        setCurrentPrice(safeMin);
-        onPriceChange?.(safeMin);
-        clearInterval(id);
-        onFinished?.();
-        return;
-      }
-
-      const fraction = (safeDuration - t) / safeDuration; // 0 → 1
-      const price =
-        safeMax - (safeMax - safeMin) * fraction;
-
-      setTimeRemaining(t);
-      setCurrentPrice(price);
-      onPriceChange?.(price);
-    }, intervalMs);
-
+    const id = setInterval(() => setNowMs(Date.now()), intervalMs);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, safeMin, safeMax, safeDuration]);
+  }, []);
+
+  // Reset venster/ticks wanneer inputs veranderen
+  useEffect(() => {
+    const initialTop = safeMax;
+    const initialBottom = Math.max(safeMax - windowSpan, safeMin);
+    segmentTopRef.current = initialTop;
+    segmentBottomRef.current = initialBottom;
+    setSegmentTop(initialTop);
+    setSegmentBottom(initialBottom);
+    finishedRef.current = false;
+    fallbackStartRef.current = Date.now();
+  }, [runId, safeMin, safeMax, safeDuration, windowSpan, startTime]);
+
+  // Sync prijs op basis van backend starttijd + client klok.
+  useEffect(() => {
+    if (finishedRef.current) {
+      setCurrentPrice(safeMin);
+      return;
+    }
+
+    const hasStart = Number.isFinite(startMs);
+    const effectiveStartMs = hasStart ? startMs : fallbackStartRef.current;
+
+    const elapsedMs = nowMs - effectiveStartMs;
+    const fraction =
+      totalMs <= 0 ? 1 : Math.min(1, Math.max(0, elapsedMs / totalMs));
+    const price = safeMax - (safeMax - safeMin) * fraction;
+
+    setCurrentPrice(price);
+    onPriceChange?.(price);
+
+    if (
+      price <= segmentBottomRef.current &&
+      segmentBottomRef.current > safeMin
+    ) {
+      const newTop = segmentBottomRef.current;
+      const newBottom = Math.max(newTop - windowSpan, safeMin);
+      segmentTopRef.current = newTop;
+      segmentBottomRef.current = newBottom;
+      setSegmentTop(newTop);
+      setSegmentBottom(newBottom);
+    }
+
+    if (fraction >= 1 && !finishedRef.current) {
+      finishedRef.current = true;
+      onFinished?.();
+    }
+  }, [nowMs, safeMax, safeMin, totalMs, startMs, windowSpan, onPriceChange, onFinished]);
 
   const generateTicks = (min, max, num = 10) => {
     if (!Number.isFinite(min) || !Number.isFinite(max) || num < 2) {
@@ -70,13 +107,16 @@ export default function AuctionClock({
     );
   };
 
-  const priceTicks = generateTicks(safeMin, safeMax, 10);
-  const timeTicks = generateTicks(0, safeDuration, 10);
+  const priceTicks = generateTicks(segmentBottom, segmentTop, 10);
 
   let progressTop = 0;
-  if (safeMax > safeMin) {
+  if (segmentTop > segmentBottom) {
+    const clamped = Math.min(
+      segmentTop,
+      Math.max(currentPrice, segmentBottom)
+    );
     progressTop =
-      ((safeMax - currentPrice) / (safeMax - safeMin)) * 100;
+      ((segmentTop - clamped) / (segmentTop - segmentBottom)) * 100;
   }
 
   return (
@@ -85,17 +125,14 @@ export default function AuctionClock({
         <h2>Veilingklok</h2>
 
         <div className="auction-status">
-          <p>Huidige prijs: €{currentPrice.toFixed(2)}</p>
-          <p>
-            Tijd resterend: {Math.max(0, timeRemaining).toFixed(1)}s
-          </p>
+          <p>Huidige prijs: EUR {currentPrice.toFixed(2)}</p>
         </div>
       </div>
 
       <div className="auction-rectangle-container">
         <div className="price-axis">
           {priceTicks.map((p, idx) => (
-            <span key={idx}>€{p}</span>
+            <span key={idx}>EUR {p}</span>
           ))}
         </div>
 
@@ -105,21 +142,15 @@ export default function AuctionClock({
               key={idx}
               className="tick-line"
               style={{
-                top: `${(idx / (arr.length - 1 || 1)) * 100}%`,
+                "--tick-top": `${(idx / (arr.length - 1 || 1)) * 100}%`,
               }}
             />
           ))}
 
           <div
             className="progress-line"
-            style={{ top: `${progressTop}%` }}
+            style={{ "--progress-top": `${progressTop}%` }}
           />
-        </div>
-
-        <div className="time-axis">
-          {timeTicks.map((t, idx) => (
-            <span key={idx}>{t}s</span>
-          ))}
         </div>
       </div>
     </div>

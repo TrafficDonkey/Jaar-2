@@ -36,6 +36,14 @@ public class GebruikersController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<GebruikerDto>> Get(int id)
     {
+        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (idClaim is null || !int.TryParse(idClaim, out var callerId))
+            return StatusCode(403, new { message = "Geen geldig gebruikers-ID in token." });
+
+        var isAdmin = User.IsInRole("Admin");
+        if (!isAdmin && callerId != id)
+            return StatusCode(403, new { message = "Je mag alleen je eigen profiel bekijken." });
+
         var item = await _svc.GetByIdAsync(id);
         return item is null ? NotFound() : Ok(item);
     }
@@ -69,14 +77,25 @@ public class GebruikersController : ControllerBase
         // Huidige caller uit het JWT halen
         var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (idClaim is null)
-            return Forbid(); // geen geldig token
+            return StatusCode(403, new { message = "Geen geldig token." });
 
         var callerId = int.Parse(idClaim);
         var isAdmin = User.IsInRole("Admin");
 
         // Als je geen admin bent en je probeert iemand anders te wijzigen → Forbid
         if (!isAdmin && callerId != id)
-            return Forbid();
+            return StatusCode(403, new { message = "Je mag alleen je eigen profiel wijzigen." });
+
+        var isKlant = string.Equals(dto.Rol, "Klant", StringComparison.OrdinalIgnoreCase);
+        var hasPhoneInput =
+            !string.IsNullOrWhiteSpace(dto.TelefoonLand) ||
+            !string.IsNullOrWhiteSpace(dto.TelefoonNummer);
+
+        if (isKlant || hasPhoneInput)
+        {
+            if (!PhoneNumberValidator.TryValidate(dto.TelefoonLand, dto.TelefoonNummer, out var phoneError))
+                return BadRequest(new { message = phoneError });
+        }
 
         var ok = await _svc.UpdateAsync(dto);
         return ok ? NoContent() : NotFound();
@@ -85,10 +104,41 @@ public class GebruikersController : ControllerBase
     // ────────────────────────────── DELETE: api/Gebruikers/{id} (alleen Admin) ──────────────────────────────
 
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
-        var ok = await _svc.DeleteAsync(id);
-        return ok ? NoContent() : NotFound();
+        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (idClaim is null)
+            return StatusCode(403, new { message = "Geen geldig token." });
+
+        var callerId = int.Parse(idClaim);
+        var isAdmin = User.IsInRole("Admin");
+
+        if (!isAdmin && callerId != id)
+            return StatusCode(403, new { message = "Je mag alleen je eigen account verwijderen." });
+
+        var (success, _) = await _svc.DeleteOrAnonymizeAsync(id);
+        return success ? NoContent() : NotFound();
+    }
+
+    // DELETE: api/Gebruikers/me
+    // Laat een gebruiker zijn eigen account verwijderen.
+    // Als hard delete niet mogelijk is (historie/relaties), worden persoonsgegevens geanonimiseerd.
+    [HttpDelete("me")]
+    public async Task<IActionResult> DeleteMe()
+    {
+        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(idClaim) || !int.TryParse(idClaim, out var callerId))
+            return Unauthorized(new { message = "Geen geldig gebruikers-ID in token." });
+
+        var (success, hardDeleted) = await _svc.DeleteOrAnonymizeAsync(callerId);
+        if (!success) return NotFound();
+
+        return Ok(new
+        {
+            message = hardDeleted
+                ? "Account verwijderd."
+                : "Account verwijderd. Je persoonsgegevens zijn geanonimiseerd omdat er veilinghistorie bestaat.",
+            hardDeleted
+        });
     }
 }

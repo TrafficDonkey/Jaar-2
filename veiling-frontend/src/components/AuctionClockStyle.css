@@ -16,7 +16,7 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-sm);
-  padding: 0.9rem 1rem 0.9rem;
+  padding: 0.9rem 1rem;
   color: var(--color-text);
 }
 
@@ -38,7 +38,7 @@
 }
 
 /* ===========================================================
-   Layout van balk + prijs- en tijd-as
+   Layout van balk + prijs-as
    =========================================================== */
 
 .auction-rectangle-container {
@@ -50,21 +50,20 @@
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-sm);
   padding: 0.8rem 1rem;
+  --auction-rect-height: 240px;
 }
 
-/* kolommen links en rechts van de balk */
-.price-axis,
-.time-axis {
+/* kolom links van de balk */
+.price-axis {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 240px;
+  height: var(--auction-rect-height, 240px);
   font-size: 0.78rem;
   color: var(--color-muted);
 }
 
-.price-axis span,
-.time-axis span {
+.price-axis span {
   display: block; /* elke waarde op eigen regel */
 }
 
@@ -75,7 +74,7 @@
 .auction-rectangle {
   position: relative;
   width: 72px;
-  height: 240px;
+  height: var(--auction-rect-height, 240px);
   border-radius: 20px;
 
   /* Soft blauw → groen gradient */
@@ -96,6 +95,7 @@
 /* horizontale lijntjes in de balk */
 .tick-line {
   position: absolute;
+  top: var(--tick-top, 0%);
   left: 0;
   width: 100%;
   height: 1px;
@@ -105,6 +105,7 @@
 /* lijn / highlight op huidige prijs */
 .progress-line {
   position: absolute;
+  top: var(--progress-top, 0%);
   left: 0;
   width: 100%;
   height: 3px;
@@ -118,12 +119,7 @@
    =========================================================== */
 
 @media (max-width: 450px) {
-  .auction-rectangle {
-    height: 200px;
-  }
-
-  .price-axis,
-  .time-axis {
-    height: 200px;
+  .auction-rectangle-container {
+    --auction-rect-height: 200px;
   }
 }

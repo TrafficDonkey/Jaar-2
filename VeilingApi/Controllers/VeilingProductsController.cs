@@ -15,9 +15,16 @@ namespace VeilingApi.Controllers;
 public class VeilingProductsController : ControllerBase
 {
     private readonly IVeilingProductService _svc;
+    private readonly IHistorischePrijsService _historischePrijsService;
 
     // Injecteert de service die de logica voor veilingproducten beheert
-    public VeilingProductsController(IVeilingProductService svc) => _svc = svc;
+    public VeilingProductsController(
+        IVeilingProductService svc,
+        IHistorischePrijsService historischePrijsService)
+    {
+        _svc = svc;
+        _historischePrijsService = historischePrijsService;
+    }
 
     // ────────────────────────────── GET ──────────────────────────────
 
@@ -32,6 +39,14 @@ public class VeilingProductsController : ControllerBase
     {
         var item = await _svc.GetByIdAsync(id);
         return item is null ? NotFound() : Ok(item);
+    }
+
+    // Historische prijzen voor een specifiek veilingproduct
+    [HttpGet("{id:int}/historische-prijzen")]
+    public async Task<ActionResult<HistorischePrijzenResponseDto>> GetHistorischePrijzen(int id)
+    {
+        var result = await _historischePrijsService.GetHistorischePrijzenAsync(id);
+        return result is null ? NotFound() : Ok(result);
     }
 
     // ────────────────────────────── POST ──────────────────────────────

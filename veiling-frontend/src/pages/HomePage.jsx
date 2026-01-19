@@ -5,15 +5,24 @@
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import "./HomePageStyle.css";
+import NeuralSphere from "../components/NeuralSphere";
+import AppFooter from "../components/AppFooter";
+import PublicTopbar from "../components/PublicTopbar";
+import { useLocation } from "react-router-dom";
 
 export default function HomePage() {
+  const location = useLocation();
+  const isAppRoute = location.pathname.startsWith("/app");
+  const isLoggedIn = Boolean(sessionStorage.getItem("token"));
 
   useEffect(() => {
     document.title = "Homepage";
   }, []);
   // ────────────────────────────── Weergave ──────────────────────────────
   return (
-    <div className="lp-shell">
+    <>
+      {!isAppRoute && <PublicTopbar />}
+      <div className="lp-shell">
       {/* ───────── Hero: korte pitch + primaire CTA’s ───────── */}
       <header className="lp-hero" aria-labelledby="lp-title">
         <div className="lp-hero__content">
@@ -25,17 +34,19 @@ export default function HomePage() {
           </p>
 
           {/* Toon altijd beide keuzes: registreren of inloggen */}
-          <div className="lp-cta">
-            <Link to="/register" className="btn btn--primary">Account aanmaken</Link>
-            <Link to="/login" className="btn btn--ghost">Inloggen</Link>
-          </div>
+          {!isLoggedIn && (
+            <div className="lp-cta">
+              <Link to="/register" className="btn btn--primary">Account aanmaken</Link>
+              <Link to="/login" className="btn btn--ghost">Inloggen</Link>
+            </div>
+          )}
 
           <p className="lp-trust">Betrouwbaar. Schaalbaar. Ontworpen voor de sierteeltketen.</p>
         </div>
 
         {/* Decoratieve illustratie (geen functionele content) */}
         <div className="lp-hero__art" aria-hidden="true">
-          <div className="lp-blob" />
+          <NeuralSphere className="lp-sphere" />
           <div className="lp-card lp-card--floating">
             <span className="lp-dot" /> Live veilingen
           </div>
@@ -93,15 +104,28 @@ export default function HomePage() {
       <section className="lp-ctaStrip" aria-label="Call to action">
         <div className="lp-ctaStrip__box">
           <h2 className="lp-ctaStrip__title">Klaar om te starten?</h2>
-          <p className="lp-ctaStrip__sub">Maak gratis een account of log in om verder te gaan.</p>
-
-          {/* Ook hier altijd beide knoppen */}
-          <div className="lp-cta lp-cta--center">
-            <Link to="/register" className="btn btn--primary">Account aanmaken</Link>
-            <Link to="/login" className="btn btn--ghost">Ik heb al een account</Link>
-          </div>
+          {isLoggedIn ? (
+            <>
+              <p className="lp-ctaStrip__sub">Je bent ingelogd. Ga verder naar je instellingen.</p>
+              <div className="lp-cta lp-cta--center">
+                <Link to="/app/instellingen" className="btn btn--primary">Naar instellingen</Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="lp-ctaStrip__sub">Maak gratis een account of log in om verder te gaan.</p>
+              {/* Ook hier altijd beide knoppen */}
+              <div className="lp-cta lp-cta--center">
+                <Link to="/register" className="btn btn--primary">Account aanmaken</Link>
+                <Link to="/login" className="btn btn--ghost">Ik heb al een account</Link>
+              </div>
+            </>
+          )}
         </div>
       </section>
-    </div>
+
+        {!isAppRoute && <AppFooter />}
+      </div>
+    </>
   );
 }

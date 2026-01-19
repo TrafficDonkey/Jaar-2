@@ -32,12 +32,21 @@ public class AuthService : IAuthService
         if (exists)
             return (false, "E-mailadres is al geregistreerd", null);
 
+        if (!PhoneNumberValidator.TryValidate(dto.TelefoonLand, dto.TelefoonNummer, out var phoneError))
+            return (false, phoneError, null);
+
+        // Zelf-registratie: rol altijd geforceerd naar "Klant" (ongeacht wat binnenkomt)
         var gebruiker = new Gebruiker
         {
             Naam = dto.Naam,
             Email = dto.Email,
-            Rol = dto.Rol, // bij zelf-registratie typisch "Klant"
-            WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(dto.Wachtwoord)
+            Rol = "Klant",
+            WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(dto.Wachtwoord),
+            TelefoonLand = dto.TelefoonLand?.Trim().ToUpperInvariant(),
+            TelefoonNummer = dto.TelefoonNummer?.Trim(),
+            AdresStraat = dto.AdresStraat?.Trim(),
+            Huisnummer = dto.Huisnummer?.Trim(),
+            Postcode = dto.Postcode?.Trim()
         };
 
         _db.Gebruikers.Add(gebruiker);
@@ -48,11 +57,15 @@ public class AuthService : IAuthService
 
     // ────────────────────────────── INLOGGEN ──────────────────────────────
     // Geeft JWT-token + rol + gebruikerId terug
-    public async Task<(string? Token, string? Role, int? GebruikerId)> LoginAsync(string email, string wachtwoord)
+    public async Task<(string? Token, string? Role, int? GebruikerId, bool TwoFactorRequired, bool TwoFactorInvalid)> LoginAsync(
+        string email,
+        string wachtwoord,
+        string? twoFactorCode
+    )
     {
         var gebruiker = await _db.Gebruikers.FirstOrDefaultAsync(u => u.Email == email);
         if (gebruiker == null)
-            return (null, null, null);
+            return (null, null, null, false, false);
 
         var stored = gebruiker.WachtwoordHash ?? string.Empty;
 
@@ -79,7 +92,24 @@ public class AuthService : IAuthService
         }
 
         if (!ok)
-            return (null, null, null);
+            return (null, null, null, false, false);
+
+        if (gebruiker.TwoFactorEnabled)
+        {
+            if (string.IsNullOrWhiteSpace(gebruiker.TwoFactorSecret))
+            {
+                gebruiker.TwoFactorEnabled = false;
+                await _db.SaveChangesAsync();
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(twoFactorCode))
+                    return (null, null, null, true, false);
+
+                if (!TwoFactorHelper.ValidateCode(gebruiker.TwoFactorSecret, twoFactorCode))
+                    return (null, null, null, true, true);
+            }
+        }
 
         // Vanaf hier: token maken
         var key = _config["Jwt:Key"];
@@ -106,7 +136,7 @@ public class AuthService : IAuthService
 
         var jwtString = new JwtSecurityTokenHandler().WriteToken(token);
 
-        return (jwtString, gebruiker.Rol, gebruiker.GebruikerId);
+        return (jwtString, gebruiker.Rol, gebruiker.GebruikerId, false, false);
     }
 
     // ────────────────────────────── AdminCreateUserAsync ──────────────────────────────
@@ -124,12 +154,21 @@ public class AuthService : IAuthService
         if (string.Equals(rol, "Admin", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Admin-rollen kunnen niet via deze route worden aangemaakt.");
 
+        if (string.Equals(rol, "Klant", StringComparison.OrdinalIgnoreCase) &&
+            !PhoneNumberValidator.TryValidate(dto.TelefoonLand, dto.TelefoonNummer, out var adminPhoneError))
+            throw new InvalidOperationException(adminPhoneError);
+
         var gebruiker = new Gebruiker
         {
             Naam = dto.Naam.Trim(),
             Email = email,
             Rol = rol,
-            WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(dto.Wachtwoord)
+            WachtwoordHash = BCrypt.Net.BCrypt.HashPassword(dto.Wachtwoord),
+            TelefoonLand = dto.TelefoonLand?.Trim().ToUpperInvariant(),
+            TelefoonNummer = dto.TelefoonNummer?.Trim(),
+            AdresStraat = dto.AdresStraat?.Trim(),
+            Huisnummer = dto.Huisnummer?.Trim(),
+            Postcode = dto.Postcode?.Trim()
         };
 
         _db.Gebruikers.Add(gebruiker);
@@ -140,7 +179,74 @@ public class AuthService : IAuthService
             GebruikerId = gebruiker.GebruikerId,
             Naam = gebruiker.Naam,
             Email = gebruiker.Email,
-            Rol = gebruiker.Rol
+            Rol = gebruiker.Rol,
+            TwoFactorEnabled = gebruiker.TwoFactorEnabled,
+            TelefoonLand = gebruiker.TelefoonLand,
+            TelefoonNummer = gebruiker.TelefoonNummer,
+            AdresStraat = gebruiker.AdresStraat,
+            Huisnummer = gebruiker.Huisnummer,
+            Postcode = gebruiker.Postcode
         };
+    }
+
+    public async Task<(bool Success, string? Secret, string? OtpAuthUrl, string? ErrorMessage)> StartTwoFactorSetupAsync(int gebruikerId)
+    {
+        var gebruiker = await _db.Gebruikers.FindAsync(gebruikerId);
+        if (gebruiker == null)
+            return (false, null, null, "Gebruiker niet gevonden.");
+
+        var secret = TwoFactorHelper.GenerateSecret();
+        gebruiker.TwoFactorSecret = secret;
+        gebruiker.TwoFactorEnabled = false;
+        await _db.SaveChangesAsync();
+
+        var issuer = _config["TwoFactor:Issuer"] ?? _config["Jwt:Issuer"] ?? "FloraFlow";
+        var otpauth = TwoFactorHelper.BuildOtpAuthUrl(issuer, gebruiker.Email, secret);
+
+        return (true, secret, otpauth, null);
+    }
+
+    public async Task<(bool Success, string? ErrorMessage)> EnableTwoFactorAsync(int gebruikerId, string code)
+    {
+        var gebruiker = await _db.Gebruikers.FindAsync(gebruikerId);
+        if (gebruiker == null)
+            return (false, "Gebruiker niet gevonden.");
+
+        if (string.IsNullOrWhiteSpace(gebruiker.TwoFactorSecret))
+            return (false, "Start eerst de 2FA-setup om een sleutel te ontvangen.");
+
+        if (!TwoFactorHelper.ValidateCode(gebruiker.TwoFactorSecret, code))
+            return (false, "Ongeldige verificatiecode.");
+
+        gebruiker.TwoFactorEnabled = true;
+        await _db.SaveChangesAsync();
+
+        return (true, null);
+    }
+
+    public async Task<(bool Success, string? ErrorMessage)> DisableTwoFactorAsync(int gebruikerId, string code)
+    {
+        var gebruiker = await _db.Gebruikers.FindAsync(gebruikerId);
+        if (gebruiker == null)
+            return (false, "Gebruiker niet gevonden.");
+
+        if (!gebruiker.TwoFactorEnabled)
+        {
+            gebruiker.TwoFactorSecret = null;
+            await _db.SaveChangesAsync();
+            return (true, null);
+        }
+
+        if (string.IsNullOrWhiteSpace(gebruiker.TwoFactorSecret))
+            return (false, "Geen geldige 2FA-sleutel gevonden.");
+
+        if (!TwoFactorHelper.ValidateCode(gebruiker.TwoFactorSecret, code))
+            return (false, "Ongeldige verificatiecode.");
+
+        gebruiker.TwoFactorEnabled = false;
+        gebruiker.TwoFactorSecret = null;
+        await _db.SaveChangesAsync();
+
+        return (true, null);
     }
 }

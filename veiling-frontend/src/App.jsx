@@ -17,23 +17,33 @@ import HomePage from "./pages/HomePage";
 import SettingsPage from "./pages/SettingsPage";
 import KoperPage from "./pages/KoperPage";
 import AanvoerderPage from "./pages/AanvoerderPage";
-import VeilingmeesterPage from "./pages/VeilingMeesterPage";
+import VeilingmeesterPage from "./pages/VeilingmeesterPage";
 import AdminPage from "./pages/AdminPage";
+import HelpPage from "./pages/HelpPage";
+import NotificationsPage from "./pages/NotificationsPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import CookieConsentBanner from "./components/CookieConsentBanner";
+import CookieSettingsPage from "./pages/CookieSettingsPage";
 
 export default function App() {
   return (
-    <Routes>
-      {/* Publieke landingspagina */}
-      <Route path="/" element={<HomePage />} />
+    <>
+      <CookieConsentBanner />
+      <Routes>
+        {/* Publieke landingspagina */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/cookies" element={<CookieSettingsPage />} />
 
       {/* Publieke auth-pagina's */}
       <Route path="/login" element={<LoginScreen />} />
       <Route path="/register" element={<RegisterScreen />} />
 
-      {/* Ingelogde omgeving met navbar/layout */}
+      {/* Ingelogde omgeving met navbar/layout (zie Layout.jsx) */}
       <Route
         path="/app"
         element={
+          // Route-guard: zonder token kom je nooit in /app/*.
           <ProtectedRoute>
             <Layout />
           </ProtectedRoute>
@@ -45,9 +55,15 @@ export default function App() {
         {/* /app/instellingen */}
         <Route path="instellingen" element={<SettingsPage />} />
 
+          <Route path="hulp" element={<HelpPage />} />
+          <Route path="meldingen" element={<NotificationsPage />} />
+          <Route path="privacy" element={<PrivacyPage />} />
+          <Route path="cookies" element={<CookieSettingsPage />} />
+
         <Route 
           path="koper" 
           element={
+            // Rol-guard: alleen Klant/Admin kan kopers-scherm openen.
             <ProtectedRoute allowedRoles={["Klant", "Admin"]}>
               <KoperPage />
             </ProtectedRoute>
@@ -57,6 +73,7 @@ export default function App() {
         <Route
           path="veilingmeester"
           element={
+            // Rol-guard: alleen Veilingmeester/Admin kan veilingbeheer openen.
             <ProtectedRoute allowedRoles={["Veilingmeester", "Admin"]}>
                 <VeilingmeesterPage />
             </ProtectedRoute>
@@ -67,6 +84,7 @@ export default function App() {
         <Route
           path="aanvoerder"
           element={
+            // Rol-guard: alleen Aanvoerder/Admin kan aanvoerder-dashboard openen.
             <ProtectedRoute allowedRoles={["Aanvoerder", "Admin"]}>
               <AanvoerderPage />
             </ProtectedRoute>
@@ -77,6 +95,7 @@ export default function App() {
         <Route
           path="admin"
           element={
+            // Strikte rol-guard: alleen Admin.
             <ProtectedRoute requireRole="Admin">
               <AdminPage />
             </ProtectedRoute>
@@ -86,6 +105,7 @@ export default function App() {
 
       {/* Onbekende routes → terug naar landingspagina */}
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }
