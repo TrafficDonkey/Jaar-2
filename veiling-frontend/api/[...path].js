@@ -1,4 +1,5 @@
 const UPSTREAM_ORIGIN =
+  process.env.UPSTREAM_ORIGIN ||
   "https://floraflow-dxdtbhedcjdganbw.francecentral-01.azurewebsites.net";
 
 function toArray(value) {

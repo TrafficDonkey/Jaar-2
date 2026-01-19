@@ -1,18 +1,26 @@
 // ProtectedRoute.jsx
-// Beschermde routecomponent die controleert of een gebruiker is ingelogd.
-// Indien geen geldig token aanwezig is, wordt automatisch doorgestuurd naar /login.
+// Beschermde routecomponent die:
+// - controleert of een gebruiker is ingelogd (JWT in sessionStorage)
+// - optioneel controleert op rol (allowedRoles / requireRole)
 
 import { Navigate, useLocation } from "react-router-dom";
 
-export default function ProtectedRoute({ children }) {
-  const token = sessionStorage.getItem("token"); // JWT-token uit sessionStorage
-  const location = useLocation();              // huidige route (voor redirect terug)
+export default function ProtectedRoute({ children, allowedRoles, requireRole }) {
+  const token = sessionStorage.getItem("token");
+  const role = sessionStorage.getItem("role") || "";
+  const location = useLocation();
 
-  // ────────────────────────────── AUTHENTICATIECHECK ──────────────────────────────
-  // Als er geen token is, ga naar loginpagina en onthoud waarvandaan gebruiker kwam
-  if (!token) 
-    return <Navigate to="/login" replace state={{ from: location }} />;
+  if (!token) return <Navigate to="/login" replace state={{ from: location }} />;
 
-  // Toegang toegestaan: toon de beveiligde inhoud
+  if (requireRole && role !== requireRole) {
+    return <Navigate to="/app" replace />;
+  }
+
+  if (Array.isArray(allowedRoles) && allowedRoles.length > 0) {
+    if (!allowedRoles.includes(role)) {
+      return <Navigate to="/app" replace />;
+    }
+  }
+
   return children;
 }

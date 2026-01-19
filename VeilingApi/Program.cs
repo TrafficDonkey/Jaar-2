@@ -41,6 +41,45 @@ static string? GetAzureAppServiceConnStr(string name)
         ?? Environment.GetEnvironmentVariable($"CUSTOMCONNSTR_{name}");
 }
 
+static string? GetAnyAzureAppServiceConnStr(out string? envKey)
+{
+    envKey = null;
+    var candidates = new List<(string Key, string Value)>();
+    var prefixes = new[]
+    {
+        "SQLAZURECONNSTR_",
+        "SQLCONNSTR_",
+        "MYSQLCONNSTR_",
+        "CUSTOMCONNSTR_"
+    };
+
+    foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
+    {
+        if (entry.Key is not string key || string.IsNullOrWhiteSpace(key)) continue;
+
+        var matched = prefixes.Any(prefix =>
+            key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        if (!matched) continue;
+
+        var value = entry.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(value)) continue;
+        candidates.Add((key, value));
+    }
+
+    if (candidates.Count == 0) return null;
+
+    (string Key, string Value)? preferred = candidates.FirstOrDefault(c =>
+        c.Key.EndsWith("_DefaultConnection", StringComparison.OrdinalIgnoreCase));
+    preferred ??= candidates.FirstOrDefault(c =>
+        c.Key.EndsWith("_Default", StringComparison.OrdinalIgnoreCase));
+    preferred ??= candidates.FirstOrDefault(c =>
+        c.Key.Contains("Default", StringComparison.OrdinalIgnoreCase));
+    preferred ??= candidates[0];
+
+    envKey = preferred.Value.Key;
+    return preferred.Value.Value;
+}
+
 static (string? ConnectionString, string Source) ResolveConnectionString(WebApplicationBuilder builder)
 {
     string? cs;
@@ -68,6 +107,10 @@ static (string? ConnectionString, string Source) ResolveConnectionString(WebAppl
 
     cs = GetAzureAppServiceConnStr("Default");
     if (!string.IsNullOrWhiteSpace(cs)) return (cs, "appservice:SQL*CONNSTR_Default");
+
+    cs = GetAnyAzureAppServiceConnStr(out var envKey);
+    if (!string.IsNullOrWhiteSpace(cs) && !string.IsNullOrWhiteSpace(envKey))
+        return (cs, $"appservice:{envKey}");
 
     return (null, "none");
 }

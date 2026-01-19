@@ -7,6 +7,7 @@
   /* Licht thema met groene accenten */
   --color-bg: #f3f5f7;
   --color-surface: #ffffff;
+  --color-surface-2: #f8fafc;
 
   /* Primair groen (topbar, belangrijke knoppen) */
   --color-primary: #14532d;
@@ -25,6 +26,55 @@
 
   --shadow-sm: 0 8px 18px rgba(15, 23, 42, 0.08);
   --shadow-md: 0 14px 30px rgba(15, 23, 42, 0.12);
+
+  --switch-track: #cbd5e1;
+  --switch-thumb: #ffffff;
+
+  --control-bg: var(--color-surface);
+  --control-bg-hover: var(--color-surface-2);
+
+  --color-success-soft: rgba(22, 163, 74, 0.12);
+  --color-success-border: rgba(22, 163, 74, 0.28);
+  --color-danger-soft: rgba(220, 38, 38, 0.12);
+  --color-danger-border: rgba(220, 38, 38, 0.3);
+  --color-warning-soft: rgba(245, 158, 11, 0.14);
+  --color-warning-border: rgba(245, 158, 11, 0.32);
+  --color-info-soft: rgba(59, 130, 246, 0.14);
+  --color-info-border: rgba(59, 130, 246, 0.3);
+}
+
+:root.dark {
+  color-scheme: dark;
+
+  --color-bg: #0b1220;
+  --color-surface: #111827;
+  --color-surface-2: #0f172a;
+
+  --color-primary: #14532d;
+  --color-primary-dark: #0f3f22;
+  --color-accent: #22c55e;
+
+  --color-text: #e5e7eb;
+  --color-muted: #94a3b8;
+  --color-border: rgba(148, 163, 184, 0.22);
+
+  --shadow-sm: 0 10px 24px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 16px 40px rgba(0, 0, 0, 0.45);
+
+  --switch-track: rgba(148, 163, 184, 0.45);
+  --switch-thumb: #e5e7eb;
+
+  --control-bg: var(--color-surface-2);
+  --control-bg-hover: var(--color-surface);
+
+  --color-success-soft: rgba(34, 197, 94, 0.14);
+  --color-success-border: rgba(34, 197, 94, 0.32);
+  --color-danger-soft: rgba(248, 113, 113, 0.14);
+  --color-danger-border: rgba(248, 113, 113, 0.32);
+  --color-warning-soft: rgba(251, 191, 36, 0.14);
+  --color-warning-border: rgba(251, 191, 36, 0.32);
+  --color-info-soft: rgba(96, 165, 250, 0.14);
+  --color-info-border: rgba(96, 165, 250, 0.32);
 }
 
 
@@ -54,6 +104,61 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+select,
+textarea {
+  background: var(--control-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-muted);
+}
+
+input[type="file"]::file-selector-button,
+input[type="file"]::-webkit-file-upload-button {
+  border: 1px solid var(--color-border);
+  background: var(--control-bg-hover);
+  color: var(--color-text);
+  border-radius: 0.6rem;
+  padding: 0.35rem 0.6rem;
+  margin-right: 0.6rem;
+  cursor: pointer;
+}
+
+input[type="file"]::file-selector-button:hover,
+input[type="file"]::-webkit-file-upload-button:hover {
+  background: var(--control-bg);
+}
+
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.topbar :where(a, button):focus-visible {
+  outline-color: rgba(255, 255, 255, 0.75);
+}
+
+.form-hint {
+  margin: 0 0 1rem;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.field-required {
+  color: #fbbf24;
+  font-weight: 900;
+}
+
+.field-optional {
+  color: var(--color-muted);
+  font-weight: 600;
+  font-size: 0.9em;
 }
 
 /* ────────────────────────────── TOEGANKELIJKHEID ────────────────────────────── */
@@ -129,7 +234,15 @@ main {
   background: var(--color-accent);
   display: grid;
   place-items: center;
-  font-size: 0.9rem;
+  font-size: 0;
+  line-height: 0;
+}
+
+.logo-circle::before {
+  content: "🌿";
+  font-size: 0.95rem;
+  line-height: 1;
+  color: #fff;
 }
 
 .brand-text {
@@ -195,4 +308,23 @@ main {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.app-footer {
+  padding: 1.25rem 1rem 1.5rem;
+  color: var(--color-muted);
+}
+
+.app-footer__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.app-footer__copy {
+  font-size: 0.85rem;
 }

@@ -4,10 +4,12 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import notificationSound from "./assets/new-notification-09-352705.mp3";
+import AppFooter from "./components/AppFooter";
 import "./Layout.css";
 
 export default function Layout() {
   const nav = useNavigate();
+  const logoutCancelRef = useRef(null);
 
   function normalizeDetails(raw) {
     if (!Array.isArray(raw)) return null;
@@ -33,9 +35,8 @@ export default function Layout() {
     });
   }
 
-  const [dark] = useState(() => {
-    return localStorage.getItem("theme") === "dark";
-  });
+  const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
+  const themeName = dark ? "Donker" : "Licht";
 
   const [role] = useState(() => sessionStorage.getItem("role") || "");
   const [notifCount, setNotifCount] = useState(0);
@@ -57,7 +58,6 @@ export default function Layout() {
   const [audioReady, setAudioReady] = useState(false);
   const notificationAudioRef = useRef(null);
 
-  // Dark/light theme toepassen op <html> element
   useEffect(() => {
     const root = document.documentElement;
     if (dark) {
@@ -109,7 +109,6 @@ export default function Layout() {
       };
 
       setNotifLog((prev) =>
-        // voorkom spam: dezelfde melding direct achter elkaar maar 1x opslaan
         normalizeLog(
           prev?.[0]?.text === text && prev?.[0]?.type === type ? prev : [item, ...prev]
         ).slice(0, 50)
@@ -217,13 +216,32 @@ export default function Layout() {
     setShowLogoutConfirm(true);
   }
 
+  useEffect(() => {
+    if (!showLogoutConfirm) return;
+    logoutCancelRef.current?.focus();
+  }, [showLogoutConfirm]);
+
+  useEffect(() => {
+    if (!showNotif && !showLogoutConfirm) return;
+
+    function onKeyDown(event) {
+      if (event.key !== "Escape") return;
+      if (showLogoutConfirm) {
+        setShowLogoutConfirm(false);
+        return;
+      }
+      if (showNotif) setShowNotif(false);
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showNotif, showLogoutConfirm]);
+
   return (
     <div className="app-shell">
       <header className="topbar">
         <div className="topbar__brand">
-          <div className="logo-circle" aria-hidden="true">
-            🌿
-          </div>
+          <div className="logo-circle" aria-hidden="true" />
           <span className="brand-text">FloraFlow</span>
         </div>
 
@@ -232,7 +250,6 @@ export default function Layout() {
             Home
           </NavLink>
 
-          {/* Alleen voor rol Klant */}
           {(role === "Klant" || role === "Admin") && (
             <NavLink to="/app/koper" className="topbar__link">
               Kopen
@@ -245,16 +262,12 @@ export default function Layout() {
             </NavLink>
           )}
 
-
-
-          {/* Alleen voor rol Aanvoerder */}
           {(role === "Aanvoerder" || role === "Admin") && (
             <NavLink to="/app/aanvoerder" className="topbar__link">
               Aanvoerder
             </NavLink>
           )}
 
-          {/* Alleen voor rol Admin */}
           {role === "Admin" && (
             <NavLink to="admin" className="topbar__link">
               Beheer
@@ -275,6 +288,8 @@ export default function Layout() {
             type="button"
             className="notif-btn"
             aria-label={notificationsMuted ? "Meldingen (uit)" : "Meldingen (aan)"}
+            aria-expanded={showNotif}
+            aria-controls="notif-panel"
             onClick={handleBellClick}
           >
             {notificationsMuted ? (
@@ -312,7 +327,7 @@ export default function Layout() {
           </button>
 
           {showNotif && (
-            <div className="notif-panel" role="status" aria-live="polite">
+            <div id="notif-panel" className="notif-panel" role="status" aria-live="polite">
               <div className="notif-panel__head">
                 <span>Meldingen</span>
                 <div className="notif-panel__actions">
@@ -333,9 +348,7 @@ export default function Layout() {
                 </div>
               </div>
               {notifLog.length === 0 ? (
-                <div className="notif-panel__empty">
-                  Geen nieuwe meldingen.
-                </div>
+                <div className="notif-panel__empty">Geen nieuwe meldingen.</div>
               ) : (
                 <ul className="notif-panel__list">
                   {notifLog.slice(0, 3).map((item) => (
@@ -346,9 +359,7 @@ export default function Layout() {
                       }`}
                     >
                       <span>{item.text}</span>
-                      {item.time && (
-                        <span className="notif-panel__time">{item.time}</span>
-                      )}
+                      {item.time && <span className="notif-panel__time">{item.time}</span>}
                     </li>
                   ))}
                 </ul>
@@ -356,12 +367,37 @@ export default function Layout() {
             </div>
           )}
 
-          {/* eventueel later weer een theme-toggle naast de logout */}
           <button
             type="button"
-            onClick={confirmLogout}
-            className="logout-btn"
+            className="theme-btn"
+            aria-label={dark ? "Schakel naar lichte modus" : "Schakel naar donkere modus"}
+            aria-pressed={dark}
+            onClick={() => setDark((value) => !value)}
+            title={`Weergave: ${themeName}`}
           >
+            {dark ? (
+              <svg
+                className="theme-btn__icon"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path d="M21.64 13.65A9 9 0 0110.35 2.36a.75.75 0 00-1.02-.86A10.5 10.5 0 1022.5 14.67a.75.75 0 00-.86-1.02z" />
+              </svg>
+            ) : (
+              <svg
+                className="theme-btn__icon"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path d="M6.76 4.84l-1.8-1.79L3.17 4.84l1.79 1.79 1.8-1.79zM1 13h3v-2H1v2zm10 10h2v-3h-2v3zm9-10v-2h3v2h-3zm-2.17-8.16l1.79-1.79-1.79-1.8-1.79 1.8 1.79 1.79zM17.24 19.16l1.79 1.79 1.8-1.79-1.8-1.79-1.79 1.79zM4.84 17.24l-1.79 1.79 1.79 1.8 1.79-1.8-1.79-1.79zM12 6a6 6 0 100 12 6 6 0 000-12z" />
+              </svg>
+            )}
+            <span className="theme-btn__text">{themeName}</span>
+          </button>
+
+          <button type="button" onClick={confirmLogout} className="logout-btn">
             Uitloggen
           </button>
         </div>
@@ -394,6 +430,7 @@ export default function Layout() {
                 type="button"
                 className="logout-modal__btn logout-modal__btn--ghost"
                 onClick={() => setShowLogoutConfirm(false)}
+                ref={logoutCancelRef}
               >
                 Annuleer
               </button>
@@ -405,6 +442,8 @@ export default function Layout() {
       <main className="main-content" aria-live="polite">
         <Outlet />
       </main>
+
+      <AppFooter />
     </div>
   );
 }
