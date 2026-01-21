@@ -257,10 +257,9 @@ export default function Layout() {
             Home
           </NavLink>
 
-          {/* Alleen voor rol Klant */}
-          {(role === "Klant" || role === "Admin") && (
+          {(role === "Klant" || role === "Veilingmeester" || role === "Admin") && (
             <NavLink to="/app/koper" className="topbar__link">
-              Kopen
+              {role === "Veilingmeester" ? "Veiling volgen" : "Kopen"}
             </NavLink>
           )}
 

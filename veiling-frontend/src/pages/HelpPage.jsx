@@ -71,7 +71,7 @@ const helpContent = {
       "Beheerders maken accounts aan en beheren gebruikers.",
     steps: [
       "Ga naar Beheer en maak nieuwe accounts aan voor Aanvoerder of Veilingmeester.",
-      "Gebruik een wachtwoord van minimaal 8 tekens met letters en cijfers.",
+      "Gebruik een wachtwoord van minimaal 8 tekens met hoofdletter, cijfer en speciaal teken.",
       "Controleer accounts in de lijst en verwijder indien nodig.",
     ],
     tips: [

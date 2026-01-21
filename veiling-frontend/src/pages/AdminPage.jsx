@@ -30,6 +30,7 @@ export default function AdminPage() {
     pw2: "",
     rol: "Aanvoerder",
   });
+  const [showPw, setShowPw] = useState(false);
 
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
@@ -294,17 +295,6 @@ export default function AdminPage() {
                 Zelfregistratie via de website blijft rol <strong>Klant</strong>.
               </p>
 
-              {error && (
-                <div className="admin-alert admin-alert--error" role="alert">
-                  Fout: {error}
-                </div>
-              )}
-              {msg && !error && (
-                <div className="admin-alert admin-alert--ok" role="status">
-                  {msg}
-                </div>
-              )}
-
               <MessageCenter
                 title="Berichten"
                 messages={messages}
@@ -338,10 +328,22 @@ export default function AdminPage() {
 
                 <div className="field-row">
                   <div className="field">
-                    <label htmlFor="pw">Tijdelijk wachtwoord</label>
+                    <div className="label-inline">
+                      <label htmlFor="pw">Tijdelijk wachtwoord</label>
+                      <button
+                        type="button"
+                        className="pw-toggle"
+                        onClick={() => setShowPw((s) => !s)}
+                        aria-pressed={showPw}
+                        aria-label={showPw ? "Verberg wachtwoord" : "Toon wachtwoord"}
+                        aria-controls="pw"
+                      >
+                        {showPw ? "🙈" : "👁"}
+                      </button>
+                    </div>
                     <input
                       id="pw"
-                      type="password"
+                      type={showPw ? "text" : "password"}
                       value={form.pw}
                       onChange={(e) => updateField("pw", e.target.value)}
                       placeholder={passwordPlaceholder}
@@ -351,10 +353,22 @@ export default function AdminPage() {
                   </div>
 
                   <div className="field">
-                    <label htmlFor="pw2">Wachtwoord herhalen</label>
+                    <div className="label-inline">
+                      <label htmlFor="pw2">Wachtwoord herhalen</label>
+                      <button
+                        type="button"
+                        className="pw-toggle"
+                        onClick={() => setShowPw((s) => !s)}
+                        aria-pressed={showPw}
+                        aria-label={showPw ? "Verberg wachtwoord" : "Toon wachtwoord"}
+                        aria-controls="pw2"
+                      >
+                        {showPw ? "🙈" : "👁"}
+                      </button>
+                    </div>
                     <input
                       id="pw2"
-                      type="password"
+                      type={showPw ? "text" : "password"}
                       value={form.pw2}
                       onChange={(e) => updateField("pw2", e.target.value)}
                       placeholder="Voer hetzelfde wachtwoord in"
@@ -401,6 +415,25 @@ export default function AdminPage() {
                   >
                     Leegmaken
                   </button>
+                  {(error || msg) && (
+                    <div className="admin-actions-status">
+                      {error ? (
+                        <div
+                          className="admin-alert admin-alert--error"
+                          role="alert"
+                        >
+                          Fout: {error}
+                        </div>
+                      ) : (
+                        <div
+                          className="admin-alert admin-alert--ok"
+                          role="status"
+                        >
+                          {msg}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <button
                     type="submit"
                     className="btn btn--primary"

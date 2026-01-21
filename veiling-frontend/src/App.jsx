@@ -63,8 +63,8 @@ export default function App() {
         <Route 
           path="koper" 
           element={
-            // Rol-guard: alleen Klant/Admin kan kopers-scherm openen.
-            <ProtectedRoute allowedRoles={["Klant", "Admin"]}>
+            // Rol-guard: Klant/Admin kan kopen; Veilingmeester kan veilingen volgen.
+            <ProtectedRoute allowedRoles={["Klant", "Veilingmeester", "Admin"]}>
               <KoperPage />
             </ProtectedRoute>
         } />

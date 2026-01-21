@@ -10,7 +10,6 @@ import apiFetch from "../api";
 import { formatDate, parseApiDate, toTimeMs } from "../utils/date";
 import { PLANTEN_CATEGORIEEN } from "../utils/plantenCategorieen";
 import { POTMATEN, getPotmaat } from "../utils/potmaten";
-import MessageCenter from "../components/MessageCenter";
 
 // Vastgestelde kloklocaties
 const KLOK_LOCATIES = ["Naaldwijk", "Aalsmeer", "Rijnsburg", "Eelde"];
@@ -198,8 +197,8 @@ export default function AanvoerderPage() {
     const [saving, setSaving] = useState(false);
     const [msg, setMsg] = useState("");
     const [error, setError] = useState("");
-    const [messages, setMessages] = useState([]);
     const lastToewijzingCount = useRef(null);
+    const [activeTab, setActiveTab] = useState("aanmelden");
 
     const [role, setRole] = useState(null);
     const [gebruikerId, setGebruikerId] = useState(null);
@@ -311,6 +310,7 @@ export default function AanvoerderPage() {
     }
 
     function pushMessage(type, text, details) {
+        // Globale notificaties (Layout) via custom events.
         const time = new Date().toLocaleTimeString("nl-NL", {
             hour: "2-digit",
             minute: "2-digit",
@@ -326,19 +326,6 @@ export default function AanvoerderPage() {
                 })
             );
         }
-        setMessages((prev) => {
-            const next = [
-                {
-                    id: `${Date.now()}-${Math.random()}`,
-                    type,
-                    text,
-                    time,
-                    ...(cleanDetails ? { details: cleanDetails } : {}),
-                },
-                ...prev,
-            ];
-            return next.slice(0, 6);
-        });
     }
 
     const [categorieInput, setCategorieInput] = useState(form.categorie);
@@ -755,8 +742,44 @@ export default function AanvoerderPage() {
 
     return (
         <div className="page-shell aanv-shell">
-            <main className="aanv-main" aria-labelledby="aanv-title">
+            <main className="aanv-main">
+                <nav className="aanv-tabs" aria-label="Aanvoerder tabs">
+                    <button
+                        type="button"
+                        className={
+                            "aanv-tab" +
+                            (activeTab === "aanmelden" ? " aanv-tab--active" : "")
+                        }
+                        aria-pressed={activeTab === "aanmelden"}
+                        onClick={() => setActiveTab("aanmelden")}
+                    >
+                        Product aanmelden
+                    </button>
+                    <button
+                        type="button"
+                        className={
+                            "aanv-tab" +
+                            (activeTab === "aanmeldingen" ? " aanv-tab--active" : "")
+                        }
+                        aria-pressed={activeTab === "aanmeldingen"}
+                        onClick={() => setActiveTab("aanmeldingen")}
+                    >
+                        Aanmeldingen
+                    </button>
+                    <button
+                        type="button"
+                        className={
+                            "aanv-tab" +
+                            (activeTab === "toewijzingen" ? " aanv-tab--active" : "")
+                        }
+                        aria-pressed={activeTab === "toewijzingen"}
+                        onClick={() => setActiveTab("toewijzingen")}
+                    >
+                        Toewijzingen
+                    </button>
+                </nav>
                 {/* Hoofdkaart: formulier + stats */}
+                {activeTab === "aanmelden" && (
                 <section className="aanv-panel">
                     <header className="aanv-header">
                         <div className="aanv-header-main">
@@ -808,22 +831,16 @@ export default function AanvoerderPage() {
                         </div>
                     </div>
 
-                    {error && (
+                    {/*
                         <div className="aanv-alert" role="alert">
                             ❌ {error}
                         </div>
-                    )}
-                    {msg && !error && (
+                    */}
+                    {/*
                         <p className="aanv-msg" aria-live="polite">
                             {msg}
                         </p>
-                    )}
-
-                    <MessageCenter
-                        title="Berichten"
-                        messages={messages}
-                        onClear={() => setMessages([])}
-                    />
+                    */}
 
                     <form className="aanv-form" onSubmit={handleSubmit} noValidate>
                         <p className="form-hint" role="note">
@@ -919,30 +936,28 @@ export default function AanvoerderPage() {
                                                         ? filteredCategorieen[categorieSuggestIndex]
                                                         : null;
 
-                                                if (picked) {
-                                                    e.preventDefault();
-                                                    updateField("categorie", picked);
-                                                    updateField("productNaam", "");
-                                                    setCategorieInput(picked);
-                                                    setShowCategorieSuggest(false);
-                                                    setCategorieSuggestIndex(-1);
-                                                    setShowProductSuggest(false);
-                                                } else {
+                                                 if (picked) {
+                                                     e.preventDefault();
+                                                     updateField("categorie", picked);
+                                                     setCategorieInput(picked);
+                                                     setShowCategorieSuggest(false);
+                                                     setCategorieSuggestIndex(-1);
+                                                     setShowProductSuggest(false);
+                                                 } else {
                                                     const exact = filteredCategorieen.find(
                                                         (c) =>
                                                             c.toLowerCase() ===
                                                             String(categorieInput ?? "").trim().toLowerCase()
-                                                    );
-                                                    if (exact) {
-                                                        e.preventDefault();
-                                                        updateField("categorie", exact);
-                                                        updateField("productNaam", "");
-                                                        setCategorieInput(exact);
-                                                        setShowCategorieSuggest(false);
-                                                        setCategorieSuggestIndex(-1);
-                                                        setShowProductSuggest(false);
-                                                    }
-                                                }
+                                                     );
+                                                     if (exact) {
+                                                         e.preventDefault();
+                                                         updateField("categorie", exact);
+                                                         setCategorieInput(exact);
+                                                         setShowCategorieSuggest(false);
+                                                         setCategorieSuggestIndex(-1);
+                                                         setShowProductSuggest(false);
+                                                     }
+                                                 }
                                             }
                                         }}
                                         placeholder="Typ om te zoeken..."
@@ -965,15 +980,14 @@ export default function AanvoerderPage() {
                                                             ? " aanv-autocomplete-item--active"
                                                             : "")
                                                     }
-                                                    onMouseDown={(e) => {
-                                                        e.preventDefault();
-                                                        updateField("categorie", c);
-                                                        updateField("productNaam", "");
-                                                        setCategorieInput(c);
-                                                        setShowCategorieSuggest(false);
-                                                        setCategorieSuggestIndex(-1);
-                                                        setShowProductSuggest(false);
-                                                    }}
+                                                     onMouseDown={(e) => {
+                                                         e.preventDefault();
+                                                         updateField("categorie", c);
+                                                         setCategorieInput(c);
+                                                         setShowCategorieSuggest(false);
+                                                         setCategorieSuggestIndex(-1);
+                                                         setShowProductSuggest(false);
+                                                     }}
                                                     onMouseEnter={() =>
                                                         setCategorieSuggestIndex(idx)
                                                     }
@@ -1157,6 +1171,9 @@ export default function AanvoerderPage() {
                                     }
                                     required
                                 />
+                                <p className="aanv-help">
+                                    Minimumprijs per product (in euro).
+                                </p>
                             </div>
                         </div>
 
@@ -1322,6 +1339,19 @@ export default function AanvoerderPage() {
                             >
                                 Annuleren
                             </button>
+                            {(error || msg) && (
+                                <div className="form-actions-status">
+                                    {error ? (
+                                        <div className="aanv-alert" role="alert">
+                                            ✖ {error}
+                                        </div>
+                                    ) : (
+                                        <p className="aanv-msg" aria-live="polite">
+                                            {msg}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                             <button
                                 type="submit"
                                 className="btn btn-primary"
@@ -1332,8 +1362,9 @@ export default function AanvoerderPage() {
                         </div>
                     </form>
                 </section>
+                )}
 
-                {/* Mijn aanmeldingen */}
+                {activeTab === "aanmeldingen" && (
                 <section className="aanv-panel">
                     <h2>Mijn aanmeldingen</h2>
                     {loadingData ? (
@@ -1457,8 +1488,9 @@ export default function AanvoerderPage() {
                         </>
                     )}
                 </section>
+                )}
 
-                {/* Mijn toewijzingen */}
+                {activeTab === "toewijzingen" && (
                 <section className="aanv-panel">
                     <h2>Mijn toewijzingen</h2>
                     {loadingData ? (
@@ -1492,6 +1524,7 @@ export default function AanvoerderPage() {
                         </table>
                     )}
                 </section>
+                )}
             </main>
         </div>
     );

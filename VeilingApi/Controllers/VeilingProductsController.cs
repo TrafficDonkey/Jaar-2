@@ -43,9 +43,11 @@ public class VeilingProductsController : ControllerBase
 
     // Historische prijzen voor een specifiek veilingproduct
     [HttpGet("{id:int}/historische-prijzen")]
-    public async Task<ActionResult<HistorischePrijzenResponseDto>> GetHistorischePrijzen(int id)
+    public async Task<ActionResult<HistorischePrijzenResponseDto>> GetHistorischePrijzen(
+        int id,
+        [FromQuery] string? productNaam = null)
     {
-        var result = await _historischePrijsService.GetHistorischePrijzenAsync(id);
+        var result = await _historischePrijsService.GetHistorischePrijzenAsync(id, productNaam);
         return result is null ? NotFound() : Ok(result);
     }
 

@@ -166,9 +166,22 @@ export default function LoginScreen() {
             </div>
 
             <div className="field password-field">
-              <label htmlFor="password">
-                Wachtwoord <span className="field-required" aria-hidden="true">*</span>
-              </label>
+              <div className="label-inline">
+                <label htmlFor="password">
+                  Wachtwoord{" "}
+                  <span className="field-required" aria-hidden="true">*</span>
+                </label>
+                <button
+                  type="button"
+                  className="pw-toggle"
+                  onClick={() => setShowPw((s) => !s)}
+                  aria-pressed={showPw}
+                  aria-label={showPw ? "Verberg wachtwoord" : "Toon wachtwoord"}
+                  aria-controls="password"
+                >
+                  {showPw ? "🙈" : "👁"}
+                </button>
+              </div>
               <div className="password-control">
                 <input
                   id="password"
@@ -187,14 +200,6 @@ export default function LoginScreen() {
                   }
                   required
                 />
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  onClick={() => setShowPw((s) => !s)}
-                  aria-pressed={showPw}
-                >
-                  {showPw ? "Verberg" : "Toon"}
-                </button>
               </div>
               {caps && <p className="caps-hint">⚠️ Caps Lock staat aan</p>}
             </div>

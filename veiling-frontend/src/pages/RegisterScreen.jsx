@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./RegisterStyle.css";
 import {
+  passwordHints,
   passwordPlaceholder,
   validatePassword,
 } from "../utils/passwordRules";
@@ -154,7 +155,13 @@ export default function RegisterScreen() {
           if (translations[lower]) return translations[lower];
 
           if (lower.includes("field is required")) return `${label} is verplicht.`;
-          if (lower.includes("minimum length")) return `${label} moet minstens 6 tekens bevatten.`;
+          if (lower.includes("minimum length")) return `${label} moet minstens 8 tekens bevatten.`;
+          if (lower.includes("regular expression") || lower.includes("regex") || lower.includes("pattern")) {
+            if (label.toLowerCase().includes("wachtwoord")) {
+              return "Wachtwoord moet minstens 1 hoofdletter, 1 cijfer en 1 speciaal teken bevatten.";
+            }
+            return `${label} is ongeldig.`;
+          }
 
           return txt || `${label} is ongeldig.`;
         };
@@ -194,6 +201,40 @@ export default function RegisterScreen() {
       setMsg(`Netwerkfout: ${err.message ?? err}`);
     }
   }
+
+  const updatePasswordErrors = (nextPw) => {
+    setErrors((prev) => {
+      const previousError = prev.fields.password || prev.fields.wachtwoord || "";
+      const strengthError = validatePassword(nextPw, nextPw) || "";
+      const nextFields = { ...(prev.fields || {}) };
+
+      if (strengthError) {
+        nextFields.password = strengthError;
+        delete nextFields.wachtwoord;
+      } else {
+        delete nextFields.password;
+        delete nextFields.wachtwoord;
+      }
+
+      const nextGeneral = prev.general === previousError ? "" : prev.general;
+      return { ...prev, general: nextGeneral, fields: nextFields };
+    });
+  };
+
+  const updatePassword2Errors = (nextPw2, pwValue = pw) => {
+    setErrors((prev) => {
+      const previousError = prev.fields.password2 || "";
+      const mismatchError =
+        nextPw2 && pwValue !== nextPw2 ? "Beide wachtwoorden moeten gelijk zijn." : "";
+      const nextFields = { ...(prev.fields || {}) };
+
+      if (mismatchError) nextFields.password2 = mismatchError;
+      else delete nextFields.password2;
+
+      const nextGeneral = prev.general === previousError ? "" : prev.general;
+      return { ...prev, general: nextGeneral, fields: nextFields };
+    });
+  };
 
   return (
     <div className="page-shell reg-shell">
@@ -409,16 +450,34 @@ export default function RegisterScreen() {
             </div>
 
             <div className="field password-field">
-              <label htmlFor="reg-password">
-                Wachtwoord <span className="field-required" aria-hidden="true">*</span>
-              </label>
+              <div className="label-inline">
+                <label htmlFor="reg-password">
+                  Wachtwoord{" "}
+                  <span className="field-required" aria-hidden="true">*</span>
+                </label>
+                <button
+                  type="button"
+                  className="pw-toggle"
+                  onClick={() => setShowPw((s) => !s)}
+                  aria-pressed={showPw}
+                  aria-label={showPw ? "Verberg wachtwoord" : "Toon wachtwoord"}
+                  aria-controls="reg-password"
+                >
+                  {showPw ? "🙈" : "👁"}
+                </button>
+              </div>
               <div className="password-control">
                 <input
                   id="reg-password"
                   type={showPw ? "text" : "password"}
                   placeholder={passwordPlaceholder}
                   value={pw}
-                  onChange={(e) => setPw(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setPw(next);
+                    updatePasswordErrors(next);
+                    updatePassword2Errors(pw2, next);
+                  }}
                   onKeyUp={(e) =>
                     setCaps(
                       e.getModifierState && e.getModifierState("CapsLock")
@@ -437,15 +496,13 @@ export default function RegisterScreen() {
                       : ""
                   }
                 />
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  onClick={() => setShowPw((s) => !s)}
-                >
-                  {showPw ? "Verberg" : "Toon"}
-                </button>
               </div>
               {caps && <p className="caps-hint">Caps Lock staat aan</p>}
+              <ul className="pw-rules" aria-label="Wachtwoordvoorwaarden">
+                {passwordHints.map((hint) => (
+                  <li key={hint}>{hint}</li>
+                ))}
+              </ul>
               {(errors.fields.password || errors.fields.wachtwoord) && (
                 <p
                   className="field-error"
@@ -458,15 +515,32 @@ export default function RegisterScreen() {
             </div>
 
             <div className="field">
-              <label htmlFor="reg-password2">
-                Herhaal wachtwoord <span className="field-required" aria-hidden="true">*</span>
-              </label>
+              <div className="label-inline">
+                <label htmlFor="reg-password2">
+                  Herhaal wachtwoord{" "}
+                  <span className="field-required" aria-hidden="true">*</span>
+                </label>
+                <button
+                  type="button"
+                  className="pw-toggle"
+                  onClick={() => setShowPw((s) => !s)}
+                  aria-pressed={showPw}
+                  aria-label={showPw ? "Verberg wachtwoord" : "Toon wachtwoord"}
+                  aria-controls="reg-password2"
+                >
+                  {showPw ? "🙈" : "👁"}
+                </button>
+              </div>
               <input
                 id="reg-password2"
                 type={showPw ? "text" : "password"}
                 placeholder="Voer je wachtwoord nogmaals in"
                 value={pw2}
-                onChange={(e) => setPw2(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setPw2(next);
+                  updatePassword2Errors(next);
+                }}
                 required
                 aria-invalid={Boolean(errors.fields.password2)}
                 aria-describedby={

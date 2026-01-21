@@ -7,5 +7,5 @@ namespace VeilingApi.Services;
 
 public interface IHistorischePrijsService
 {
-    Task<HistorischePrijzenResponseDto?> GetHistorischePrijzenAsync(int veilingProductId);
+    Task<HistorischePrijzenResponseDto?> GetHistorischePrijzenAsync(int veilingProductId, string? productNaam = null);
 }

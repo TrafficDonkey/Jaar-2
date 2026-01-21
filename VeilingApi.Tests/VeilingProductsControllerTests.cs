@@ -17,7 +17,7 @@ public class VeilingProductsControllerTests
         // Test: Controller geeft 404 terug als service null returnt.
         var productSvc = new Mock<IVeilingProductService>();
         var historySvc = new Mock<IHistorischePrijsService>();
-        historySvc.Setup(s => s.GetHistorischePrijzenAsync(10))
+        historySvc.Setup(s => s.GetHistorischePrijzenAsync(10, null))
             .ReturnsAsync((HistorischePrijzenResponseDto?)null);
 
         var controller = new VeilingProductsController(productSvc.Object, historySvc.Object);
@@ -40,7 +40,7 @@ public class VeilingProductsControllerTests
             Laatste10Aanvoerder = new List<HistorischePrijsItemDto>(),
             Laatste10Alle = new List<HistorischePrijsItemDto>()
         };
-        historySvc.Setup(s => s.GetHistorischePrijzenAsync(5)).ReturnsAsync(dto);
+        historySvc.Setup(s => s.GetHistorischePrijzenAsync(5, null)).ReturnsAsync(dto);
 
         var controller = new VeilingProductsController(productSvc.Object, historySvc.Object);
 
@@ -56,13 +56,13 @@ public class VeilingProductsControllerTests
         // Test: Controller roept service aan met het juiste ID.
         var productSvc = new Mock<IVeilingProductService>();
         var historySvc = new Mock<IHistorischePrijsService>();
-        historySvc.Setup(s => s.GetHistorischePrijzenAsync(7))
+        historySvc.Setup(s => s.GetHistorischePrijzenAsync(7, null))
             .ReturnsAsync(new HistorischePrijzenResponseDto());
 
         var controller = new VeilingProductsController(productSvc.Object, historySvc.Object);
 
         await controller.GetHistorischePrijzen(7);
 
-        historySvc.Verify(s => s.GetHistorischePrijzenAsync(7), Times.Once);
+        historySvc.Verify(s => s.GetHistorischePrijzenAsync(7, null), Times.Once);
     }
 }

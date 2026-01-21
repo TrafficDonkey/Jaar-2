@@ -169,3 +169,15 @@ C:\Users\huber\Documents\dumps\Jaar-2\VeilingApi\obj\Debug\net8.0\refint\Veiling
 C:\Users\huber\Documents\dumps\Jaar-2\VeilingApi\obj\Debug\net8.0\VeilingApi.pdb
 C:\Users\huber\Documents\dumps\Jaar-2\VeilingApi\obj\Debug\net8.0\VeilingApi.genruntimeconfig.cache
 C:\Users\huber\Documents\dumps\Jaar-2\VeilingApi\obj\Debug\net8.0\ref\VeilingApi.dll
+C:\Users\huber\Documents\dumps\Jaar-2\.buildtmp\VeilingApi\appsettings.json
+C:\Users\huber\Documents\dumps\Jaar-2\.buildtmp\VeilingApi\VeilingApi.exe
+C:\Users\huber\Documents\dumps\Jaar-2\.buildtmp\VeilingApi\VeilingApi.deps.json
+C:\Users\huber\Documents\dumps\Jaar-2\.buildtmp\VeilingApi\VeilingApi.runtimeconfig.json
+C:\Users\huber\Documents\dumps\Jaar-2\.buildtmp\VeilingApi\VeilingApi.dll
+C:\Users\huber\Documents\dumps\Jaar-2\.buildtmp\VeilingApi\VeilingApi.pdb
+C:\Users\huber\Documents\dumps\Jaar-2\.buildtmp\VeilingApi.Tests\appsettings.json
+C:\Users\huber\Documents\dumps\Jaar-2\.buildtmp\VeilingApi.Tests\VeilingApi.exe
+C:\Users\huber\Documents\dumps\Jaar-2\.buildtmp\VeilingApi.Tests\VeilingApi.deps.json
+C:\Users\huber\Documents\dumps\Jaar-2\.buildtmp\VeilingApi.Tests\VeilingApi.runtimeconfig.json
+C:\Users\huber\Documents\dumps\Jaar-2\.buildtmp\VeilingApi.Tests\VeilingApi.dll
+C:\Users\huber\Documents\dumps\Jaar-2\.buildtmp\VeilingApi.Tests\VeilingApi.pdb

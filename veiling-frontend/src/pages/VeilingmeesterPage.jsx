@@ -8,7 +8,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./VeilingmeesterPageStyle.css";
 import apiFetch from "../api";
-import MessageCenter from "../components/MessageCenter";
 import {
   formatDate,
   formatDateTime,
@@ -312,7 +311,6 @@ export default function VeilingmeesterPage() {
 
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
-  const [messages, setMessages] = useState([]);
 
   const [openAanmeldingen, setOpenAanmeldingen] = useState([]);
   const [actieveVeilingen, setActieveVeilingen] = useState([]); // eigen vorm
@@ -348,7 +346,7 @@ export default function VeilingmeesterPage() {
   }, []);
 
   function pushMessage(type, text, details) {
-    // Globale notificaties (Layout) + lokale berichtenlijst op deze pagina.
+    // Globale notificaties (Layout) via custom events.
     const time = new Date().toLocaleTimeString("nl-NL", {
       hour: "2-digit",
       minute: "2-digit",
@@ -364,19 +362,6 @@ export default function VeilingmeesterPage() {
         })
       );
     }
-    setMessages((prev) => {
-      const next = [
-        {
-          id: `${Date.now()}-${Math.random()}`,
-          type,
-          text,
-          time,
-          ...(cleanDetails ? { details: cleanDetails } : {}),
-        },
-        ...prev,
-      ];
-      return next.slice(0, 6);
-    });
   }
 
   useEffect(() => {
@@ -938,11 +923,7 @@ export default function VeilingmeesterPage() {
             </p>
           )}
 
-          <MessageCenter
-            title="Berichten"
-            messages={messages}
-            onClear={() => setMessages([])}
-          />
+          {/* Berichten-paneel verwijderd (meldingen via bel-icoon) */}
 
           {/* Tabs in volgorde: Nieuwe → Actief → Archief → Overzicht */}
           <nav className="vm-tabs" aria-label="Veilingweergave">

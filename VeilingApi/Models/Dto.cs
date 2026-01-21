@@ -414,6 +414,7 @@ public class HistorischePrijsItemDto
 public class HistorischePrijzenResponseDto
 {
     public string Categorie { get; set; } = string.Empty;
+    public string ProductNaam { get; set; } = string.Empty;
     public string AanvoerderNaam { get; set; } = string.Empty;
 
     public List<HistorischePrijsItemDto> Laatste10Aanvoerder { get; set; } = new();
@@ -432,7 +433,7 @@ public class RegisterDto
     public string Email { get; set; } = string.Empty;
 
     [Required, MinLength(8, ErrorMessage = "Wachtwoord moet minstens 8 tekens bevatten.")]
-    [RegularExpression(@"^(?=.*[A-Za-z])(?=.*\d).+$", ErrorMessage = "Wachtwoord moet minstens 1 letter en 1 cijfer bevatten.")]
+    [RegularExpression(@"^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).+$", ErrorMessage = "Wachtwoord moet minstens 1 hoofdletter, 1 cijfer en 1 speciaal teken bevatten.")]
     [JsonPropertyName("password")]
     public string Wachtwoord { get; set; } = string.Empty;
 
@@ -484,7 +485,7 @@ public class AdminCreateUserDto
     public string Email { get; set; } = string.Empty;
 
     [Required, MinLength(8, ErrorMessage = "Wachtwoord moet minstens 8 tekens bevatten.")]
-    [RegularExpression(@"^(?=.*[A-Za-z])(?=.*\d).+$", ErrorMessage = "Wachtwoord moet minstens 1 letter en 1 cijfer bevatten.")]
+    [RegularExpression(@"^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).+$", ErrorMessage = "Wachtwoord moet minstens 1 hoofdletter, 1 cijfer en 1 speciaal teken bevatten.")]
     public string Wachtwoord { get; set; } = string.Empty;
 
     [Required]
