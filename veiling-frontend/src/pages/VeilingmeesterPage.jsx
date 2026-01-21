@@ -310,6 +310,7 @@ export default function VeilingmeesterPage() {
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState("");
+  const [startVeilingError, setStartVeilingError] = useState("");
   const [msg, setMsg] = useState("");
 
   const [openAanmeldingen, setOpenAanmeldingen] = useState([]);
@@ -735,10 +736,11 @@ export default function VeilingmeesterPage() {
   async function handleStartVeiling(e) {
     e.preventDefault();
     setError("");
+    setStartVeilingError("");
     setMsg("");
 
     if (!selectedAanmeldingId) {
-      setError("Kies eerst een aanmelding.");
+      setStartVeilingError("Kies eerst een aanmelding.");
       return;
     }
 
@@ -752,7 +754,9 @@ export default function VeilingmeesterPage() {
       );
 
       if (!chosen) {
-        setError("Kon de gekozen aanmelding niet vinden. Probeer opnieuw.");
+        setStartVeilingError(
+          "Kon de gekozen aanmelding niet vinden. Probeer opnieuw."
+        );
         return;
       }
 
@@ -764,7 +768,7 @@ export default function VeilingmeesterPage() {
         const mm = Number(mmRaw);
 
         if (!Number.isInteger(hh) || !Number.isInteger(mm)) {
-          setError("Ongeldige starttijd. Gebruik bijvoorbeeld 16:00.");
+          setStartVeilingError("Ongeldige starttijd. Gebruik bijvoorbeeld 16:00.");
           return;
         }
 
@@ -773,7 +777,7 @@ export default function VeilingmeesterPage() {
           : new Date();
 
         if (!baseDate) {
-          setError("Kon veildatum niet bepalen voor deze aanmelding.");
+          setStartVeilingError("Kon veildatum niet bepalen voor deze aanmelding.");
           return;
         }
 
@@ -788,12 +792,12 @@ export default function VeilingmeesterPage() {
         );
 
         if (Number.isNaN(localStart.getTime())) {
-          setError("Ongeldige starttijd.");
+          setStartVeilingError("Ongeldige starttijd.");
           return;
         }
 
         if (localStart.getTime() < Date.now()) {
-          setError(
+          setStartVeilingError(
             `Starttijd ligt in het verleden (${formatDateTime(
               localStart.toISOString()
             )}).`
@@ -848,7 +852,7 @@ export default function VeilingmeesterPage() {
       await Promise.all([loadOpenAanmeldingen(), loadActieveVeilingen()]);
     } catch (err) {
       const message = err?.message ?? "Kon veiling niet starten.";
-      setError(message);
+      setStartVeilingError(message);
       pushMessage("error", message);
     } finally {
       setSaving(false);
@@ -1052,6 +1056,11 @@ export default function VeilingmeesterPage() {
                       </div>
 
                       <div className="form-actions">
+                        {startVeilingError && (
+                          <div className="vm-inline-alert" role="alert">
+                            ❌ {startVeilingError}
+                          </div>
+                        )}
                         <button
                           type="submit"
                           className="btn btn-primary"

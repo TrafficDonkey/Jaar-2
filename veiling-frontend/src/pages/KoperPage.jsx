@@ -17,6 +17,139 @@ const fmtCurrency = (v) => {
   });
 };
 
+const normalizeHistoryRow = (row) => {
+  if (!row) return null;
+  const prijs = Number(row.prijsPerBloem ?? row.PrijsPerBloem);
+  if (!Number.isFinite(prijs)) return null;
+  return {
+    aanvoerderNaam: row.aanvoerderNaam ?? row.AanvoerderNaam ?? "-",
+    datum: row.datum ?? row.Datum ?? null,
+    prijs,
+  };
+};
+
+const PriceHistoryChart = ({ title, rows }) => {
+  const normalized = Array.isArray(rows)
+    ? rows.map(normalizeHistoryRow).filter(Boolean)
+    : [];
+
+  if (normalized.length < 2) {
+    return (
+      <div className="kop-chart kop-chart--empty" aria-label={title}>
+        <p className="kop-extra-text">Niet genoeg data voor een grafiek.</p>
+      </div>
+    );
+  }
+
+  // Backend geeft nieuwste eerst; voor een logische x-as draaien we om (oud → nieuw).
+  const points = [...normalized].reverse();
+
+  const width = 720;
+  const height = 220;
+  const margin = { top: 16, right: 16, bottom: 34, left: 62 };
+  const innerW = width - margin.left - margin.right;
+  const innerH = height - margin.top - margin.bottom;
+  const prices = points.map((p) => p.prijs);
+
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const range = Math.max(1e-9, max - min);
+  const pad = range * 0.12;
+  const yMin = Math.max(0, min - pad);
+  const yMax = max + pad;
+  const yRange = Math.max(1e-9, yMax - yMin);
+
+  const xAt = (idx) => {
+    if (points.length === 1) return margin.left + innerW / 2;
+    return margin.left + (idx / (points.length - 1)) * innerW;
+  };
+  const yAt = (val) => margin.top + ((yMax - val) / yRange) * innerH;
+
+  const path = points
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${xAt(i)} ${yAt(p.prijs)}`)
+    .join(" ");
+
+  const tickValues = [yMin, (yMin + yMax) / 2, yMax];
+  const xLabels = points.map((_, i) => i + 1);
+
+  return (
+    <div className="kop-chart" role="img" aria-label={title}>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="kop-chart-svg"
+        aria-hidden="true"
+      >
+        {/* grid + y labels */}
+        {tickValues.map((v, idx) => {
+          const y = yAt(v);
+          return (
+            <g key={idx}>
+              <line
+                x1={margin.left}
+                y1={y}
+                x2={width - margin.right}
+                y2={y}
+                className="kop-chart-grid"
+              />
+              <text x={margin.left - 10} y={y + 4} className="kop-chart-ytext">
+                € {fmtCurrency(v)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* axes */}
+        <line
+          x1={margin.left}
+          y1={margin.top}
+          x2={margin.left}
+          y2={height - margin.bottom}
+          className="kop-chart-axis"
+        />
+        <line
+          x1={margin.left}
+          y1={height - margin.bottom}
+          x2={width - margin.right}
+          y2={height - margin.bottom}
+          className="kop-chart-axis"
+        />
+
+        {/* line */}
+        <path d={path} className="kop-chart-line" fill="none" />
+
+        {/* points */}
+        {points.map((p, i) => (
+          <g key={i}>
+            <circle
+              cx={xAt(i)}
+              cy={yAt(p.prijs)}
+              r="4"
+              className="kop-chart-point"
+            >
+              <title>
+                #{i + 1} · {fmtDate(p.datum)} · € {fmtCurrency(p.prijs)}
+              </title>
+            </circle>
+          </g>
+        ))}
+
+        {/* x labels */}
+        {xLabels.map((lbl, i) => (
+          <text
+            key={i}
+            x={xAt(i)}
+            y={height - 12}
+            textAnchor="middle"
+            className="kop-chart-xtext"
+          >
+            {lbl}
+          </text>
+        ))}
+      </svg>
+    </div>
+  );
+};
+
 const cleanText = (value) => {
   const txt = String(value ?? "").replace(/\r?\n/g, " ").trim();
   return txt || "-";
@@ -1686,6 +1819,10 @@ export default function KoperPage() {
 
                   <div className="kop-modal-section">
                     <h4>Laatste 10 prijzen van deze aanvoerder</h4>
+                    <PriceHistoryChart
+                      title="Grafiek: laatste 10 prijzen van deze aanvoerder"
+                      rows={historyData.laatste10Aanvoerder}
+                    />
                     {historyData.laatste10Aanvoerder.length === 0 ? (
                       <p className="kop-extra-text">
                         Geen historische orders voor deze aanvoerder.
@@ -1726,6 +1863,10 @@ export default function KoperPage() {
 
                   <div className="kop-modal-section">
                     <h4>Laatste 10 prijzen van alle aanvoerders</h4>
+                    <PriceHistoryChart
+                      title="Grafiek: laatste 10 prijzen van alle aanvoerders"
+                      rows={historyData.laatste10Alle}
+                    />
                     {historyData.laatste10Alle.length === 0 ? (
                       <p className="kop-extra-text">
                         Geen historische orders beschikbaar.
