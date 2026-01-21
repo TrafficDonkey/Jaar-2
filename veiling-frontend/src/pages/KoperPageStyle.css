@@ -624,6 +624,257 @@
 }
 
 /* ============================================================
+   Rekening (demo)
+   ============================================================ */
+
+.kop-extra-text--small {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.kop-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.12rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  border: 1px solid var(--color-border);
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.kop-status-pill--open {
+  border-color: rgba(234, 179, 8, 0.4);
+  background: rgba(234, 179, 8, 0.12);
+}
+
+.kop-status-pill--paid {
+  border-color: rgba(21, 128, 61, 0.35);
+  background: rgba(21, 128, 61, 0.12);
+  color: var(--color-accent);
+}
+
+.kop-rekening {
+  margin-top: 1.75rem;
+}
+
+.kop-rekening-head {
+  margin-bottom: 0.75rem;
+}
+
+.kop-tabs--sub {
+  margin-bottom: 1rem;
+}
+
+.kop-rekening-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.kop-rekening-card {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.kop-rekening-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+}
+
+.kop-rekening-card__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.kop-rekening-card__meta {
+  margin-top: 0.2rem;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.kop-rekening-card__body {
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.kop-rekening-card__desc {
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.kop-rekening-card__seller {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.kop-rekening-card__seller strong {
+  color: var(--color-text);
+}
+
+.kop-rekening-breakdown {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+.kop-rekening-breakdown--two-col {
+  grid-template-columns: 1fr 1fr;
+  column-gap: 1.25rem;
+}
+
+.kop-rekening-breakdown__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.kop-rekening-breakdown__row dt {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.kop-rekening-breakdown__row dd {
+  margin: 0;
+  font-weight: 650;
+}
+
+.kop-rekening-breakdown__row--total {
+  border-top: 1px dashed rgba(148, 163, 184, 0.35);
+  padding-top: 0.55rem;
+  margin-top: 0.25rem;
+}
+
+.kop-rekening-breakdown--two-col .kop-rekening-breakdown__row--total {
+  grid-column: 1 / -1;
+}
+
+.kop-rekening-card__actions {
+  padding: 0.9rem 1rem 1rem;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.kop-field-required {
+  color: #b91c1c;
+}
+
+.kop-field-optional {
+  color: var(--color-muted);
+  font-weight: 500;
+  font-size: 0.85em;
+}
+
+.kop-field-error {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: #b91c1c;
+}
+
+.kop-rek-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.kop-rek-fieldset {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+  background: var(--color-surface-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem 1rem;
+}
+
+.kop-rek-legend {
+  padding: 0 0.4rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.kop-rek-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.kop-rek-note {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(21, 128, 61, 0.35);
+  background: rgba(21, 128, 61, 0.08);
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+
+.kop-rek-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+.kop-rek-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.kop-rek-field--full {
+  grid-column: 1 / -1;
+}
+
+.kop-rek-field input,
+.kop-rek-field select,
+.kop-rek-field textarea {
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  padding: 0.55rem 0.75rem;
+  background: var(--control-bg);
+  color: var(--color-text);
+  font-size: 0.95rem;
+}
+
+.kop-rek-field textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+.kop-rek-field input:focus,
+.kop-rek-field select:focus,
+.kop-rek-field textarea:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.kop-rek-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+/* ============================================================
    Historische prijzen modal
    ============================================================ */
 

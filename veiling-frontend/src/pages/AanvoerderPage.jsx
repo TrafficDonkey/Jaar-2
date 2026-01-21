@@ -7,7 +7,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import "./AanvoerderPageStyle.css";
 import apiFetch from "../api";
-import { formatDate, parseApiDate, toTimeMs } from "../utils/date";
+import { formatDate, formatDateTime, parseApiDate, toTimeMs } from "../utils/date";
 import { PLANTEN_CATEGORIEEN } from "../utils/plantenCategorieen";
 import { POTMATEN, getPotmaat } from "../utils/potmaten";
 
@@ -76,6 +76,31 @@ function formatCurrency(value) {
         maximumFractionDigits: 2,
     });
 }
+
+const REKENING_BUYER_PREMIUM_RATE = 0.05;
+const REKENING_VAT_RATE = 0.21;
+const REKENING_SHIPPING_LABELS = {
+    standaard: "Standaard (2-3 werkdagen)",
+    express: "Express (volgende werkdag)",
+};
+
+const padDigits = (value, size) => {
+    const raw = String(value ?? "");
+    const digits = raw.replace(/\D/g, "");
+    if (!digits) return raw;
+    return digits.padStart(size, "0");
+};
+
+const buildInvoiceNumber = (koperId, purchaseId, datum) => {
+    const year = (() => {
+        const ms = toTimeMs(datum);
+        if (!Number.isFinite(ms)) return new Date().getFullYear();
+        return new Date(ms).getFullYear();
+    })();
+    const koperPart = padDigits(koperId ?? "0", 4);
+    const idPart = padDigits(purchaseId ?? "0", 6);
+    return `FF-${year}-${koperPart}-${idPart}`;
+};
 
 function getAanmeldingStatus(iso, veilingInfo) {
     const rawStatus = String(veilingInfo?.status ?? "").trim().toLowerCase();
@@ -192,6 +217,38 @@ function buildVeilingStatusMap(veilingen) {
     return map;
 }
 
+function buildVeilingProductMap(veilingen) {
+    const map = {};
+    const list = Array.isArray(veilingen) ? veilingen : [];
+
+    list.forEach((veiling) => {
+        const veilingId = veiling?.veilingId ?? veiling?.VeilingId ?? null;
+        const veilingNaam = veiling?.naam ?? veiling?.Naam ?? "";
+        const status = veiling?.status ?? veiling?.Status ?? "";
+        const startTijd = veiling?.startTijd ?? veiling?.StartTijd ?? null;
+        const eindTijd = veiling?.eindTijd ?? veiling?.EindTijd ?? null;
+        const producten =
+            veiling?.veilingProducten ?? veiling?.VeilingProducten ?? [];
+
+        producten.forEach((vp) => {
+            const veilingProductId =
+                vp?.veilingProductId ?? vp?.VeilingProductId ?? null;
+            if (!veilingProductId) return;
+            const aanmeldingId = vp?.aanmeldingId ?? vp?.AanmeldingId ?? null;
+            map[veilingProductId] = {
+                veilingId,
+                veilingNaam,
+                status,
+                startTijd,
+                eindTijd,
+                aanmeldingId,
+            };
+        });
+    });
+
+    return map;
+}
+
 export default function AanvoerderPage() {
     const [loadingData, setLoadingData] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -207,9 +264,16 @@ export default function AanvoerderPage() {
     const [aanmeldingen, setAanmeldingen] = useState([]);
     const [toewijzingen, setToewijzingen] = useState([]);
     const [aanmeldingQuery, setAanmeldingQuery] = useState("");
+    const [toewijzingQuery, setToewijzingQuery] = useState("");
     const [aanmeldingStatusFilter, setAanmeldingStatusFilter] = useState("ALL");
     const [aanmeldingSort, setAanmeldingSort] = useState("date-asc");
     const [veilingStatusByAanmeldingId, setVeilingStatusByAanmeldingId] = useState({});
+    const [veilingInfoByVeilingProductId, setVeilingInfoByVeilingProductId] = useState({});
+
+    // Opbrengsten (demo): betaalstatus komt uit de Rekening-demo (localStorage).
+    const [opbrengstenTab, setOpbrengstenTab] = useState("open");
+    const [opbrengstenRefresh, setOpbrengstenRefresh] = useState(0);
+    const [selectedOpbrengstId, setSelectedOpbrengstId] = useState(null);
 
     const [form, setForm] = useState({
         fotoFile: null,
@@ -271,14 +335,15 @@ export default function AanvoerderPage() {
                     apiFetch("/Veilingen").catch(() => []),
                 ]);
 
-                setAanmeldingen(Array.isArray(aRes) ? aRes : []);
-                setToewijzingen(Array.isArray(tRes) ? tRes : []);
-                setVeilingStatusByAanmeldingId(buildVeilingStatusMap(vRes));
-            } catch (err) {
-                const message = err?.message ?? "Kon gegevens niet laden.";
-                setError(message);
-                pushMessage("error", message);
-            } finally {
+                 setAanmeldingen(Array.isArray(aRes) ? aRes : []);
+                 setToewijzingen(Array.isArray(tRes) ? tRes : []);
+                 setVeilingStatusByAanmeldingId(buildVeilingStatusMap(vRes));
+                 setVeilingInfoByVeilingProductId(buildVeilingProductMap(vRes));
+             } catch (err) {
+                 const message = err?.message ?? "Kon gegevens niet laden.";
+                 setError(message);
+                 pushMessage("error", message);
+             } finally {
                 setLoadingData(false);
             }
         }
@@ -511,6 +576,170 @@ export default function AanvoerderPage() {
             }),
         [toewijzingen]
     );
+
+    const filteredToewijzingen = useMemo(() => {
+        const qRaw = String(toewijzingQuery ?? "").trim();
+        if (!qRaw) return sortedToewijzingen;
+
+        const qDigits = qRaw.replace(/\D/g, "");
+        if (!qDigits) return [];
+
+        return sortedToewijzingen.filter((t) => {
+            const id = t?.toewijzingId ?? t?.ToewijzingId ?? null;
+            if (id == null) return false;
+            return String(id).includes(qDigits);
+        });
+    }, [sortedToewijzingen, toewijzingQuery]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        function onStorage(e) {
+            if (!e?.key) return;
+            if (String(e.key).startsWith("floraflow:rekeningDemo:")) {
+                setOpbrengstenRefresh((n) => n + 1);
+            }
+        }
+        window.addEventListener("storage", onStorage);
+        return () => window.removeEventListener("storage", onStorage);
+    }, []);
+
+    const rekeningByKoperId = useMemo(() => {
+        if (typeof window === "undefined") return {};
+
+        const map = {};
+        const ids = new Set();
+        for (const t of toewijzingen) {
+            const koperId = t?.koperId ?? t?.KoperId ?? null;
+            const nr = Number(koperId);
+            if (Number.isFinite(nr)) ids.add(nr);
+        }
+
+        for (const koperId of ids) {
+            const key = `floraflow:rekeningDemo:${String(koperId)}`;
+            try {
+                const raw = window.localStorage.getItem(key);
+                const parsed = raw ? JSON.parse(raw) : {};
+                map[String(koperId)] =
+                    parsed && typeof parsed === "object" ? parsed : {};
+            } catch {
+                map[String(koperId)] = {};
+            }
+        }
+
+        return map;
+    }, [toewijzingen, opbrengstenRefresh]);
+
+    const opbrengsten = useMemo(() => {
+        const list = Array.isArray(sortedToewijzingen) ? sortedToewijzingen : [];
+        return list.map((t) => {
+            const toewijzingId = t?.toewijzingId ?? t?.ToewijzingId ?? null;
+            const koperId = t?.koperId ?? t?.KoperId ?? null;
+            const koperNaam = t?.koperNaam ?? t?.KoperNaam ?? "";
+            const veilingProductId =
+                t?.veilingProductId ?? t?.VeilingProductId ?? null;
+            const categorie = t?.categorie ?? t?.Categorie ?? "";
+            const beschrijving = t?.productBeschrijving ?? t?.ProductBeschrijving ?? "";
+            const aantal = Number(t?.aantal ?? t?.Aantal ?? 0);
+            const eindPrijs = Number(t?.eindPrijs ?? t?.EindPrijs ?? 0);
+            const datum = t?.datum ?? t?.Datum ?? null;
+
+            const rekening =
+                koperId != null ? rekeningByKoperId[String(koperId)] ?? {} : {};
+            const betaling = toewijzingId != null ? rekening[String(toewijzingId)] ?? null : null;
+
+            const status = betaling?.status === "betaald" ? "betaald" : "open";
+            const betaaldOp = betaling?.betaaldOp ?? null;
+            const levering = betaling?.levering ?? null;
+            const shippingKnown =
+                typeof levering?.verzendkosten === "number" &&
+                Number.isFinite(levering.verzendkosten);
+            const verzendkosten = shippingKnown ? Number(levering.verzendkosten) : null;
+
+            const subtotal =
+                (Number.isFinite(eindPrijs) ? eindPrijs : 0) *
+                (Number.isFinite(aantal) ? aantal : 0);
+            const buyerPremium = subtotal * REKENING_BUYER_PREMIUM_RATE;
+            const exVat = subtotal + buyerPremium + (verzendkosten ?? 0);
+            const vat = exVat * REKENING_VAT_RATE;
+            const total = exVat + vat;
+
+            const veilingInfo =
+                veilingProductId != null
+                    ? veilingInfoByVeilingProductId?.[veilingProductId] ?? null
+                    : null;
+
+            return {
+                toewijzingId,
+                invoiceNumber: buildInvoiceNumber(koperId, toewijzingId, datum),
+                koperId,
+                koperNaam,
+                veilingProductId,
+                veiling: veilingInfo,
+                categorie,
+                beschrijving,
+                aantal,
+                eindPrijs,
+                datum,
+                status,
+                betaaldOp,
+                levering,
+                amounts: {
+                    subtotal,
+                    buyerPremium,
+                    verzendkosten,
+                    vat,
+                    total,
+                },
+            };
+        });
+    }, [sortedToewijzingen, rekeningByKoperId, veilingInfoByVeilingProductId]);
+
+    const openOpbrengsten = useMemo(
+        () => opbrengsten.filter((o) => o.status !== "betaald"),
+        [opbrengsten]
+    );
+    const paidOpbrengsten = useMemo(
+        () => opbrengsten.filter((o) => o.status === "betaald"),
+        [opbrengsten]
+    );
+
+    const opbrengstenStats = useMemo(() => {
+        const totaalBetaald = paidOpbrengsten.reduce((sum, o) => sum + (o?.amounts?.total ?? 0), 0);
+        return {
+            openCount: openOpbrengsten.length,
+            paidCount: paidOpbrengsten.length,
+            totaalBetaald,
+        };
+    }, [openOpbrengsten.length, paidOpbrengsten]);
+
+    const selectedOpbrengst = useMemo(() => {
+        if (!selectedOpbrengstId) return null;
+        return (
+            opbrengsten.find(
+                (o) => String(o?.toewijzingId) === String(selectedOpbrengstId)
+            ) ?? null
+        );
+    }, [opbrengsten, selectedOpbrengstId]);
+
+    const closeOpbrengstModal = () => setSelectedOpbrengstId(null);
+
+    useEffect(() => {
+        if (activeTab !== "opbrengsten" && selectedOpbrengstId) {
+            setSelectedOpbrengstId(null);
+        }
+    }, [activeTab, selectedOpbrengstId]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        if (!selectedOpbrengstId) return;
+
+        function onKeyDown(e) {
+            if (e.key === "Escape") setSelectedOpbrengstId(null);
+        }
+
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [selectedOpbrengstId]);
 
     // ───────────────────── nieuwe aanmelding opslaan ─────────────────────
 
@@ -776,6 +1005,20 @@ export default function AanvoerderPage() {
                         onClick={() => setActiveTab("toewijzingen")}
                     >
                         Toewijzingen
+                    </button>
+                    <button
+                        type="button"
+                        className={
+                            "aanv-tab" +
+                            (activeTab === "opbrengsten" ? " aanv-tab--active" : "")
+                        }
+                        aria-pressed={activeTab === "opbrengsten"}
+                        onClick={() => {
+                            setActiveTab("opbrengsten");
+                            setOpbrengstenTab("open");
+                        }}
+                    >
+                        Opbrengsten
                     </button>
                 </nav>
                 {/* Hoofdkaart: formulier + stats */}
@@ -1493,6 +1736,24 @@ export default function AanvoerderPage() {
                 {activeTab === "toewijzingen" && (
                 <section className="aanv-panel">
                     <h2>Mijn toewijzingen</h2>
+                    {!loadingData && sortedToewijzingen.length > 0 && (
+                        <div className="aanv-search">
+                            <label
+                                htmlFor="toewijzingSearch"
+                                className="aanv-search-label"
+                            >
+                                Zoeken op ID
+                            </label>
+                            <input
+                                id="toewijzingSearch"
+                                type="search"
+                                className="aanv-search-input"
+                                placeholder="Bijv. 1076"
+                                value={toewijzingQuery}
+                                onChange={(e) => setToewijzingQuery(e.target.value)}
+                            />
+                        </div>
+                    )}
                     {loadingData ? (
                         <p>Gegevens laden…</p>
                     ) : sortedToewijzingen.length === 0 ? (
@@ -1504,17 +1765,39 @@ export default function AanvoerderPage() {
                             <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Veilingproduct</th>
+                                <th>Product</th>
                                 <th>Koper</th>
                                 <th>Eindprijs</th>
                                 <th>Datum</th>
                             </tr>
                             </thead>
                             <tbody>
-                            {sortedToewijzingen.map((t) => (
+                            {filteredToewijzingen.length === 0 && (
+                                <tr>
+                                    <td colSpan={5} className="aanv-empty-cell">
+                                        Geen resultaten voor deze zoekterm.
+                                    </td>
+                                </tr>
+                            )}
+                            {filteredToewijzingen.map((t) => (
                                 <tr key={t.toewijzingId}>
                                     <td>{t.toewijzingId}</td>
-                                    <td>{t.veilingProductId}</td>
+                                    <td
+                                        className="aanv-toewijzing-product"
+                                        title={
+                                            [
+                                                t.categorie ?? t.Categorie,
+                                                t.productBeschrijving ?? t.ProductBeschrijving,
+                                            ]
+                                                .filter(Boolean)
+                                                .join(" - ") || undefined
+                                        }
+                                    >
+                                        <span className="aanv-toewijzing-product__main">
+                                            <strong>{t.categorie ?? t.Categorie ?? "-"}</strong>{" "}
+                                            - {t.productBeschrijving ?? t.ProductBeschrijving ?? "-"}
+                                        </span>
+                                    </td>
                                     <td>{t.koperNaam}</td>
                                     <td>€ {formatCurrency(t.eindPrijs)}</td>
                                     <td>{formatDate(t.datum)}</td>
@@ -1524,6 +1807,380 @@ export default function AanvoerderPage() {
                         </table>
                     )}
                 </section>
+                )}
+
+                {activeTab === "opbrengsten" && (
+                <section className="aanv-panel">
+                    <header className="aanv-header">
+                        <div className="aanv-header-main">
+                            <h2>Opbrengsten</h2>
+                            <p className="aanv-sub">
+                                Overzicht van (demo) facturen per toewijzing: wie
+                                betaald heeft, wanneer, en welke leveringsgegevens
+                                nodig zijn om te verzenden.
+                            </p>
+                        </div>
+                        <div className="aanv-header-aside">
+                            <button
+                                type="button"
+                                className="btn btn-ghost"
+                                onClick={() => setOpbrengstenRefresh((n) => n + 1)}
+                                title="Vernieuw demo betaalstatus"
+                            >
+                                Vernieuw
+                            </button>
+                        </div>
+                    </header>
+
+                    <div className="aanv-stat-row" aria-label="Samenvatting opbrengsten">
+                        <div className="aanv-stat-card">
+                            <p className="aanv-stat-label">Openstaand</p>
+                            <p className="aanv-stat-value">{opbrengstenStats.openCount}</p>
+                        </div>
+                        <div className="aanv-stat-card">
+                            <p className="aanv-stat-label">Betaald</p>
+                            <p className="aanv-stat-value">{opbrengstenStats.paidCount}</p>
+                        </div>
+                        <div className="aanv-stat-card">
+                            <p className="aanv-stat-label">Totaal betaald (incl. BTW)</p>
+                            <p className="aanv-stat-value">
+                                EUR {formatCurrency(opbrengstenStats.totaalBetaald)}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="aanv-subtabs" aria-label="Filter facturen">
+                        <button
+                            type="button"
+                            className={
+                                "aanv-subtab" +
+                                (opbrengstenTab === "open" ? " aanv-subtab--active" : "")
+                            }
+                            aria-pressed={opbrengstenTab === "open"}
+                            onClick={() => setOpbrengstenTab("open")}
+                        >
+                            Te betalen ({openOpbrengsten.length})
+                        </button>
+                        <button
+                            type="button"
+                            className={
+                                "aanv-subtab" +
+                                (opbrengstenTab === "paid" ? " aanv-subtab--active" : "")
+                            }
+                            aria-pressed={opbrengstenTab === "paid"}
+                            onClick={() => setOpbrengstenTab("paid")}
+                        >
+                            Geschiedenis ({paidOpbrengsten.length})
+                        </button>
+                    </div>
+
+                    {loadingData ? (
+                        <p>Gegevens laden...</p>
+                    ) : sortedToewijzingen.length === 0 ? (
+                        <p className="aanv-empty">
+                            Er zijn nog geen toewijzingen, dus nog geen facturen.
+                        </p>
+                    ) : (
+                        <div className="aanv-table-wrap">
+                            <table className="aanv-table">
+                                <thead>
+                                <tr>
+                                    <th>Factuur</th>
+                                    <th>Koper</th>
+                                    <th>Veiling</th>
+                                    <th>Veiling geëindigd</th>
+                                    <th>Aantal</th>
+                                    <th>Subtotaal</th>
+                                    <th>Status</th>
+                                    <th>Betaald op</th>
+                                    <th>Bedrag betaald</th>
+                                    <th></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {(opbrengstenTab === "paid"
+                                    ? paidOpbrengsten
+                                    : openOpbrengsten
+                                ).length === 0 ? (
+                                    <tr>
+                                        <td colSpan={10} className="aanv-empty-cell">
+                                            Geen resultaten.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    (opbrengstenTab === "paid"
+                                        ? paidOpbrengsten
+                                        : openOpbrengsten
+                                    ).map((o) => {
+                                        const veilingLabel =
+                                            o.veiling?.veilingNaam ||
+                                            (o.veiling?.veilingId
+                                                ? `Veiling ${o.veiling.veilingId}`
+                                                : "-");
+                                        const isPaid = o.status === "betaald";
+                                        return (
+                                            <tr key={String(o.toewijzingId)}>
+                                                <td>{o.invoiceNumber}</td>
+                                                <td>{o.koperNaam || `Koper ${o.koperId ?? "-"}`}</td>
+                                                <td>{veilingLabel}</td>
+                                                <td>{formatDateTime(o.veiling?.eindTijd)}</td>
+                                                <td>{o.aantal}</td>
+                                                <td>EUR {formatCurrency(o.amounts.subtotal)}</td>
+                                                <td>
+                                                    <span
+                                                        className={
+                                                            "aanv-pay-pill " +
+                                                            (isPaid
+                                                                ? "aanv-pay-pill--paid"
+                                                                : "aanv-pay-pill--open")
+                                                        }
+                                                    >
+                                                        {isPaid ? "Betaald" : "Openstaand"}
+                                                    </span>
+                                                </td>
+                                                <td>{isPaid ? formatDateTime(o.betaaldOp) : "-"}</td>
+                                                <td>{isPaid ? `EUR ${formatCurrency(o.amounts.total)}` : "-"}</td>
+                                                <td>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-ghost btn-small"
+                                                        onClick={() =>
+                                                            setSelectedOpbrengstId(o.toewijzingId)
+                                                        }
+                                                    >
+                                                        Details
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    <p className="aanv-msg" aria-live="polite">
+                        Demo: betaalstatus + leveringsadres komen uit de koper-tab
+                        "Rekening" en staan lokaal in je browser opgeslagen.
+                    </p>
+                </section>
+                )}
+
+                {selectedOpbrengst && (
+                    <div
+                        className="aanv-modal-backdrop"
+                        onMouseDown={(e) => {
+                            if (e.target === e.currentTarget) closeOpbrengstModal();
+                        }}
+                        role="presentation"
+                    >
+                        <div
+                            className="aanv-modal"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="aanv-opbrengst-title"
+                            onMouseDown={(e) => e.stopPropagation()}
+                        >
+                            <div className="aanv-modal-header">
+                                <div>
+                                    <h3 id="aanv-opbrengst-title">Factuurdetails</h3>
+                                    <p className="aanv-modal-sub">
+                                        {selectedOpbrengst.invoiceNumber} •{" "}
+                                        {selectedOpbrengst.status === "betaald"
+                                            ? "Betaald"
+                                            : "Openstaand"}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost"
+                                    onClick={closeOpbrengstModal}
+                                >
+                                    Sluiten
+                                </button>
+                            </div>
+
+                            <div className="aanv-modal-body">
+                                <div className="aanv-modal-section">
+                                    <div className="aanv-modal-meta">
+                                        <div>
+                                            <span>Koper</span>
+                                            <strong>
+                                                {selectedOpbrengst.koperNaam || "-"}{" "}
+                                                {selectedOpbrengst.koperId != null
+                                                    ? `(ID ${selectedOpbrengst.koperId})`
+                                                    : ""}
+                                            </strong>
+                                        </div>
+                                        <div>
+                                            <span>Toewijzing</span>
+                                            <strong>{selectedOpbrengst.toewijzingId ?? "-"}</strong>
+                                        </div>
+                                        <div>
+                                            <span>Datum toewijzing</span>
+                                            <strong>{formatDateTime(selectedOpbrengst.datum)}</strong>
+                                        </div>
+                                        <div>
+                                            <span>Betaald op</span>
+                                            <strong>
+                                                {selectedOpbrengst.status === "betaald"
+                                                    ? formatDateTime(selectedOpbrengst.betaaldOp)
+                                                    : "-"}
+                                            </strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="aanv-modal-section">
+                                    <h4>Veiling</h4>
+                                    <div className="aanv-modal-meta">
+                                        <div>
+                                            <span>Naam</span>
+                                            <strong>
+                                                {selectedOpbrengst.veiling?.veilingNaam ||
+                                                    (selectedOpbrengst.veiling?.veilingId
+                                                        ? `Veiling ${selectedOpbrengst.veiling.veilingId}`
+                                                        : "-")}
+                                            </strong>
+                                        </div>
+                                        <div>
+                                            <span>Status</span>
+                                            <strong>{selectedOpbrengst.veiling?.status || "-"}</strong>
+                                        </div>
+                                        <div>
+                                            <span>Gestart</span>
+                                            <strong>{formatDateTime(selectedOpbrengst.veiling?.startTijd)}</strong>
+                                        </div>
+                                        <div>
+                                            <span>Geëindigd</span>
+                                            <strong>{formatDateTime(selectedOpbrengst.veiling?.eindTijd)}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="aanv-modal-section">
+                                    <h4>Kavel</h4>
+                                    <div className="aanv-modal-meta">
+                                        <div>
+                                            <span>Categorie</span>
+                                            <strong>{selectedOpbrengst.categorie || "-"}</strong>
+                                        </div>
+                                        <div>
+                                            <span>Beschrijving</span>
+                                            <strong>{selectedOpbrengst.beschrijving || "-"}</strong>
+                                        </div>
+                                        <div>
+                                            <span>Aantal</span>
+                                            <strong>{selectedOpbrengst.aantal}</strong>
+                                        </div>
+                                        <div>
+                                            <span>Eindprijs per stuk</span>
+                                            <strong>EUR {formatCurrency(selectedOpbrengst.eindPrijs)}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="aanv-modal-section">
+                                    <h4>Levering</h4>
+                                    {selectedOpbrengst.status !== "betaald" ? (
+                                        <p className="aanv-empty">
+                                            Nog niet betaald: leveringsgegevens zijn nog niet bekend.
+                                        </p>
+                                    ) : (
+                                        <div className="aanv-modal-meta">
+                                            <div>
+                                                <span>Methode</span>
+                                                <strong>
+                                                    {selectedOpbrengst.levering?.type === "ophalen"
+                                                        ? "Ophalen"
+                                                        : "Bezorgen"}
+                                                </strong>
+                                            </div>
+                                            <div>
+                                                <span>Verzendmethode</span>
+                                                <strong>
+                                                    {selectedOpbrengst.levering?.type === "ophalen"
+                                                        ? "n.v.t."
+                                                        : REKENING_SHIPPING_LABELS[
+                                                            selectedOpbrengst.levering?.verzendmethode
+                                                        ] ||
+                                                        selectedOpbrengst.levering?.verzendmethode ||
+                                                        "-"}
+                                                </strong>
+                                            </div>
+                                            <div>
+                                                <span>Adres</span>
+                                                <strong>
+                                                    {selectedOpbrengst.levering?.type === "ophalen"
+                                                        ? "Ophalen bij veilinghuis (demo)"
+                                                        : [
+                                                            [
+                                                                selectedOpbrengst.levering?.straat,
+                                                                selectedOpbrengst.levering?.huisnummer,
+                                                                selectedOpbrengst.levering?.toevoeging,
+                                                            ]
+                                                                .filter(Boolean)
+                                                                .join(" "),
+                                                            [
+                                                                selectedOpbrengst.levering?.postcode,
+                                                                selectedOpbrengst.levering?.plaats,
+                                                            ]
+                                                                .filter(Boolean)
+                                                                .join(" "),
+                                                        ]
+                                                            .filter(Boolean)
+                                                            .join(", ") || "-"}
+                                                </strong>
+                                            </div>
+                                            <div>
+                                                <span>Opmerkingen</span>
+                                                <strong>{selectedOpbrengst.levering?.opmerkingen || "-"}</strong>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="aanv-modal-section">
+                                    <h4>Bedragen</h4>
+                                    <dl className="aanv-breakdown">
+                                        <div className="aanv-breakdown__row">
+                                            <dt>Subtotaal</dt>
+                                            <dd>EUR {formatCurrency(selectedOpbrengst.amounts.subtotal)}</dd>
+                                        </div>
+                                        <div className="aanv-breakdown__row">
+                                            <dt>Veilingkosten (5%)</dt>
+                                            <dd>EUR {formatCurrency(selectedOpbrengst.amounts.buyerPremium)}</dd>
+                                        </div>
+                                        <div className="aanv-breakdown__row">
+                                            <dt>Verzendkosten</dt>
+                                            <dd>
+                                                {selectedOpbrengst.status === "betaald"
+                                                    ? `EUR ${formatCurrency(selectedOpbrengst.amounts.verzendkosten ?? 0)}`
+                                                    : "-"}
+                                            </dd>
+                                        </div>
+                                        <div className="aanv-breakdown__row">
+                                            <dt>BTW (21%)</dt>
+                                            <dd>
+                                                {selectedOpbrengst.status === "betaald"
+                                                    ? `EUR ${formatCurrency(selectedOpbrengst.amounts.vat)}`
+                                                    : "-"}
+                                            </dd>
+                                        </div>
+                                        <div className="aanv-breakdown__row aanv-breakdown__row--total">
+                                            <dt>Totaal</dt>
+                                            <dd>
+                                                {selectedOpbrengst.status === "betaald"
+                                                    ? `EUR ${formatCurrency(selectedOpbrengst.amounts.total)}`
+                                                    : "-"}
+                                            </dd>
+                                        </div>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 )}
             </main>
         </div>

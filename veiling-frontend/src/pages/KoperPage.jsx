@@ -17,6 +17,31 @@ const fmtCurrency = (v) => {
   });
 };
 
+const REKENING_BUYER_PREMIUM_RATE = 0.05;
+const REKENING_VAT_RATE = 0.21;
+const REKENING_SHIPPING_OPTIONS = [
+  { id: "standaard", label: "Standaard (2-3 werkdagen)", cost: 6.95 },
+  { id: "express", label: "Express (volgende werkdag)", cost: 12.95 },
+];
+
+const padDigits = (value, size) => {
+  const raw = String(value ?? "");
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return raw;
+  return digits.padStart(size, "0");
+};
+
+const buildInvoiceNumber = (koperId, purchaseId, datum) => {
+  const year = (() => {
+    const ms = toTimeMs(datum);
+    if (!Number.isFinite(ms)) return new Date().getFullYear();
+    return new Date(ms).getFullYear();
+  })();
+  const koperPart = padDigits(koperId ?? "0", 4);
+  const idPart = padDigits(purchaseId ?? "0", 6);
+  return `FF-${year}-${koperPart}-${idPart}`;
+};
+
 const normalizeHistoryRow = (row) => {
   if (!row) return null;
   const prijs = Number(row.prijsPerBloem ?? row.PrijsPerBloem);
@@ -287,9 +312,28 @@ export default function KoperPage() {
   const [historyData, setHistoryData] = useState(null);
   const historyCloseBtnRef = React.useRef(null);
 
-  // tab: "veilingen" | "opgeslagen" | "aankopen"
+  // tab: "veilingen" | "opgeslagen" | "aankopen" | "rekening"
   const [activeTab, setActiveTab] = useState("veilingen");
   const [purchaseSort, setPurchaseSort] = useState("date_desc");
+
+  // Rekening (demo): openstaande facturen + geschiedenis
+  const [rekeningTab, setRekeningTab] = useState("open");
+  const [rekeningDemo, setRekeningDemo] = useState({});
+  const [rekeningLoaded, setRekeningLoaded] = useState(false);
+  const [checkoutInvoiceId, setCheckoutInvoiceId] = useState(null);
+  const [checkoutPrefillMsg, setCheckoutPrefillMsg] = useState("");
+  const [checkoutErr, setCheckoutErr] = useState("");
+  const [checkoutFieldErrors, setCheckoutFieldErrors] = useState({});
+  const [checkoutForm, setCheckoutForm] = useState({
+    levering: "bezorgen", // "bezorgen" | "ophalen"
+    verzendmethode: "standaard", // "standaard" | "express"
+    straat: "",
+    huisnummer: "",
+    postcode: "",
+    plaats: "",
+    toevoeging: "",
+    opmerkingen: "",
+  });
 
   // bookmarks (Klant/Koper): opgeslagen veilingen
   const [bookmarkedVeilingIds, setBookmarkedVeilingIds] = useState([]);
@@ -321,6 +365,36 @@ export default function KoperPage() {
   const bookmarkNotifStorageKey = `floraflow:koperBookmarkNotifs:${
     koperId ? String(koperId) : "anon"
   }`;
+  const rekeningStorageKey = `floraflow:rekeningDemo:${
+    koperId ? String(koperId) : "anon"
+  }`;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setRekeningLoaded(false);
+    try {
+      const raw = window.localStorage.getItem(rekeningStorageKey);
+      const parsed = raw ? JSON.parse(raw) : {};
+      setRekeningDemo(parsed && typeof parsed === "object" ? parsed : {});
+    } catch {
+      setRekeningDemo({});
+    } finally {
+      setRekeningLoaded(true);
+    }
+  }, [rekeningStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!rekeningLoaded) return;
+    try {
+      window.localStorage.setItem(
+        rekeningStorageKey,
+        JSON.stringify(rekeningDemo)
+      );
+    } catch {
+      // ignore
+    }
+  }, [rekeningDemo, rekeningStorageKey, rekeningLoaded]);
 
   useEffect(() => {
     // Init: bij eerste render laad actieve veilingen + eigen aankopen (data komt via API).
@@ -340,7 +414,7 @@ export default function KoperPage() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === "aankopen" && !canBuy) {
+    if ((activeTab === "aankopen" || activeTab === "rekening") && !canBuy) {
       setActiveTab("veilingen");
     }
   }, [activeTab, canBuy]);
@@ -451,6 +525,70 @@ export default function KoperPage() {
       );
     }
   }
+
+  useEffect(() => {
+    if (!checkoutInvoiceId) return;
+
+    setCheckoutErr("");
+    setCheckoutFieldErrors({});
+    setCheckoutPrefillMsg("");
+
+    const saved = rekeningDemo?.[checkoutInvoiceId]?.levering ?? null;
+    setCheckoutForm({
+      levering: saved?.type ?? "bezorgen",
+      verzendmethode: saved?.verzendmethode ?? "standaard",
+      straat: saved?.straat ?? "",
+      huisnummer: saved?.huisnummer ?? "",
+      postcode: saved?.postcode ?? "",
+      plaats: saved?.plaats ?? "",
+      toevoeging: saved?.toevoeging ?? "",
+      opmerkingen: saved?.opmerkingen ?? "",
+    });
+
+    let cancelled = false;
+
+    (async () => {
+      if (!koperId) return;
+      try {
+        const g = await apiFetch(`/Gebruikers/${koperId}`);
+        if (cancelled) return;
+
+        const straat = String(g?.adresStraat ?? "").trim();
+        const huisnummer = String(g?.huisnummer ?? "").trim();
+        const postcode = String(g?.postcode ?? "").trim();
+
+        if (!straat && !huisnummer && !postcode) return;
+
+        setCheckoutForm((prev) => {
+          if (prev.straat || prev.huisnummer || prev.postcode) return prev;
+          return {
+            ...prev,
+            straat: straat || prev.straat,
+            huisnummer: huisnummer || prev.huisnummer,
+            postcode: postcode || prev.postcode,
+          };
+        });
+        setCheckoutPrefillMsg(
+          "Adres is alvast ingevuld vanuit je instellingen."
+        );
+      } catch {
+        // ignore: demo mag ook zonder profiel-adres werken
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [checkoutInvoiceId, koperId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (activeTab !== "rekening" && checkoutInvoiceId) {
+      setCheckoutInvoiceId(null);
+      setCheckoutErr("");
+      setCheckoutFieldErrors({});
+      setCheckoutPrefillMsg("");
+    }
+  }, [activeTab, checkoutInvoiceId]);
 
   const bookmarkedSet = useMemo(
     () => new Set(bookmarkedVeilingIds.map((v) => Number(v))),
@@ -1040,6 +1178,90 @@ export default function KoperPage() {
     return list;
   }, [myPurchases, purchaseSort]);
 
+  const paidPurchaseIds = useMemo(() => {
+    const set = new Set();
+    if (!rekeningDemo || typeof rekeningDemo !== "object") return set;
+    for (const [key, value] of Object.entries(rekeningDemo)) {
+      if (value && value.status === "betaald") {
+        set.add(String(key));
+      }
+    }
+    return set;
+  }, [rekeningDemo]);
+
+  const invoices = useMemo(() => {
+    const list = Array.isArray(myPurchases) ? myPurchases : [];
+
+    return list.map((t, idx) => {
+      const rawId = t?.toewijzingId ?? t?.ToewijzingId ?? idx + 1;
+      const id = String(rawId);
+      const datum = t?.datum ?? t?.Datum ?? null;
+      const eindPrijs = Number(t?.eindPrijs ?? t?.EindPrijs ?? 0);
+      const aantal = Number(t?.aantal ?? t?.Aantal ?? 1);
+      const subtotal = (Number.isFinite(eindPrijs) ? eindPrijs : 0) * (Number.isFinite(aantal) ? aantal : 1);
+
+      const categorie = cleanText(t?.categorie ?? t?.Categorie);
+      const beschrijving = cleanText(t?.productBeschrijving ?? t?.ProductBeschrijving);
+      const aanvoerderNaam = cleanText(t?.aanvoerderNaam ?? t?.AanvoerderNaam);
+      const aanvoerderIdRaw = t?.aanvoerderId ?? t?.AanvoerderId ?? null;
+      const aanvoerderIdNr = Number(aanvoerderIdRaw);
+      const aanvoerderId = Number.isFinite(aanvoerderIdNr) ? aanvoerderIdNr : null;
+
+      const demo = rekeningDemo?.[id] ?? null;
+      const status = demo?.status === "betaald" ? "betaald" : "open";
+      const levering = demo?.levering ?? null;
+      const shippingKnown =
+        typeof levering?.verzendkosten === "number" &&
+        Number.isFinite(levering.verzendkosten);
+      const shippingCost = shippingKnown ? Number(levering.verzendkosten) : null;
+
+      const buyerPremium = subtotal * REKENING_BUYER_PREMIUM_RATE;
+      const exVat = subtotal + buyerPremium + (shippingCost ?? 0);
+      const vat = exVat * REKENING_VAT_RATE;
+      const total = exVat + vat;
+
+      return {
+        id,
+        invoiceNumber: buildInvoiceNumber(koperId, id, datum),
+        status,
+        datum,
+        aanvoerderNaam,
+        aanvoerderId,
+        categorie,
+        beschrijving,
+        eindPrijs,
+        aantal,
+        amounts: {
+          subtotal,
+          buyerPremium,
+          shippingCost,
+          exVat,
+          vat,
+          total,
+        },
+        levering,
+        betaaldOp: demo?.betaaldOp ?? null,
+      };
+    });
+  }, [myPurchases, koperId, rekeningDemo]);
+
+  const invoicesById = useMemo(() => {
+    const map = new Map();
+    for (const inv of invoices) {
+      map.set(String(inv.id), inv);
+    }
+    return map;
+  }, [invoices]);
+
+  const openInvoices = useMemo(
+    () => invoices.filter((i) => i.status !== "betaald"),
+    [invoices]
+  );
+  const paidInvoices = useMemo(
+    () => invoices.filter((i) => i.status === "betaald"),
+    [invoices]
+  );
+
   const handlePickAnother = () => {
     setEndedNotice(null);
     setClockFinished(false);
@@ -1228,6 +1450,141 @@ export default function KoperPage() {
     );
   };
 
+  const checkoutInvoice = checkoutInvoiceId
+    ? invoicesById.get(String(checkoutInvoiceId)) ?? null
+    : null;
+
+  const checkoutShippingOption =
+    REKENING_SHIPPING_OPTIONS.find(
+      (opt) => opt.id === checkoutForm.verzendmethode
+    ) ?? REKENING_SHIPPING_OPTIONS[0];
+
+  const checkoutShippingCost =
+    checkoutForm.levering === "ophalen" ? 0 : checkoutShippingOption.cost;
+
+  const checkoutSubtotal = checkoutInvoice?.amounts?.subtotal ?? 0;
+  const checkoutBuyerPremium = checkoutSubtotal * REKENING_BUYER_PREMIUM_RATE;
+  const checkoutExVat =
+    checkoutSubtotal + checkoutBuyerPremium + checkoutShippingCost;
+  const checkoutVat = checkoutExVat * REKENING_VAT_RATE;
+  const checkoutTotal = checkoutExVat + checkoutVat;
+
+  const closeCheckout = () => {
+    setCheckoutInvoiceId(null);
+    setCheckoutErr("");
+    setCheckoutFieldErrors({});
+    setCheckoutPrefillMsg("");
+  };
+
+  const validateCheckout = (form) => {
+    const errors = {};
+    const levering = String(form?.levering ?? "");
+    if (levering === "bezorgen") {
+      if (!String(form?.straat ?? "").trim()) {
+        errors.straat = "Straat is verplicht.";
+      }
+      if (!String(form?.huisnummer ?? "").trim()) {
+        errors.huisnummer = "Huisnummer is verplicht.";
+      }
+      if (!String(form?.postcode ?? "").trim()) {
+        errors.postcode = "Postcode is verplicht.";
+      }
+      if (!String(form?.plaats ?? "").trim()) {
+        errors.plaats = "Plaats is verplicht.";
+      }
+    }
+    return errors;
+  };
+
+  const handleCheckoutConfirm = (event) => {
+    event.preventDefault();
+    setCheckoutErr("");
+
+    if (!checkoutInvoice) {
+      setCheckoutErr("Kon de factuur niet vinden. Probeer opnieuw.");
+      return;
+    }
+
+    const errors = validateCheckout(checkoutForm);
+    setCheckoutFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setCheckoutErr("Vul de verplichte velden in.");
+      return;
+    }
+
+    const leveringType = checkoutForm.levering;
+    const verzendkosten = leveringType === "ophalen" ? 0 : checkoutShippingCost;
+    const verzendmethode =
+      leveringType === "ophalen"
+        ? "ophalen"
+        : checkoutShippingOption?.id ?? "standaard";
+
+    const levering = {
+      type: leveringType,
+      verzendmethode,
+      verzendkosten,
+      straat: String(checkoutForm.straat ?? "").trim(),
+      huisnummer: String(checkoutForm.huisnummer ?? "").trim(),
+      postcode: String(checkoutForm.postcode ?? "").trim(),
+      plaats: String(checkoutForm.plaats ?? "").trim(),
+      toevoeging: String(checkoutForm.toevoeging ?? "").trim(),
+      opmerkingen: String(checkoutForm.opmerkingen ?? "").trim(),
+    };
+
+    const betaaldOp = new Date().toISOString();
+
+    setRekeningDemo((prev) => ({
+      ...(prev && typeof prev === "object" ? prev : {}),
+      [String(checkoutInvoice.id)]: {
+        ...(prev?.[String(checkoutInvoice.id)] ?? {}),
+        status: "betaald",
+        betaaldOp,
+        levering,
+      },
+    }));
+
+    const adresRegel = (() => {
+      if (leveringType === "ophalen") return "Ophalen bij veilinghuis (demo)";
+      const line1 = [levering.straat, levering.huisnummer, levering.toevoeging]
+        .filter(Boolean)
+        .join(" ");
+      const line2 = [levering.postcode, levering.plaats].filter(Boolean).join(" ");
+      return [line1, line2].filter(Boolean).join(", ") || "-";
+    })();
+
+    const leveringLabel =
+      leveringType === "ophalen"
+        ? "Ophalen"
+        : `Bezorgen - ${checkoutShippingOption.label}`;
+
+    const detailRows = [
+      { label: "Factuurnummer", value: checkoutInvoice.invoiceNumber },
+      { label: "Aanvoerder", value: checkoutInvoice.aanvoerderNaam },
+      { label: "Status", value: "Betaald (demo)" },
+      { label: "Datum aankoop", value: fmtDateTime(checkoutInvoice.datum) },
+      { label: "Bedrag", value: `EUR ${fmtCurrency(checkoutTotal)}` },
+      { label: "Levering", value: leveringLabel },
+      { label: "Adres", value: adresRegel },
+    ];
+
+    if (levering.opmerkingen) {
+      detailRows.push({ label: "Opmerkingen", value: levering.opmerkingen });
+    }
+
+    const supplierSuffix =
+      checkoutInvoice.aanvoerderNaam && checkoutInvoice.aanvoerderNaam !== "-"
+        ? ` bij ${checkoutInvoice.aanvoerderNaam}`
+        : "";
+
+    pushMessage(
+      "success",
+      `Bevestiging: factuur ${checkoutInvoice.invoiceNumber} is betaald (demo)${supplierSuffix}.`,
+      detailRows
+    );
+    setRekeningTab("history");
+    closeCheckout();
+  };
+
   return (
     <div className="kop-shell">
       <header className="kop-head">
@@ -1292,6 +1649,20 @@ export default function KoperPage() {
             onClick={() => setActiveTab("aankopen")}
           >
             Mijn aankopen
+          </button>
+        )}
+        {canBuy && (
+          <button
+            type="button"
+            className={
+              "vm-tab" + (activeTab === "rekening" ? " vm-tab--active" : "")
+            }
+            onClick={() => {
+              setActiveTab("rekening");
+              setRekeningTab("open");
+            }}
+          >
+            Rekening
           </button>
         )}
       </div>
@@ -1665,8 +2036,8 @@ export default function KoperPage() {
               )}
             </section>
           </main>
-        </>
-      ) : (
+         </>
+      ) : activeTab === "aankopen" ? (
         // TAB: Mijn aankopen
         <section
           className="kop-history"
@@ -1714,6 +2085,7 @@ export default function KoperPage() {
                     <th>Prijs per stuk</th>
                     <th>Aantal</th>
                     <th>Totaal</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1728,6 +2100,7 @@ export default function KoperPage() {
                     );
                     const toewijzingId =
                       t.toewijzingId ?? t.ToewijzingId ?? "-";
+                    const isPaid = paidPurchaseIds.has(String(toewijzingId));
                     return (
                       <tr key={toewijzingId}>
                         {isAdmin && <td>{toewijzingId}</td>}
@@ -1747,6 +2120,18 @@ export default function KoperPage() {
                         <td>
                           EUR {fmtCurrency(totaal)}
                         </td>
+                        <td>
+                          <span
+                            className={
+                              "kop-status-pill " +
+                              (isPaid
+                                ? "kop-status-pill--paid"
+                                : "kop-status-pill--open")
+                            }
+                          >
+                            {isPaid ? "Betaald" : "Openstaand"}
+                          </span>
+                        </td>
                       </tr>
                     );
                   })}
@@ -1755,6 +2140,523 @@ export default function KoperPage() {
             </div>
           )}
         </section>
+      ) : (
+        // TAB: Rekening (demo)
+        <section className="kop-rekening" aria-label="Rekening">
+          <header className="kop-rekening-head">
+            <h2 className="kop-history-title">Rekening</h2>
+            <p className="kop-extra-text kop-extra-text--small">
+              Demo: er is geen echte betaalmethode. Na bevestigen markeren we de
+              factuur als betaald en sturen we een melding met details.
+            </p>
+          </header>
+
+          <div className="vm-tabs kop-tabs kop-tabs--sub">
+            <button
+              type="button"
+              className={"vm-tab" + (rekeningTab === "open" ? " vm-tab--active" : "")}
+              onClick={() => setRekeningTab("open")}
+              aria-pressed={rekeningTab === "open"}
+            >
+              Te betalen ({openInvoices.length})
+            </button>
+            <button
+              type="button"
+              className={"vm-tab" + (rekeningTab === "history" ? " vm-tab--active" : "")}
+              onClick={() => setRekeningTab("history")}
+              aria-pressed={rekeningTab === "history"}
+            >
+              Geschiedenis ({paidInvoices.length})
+            </button>
+          </div>
+
+          {loadingPurchases ? (
+            <p>Gegevens laden...</p>
+          ) : !koperId ? (
+            <p className="kop-extra-text">
+              Je bent niet als koper ingelogd, dus er zijn geen facturen om te
+              tonen.
+            </p>
+          ) : invoices.length === 0 ? (
+            <p className="kop-extra-text">
+              Je hebt nog geen facturen. Doe eerst een aankoop.
+            </p>
+          ) : rekeningTab === "open" ? (
+            openInvoices.length === 0 ? (
+              <p className="kop-extra-text">Geen openstaande facturen.</p>
+            ) : (
+              <div className="kop-rekening-cards">
+                {openInvoices.map((inv) => {
+                  const buyerPct = Math.round(REKENING_BUYER_PREMIUM_RATE * 100);
+                  const vatPct = Math.round(REKENING_VAT_RATE * 100);
+                  return (
+                    <article key={inv.id} className="kop-rekening-card">
+                      <div className="kop-rekening-card__head">
+                        <div>
+                          <h3 className="kop-rekening-card__title">
+                            {inv.invoiceNumber}
+                          </h3>
+                          <div className="kop-rekening-card__meta">
+                            Aankoop: {fmtDateTime(inv.datum)}
+                          </div>
+                        </div>
+                        <span className="kop-status-pill kop-status-pill--open">
+                          Openstaand
+                        </span>
+                      </div>
+
+                      <div className="kop-rekening-card__body">
+                        <div className="kop-rekening-card__desc">
+                          <strong>{inv.categorie}</strong> - {inv.beschrijving}
+                        </div>
+                        <div className="kop-rekening-card__seller">
+                          Aanvoerder: <strong>{inv.aanvoerderNaam}</strong>
+                        </div>
+
+                        <dl className="kop-rekening-breakdown">
+                          <div className="kop-rekening-breakdown__row">
+                            <dt>Prijs per stuk</dt>
+                            <dd>EUR {fmtCurrency(inv.eindPrijs)}</dd>
+                          </div>
+                          <div className="kop-rekening-breakdown__row">
+                            <dt>Aantal</dt>
+                            <dd>{inv.aantal}</dd>
+                          </div>
+                          <div className="kop-rekening-breakdown__row">
+                            <dt>Subtotaal</dt>
+                            <dd>EUR {fmtCurrency(inv.amounts.subtotal)}</dd>
+                          </div>
+                          <div className="kop-rekening-breakdown__row">
+                            <dt>Veilingkosten ({buyerPct}%)</dt>
+                            <dd>EUR {fmtCurrency(inv.amounts.buyerPremium)}</dd>
+                          </div>
+                          <div className="kop-rekening-breakdown__row">
+                            <dt>Verzendkosten</dt>
+                            <dd>
+                              {inv.amounts.shippingCost == null
+                                ? "Nog te bepalen"
+                                : `EUR ${fmtCurrency(inv.amounts.shippingCost)}`}
+                            </dd>
+                          </div>
+                          <div className="kop-rekening-breakdown__row">
+                            <dt>BTW ({vatPct}%)</dt>
+                            <dd>EUR {fmtCurrency(inv.amounts.vat)}</dd>
+                          </div>
+                          <div className="kop-rekening-breakdown__row kop-rekening-breakdown__row--total">
+                            <dt>Totaal</dt>
+                            <dd>EUR {fmtCurrency(inv.amounts.total)}</dd>
+                          </div>
+                        </dl>
+
+                        {inv.amounts.shippingCost == null && (
+                          <p className="kop-extra-text kop-extra-text--small">
+                            Verzendkosten worden bepaald in de volgende stap
+                            (bezorgen/ophalen).
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="kop-rekening-card__actions">
+                        <button
+                          type="button"
+                          className="kop-koop-btn"
+                          onClick={() => setCheckoutInvoiceId(String(inv.id))}
+                        >
+                          Betaal
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )
+          ) : paidInvoices.length === 0 ? (
+            <p className="kop-extra-text">Nog geen betaalde facturen.</p>
+          ) : (
+            <div className="kop-rekening-cards">
+              {paidInvoices.map((inv) => {
+                const buyerPct = Math.round(REKENING_BUYER_PREMIUM_RATE * 100);
+                const vatPct = Math.round(REKENING_VAT_RATE * 100);
+                const leveringType = inv.levering?.type ?? "ophalen";
+                const adresRegel =
+                  leveringType === "ophalen"
+                    ? "Ophalen bij veilinghuis (demo)"
+                    : [
+                        [inv.levering?.straat, inv.levering?.huisnummer, inv.levering?.toevoeging]
+                          .filter(Boolean)
+                          .join(" "),
+                        [inv.levering?.postcode, inv.levering?.plaats]
+                          .filter(Boolean)
+                          .join(" "),
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "-";
+                const verzendLabel =
+                  leveringType === "ophalen"
+                    ? "Ophalen"
+                    : `Bezorgen - ${
+                        REKENING_SHIPPING_OPTIONS.find(
+                          (opt) => opt.id === inv.levering?.verzendmethode
+                        )?.label ?? inv.levering?.verzendmethode ?? "-"
+                      }`;
+
+                return (
+                  <article key={inv.id} className="kop-rekening-card">
+                    <div className="kop-rekening-card__head">
+                      <div>
+                        <h3 className="kop-rekening-card__title">
+                          {inv.invoiceNumber}
+                        </h3>
+                        <div className="kop-rekening-card__meta">
+                          Betaald: {fmtDateTime(inv.betaaldOp)}
+                        </div>
+                      </div>
+                      <span className="kop-status-pill kop-status-pill--paid">
+                        Betaald
+                      </span>
+                    </div>
+
+                    <div className="kop-rekening-card__body">
+                      <div className="kop-rekening-card__desc">
+                        <strong>{inv.categorie}</strong> - {inv.beschrijving}
+                      </div>
+                      <div className="kop-rekening-card__seller">
+                        Aanvoerder: <strong>{inv.aanvoerderNaam}</strong>
+                      </div>
+
+                      <dl className="kop-rekening-breakdown kop-rekening-breakdown--two-col">
+                        <div className="kop-rekening-breakdown__row">
+                          <dt>Levering</dt>
+                          <dd>{verzendLabel}</dd>
+                        </div>
+                        <div className="kop-rekening-breakdown__row">
+                          <dt>Adres</dt>
+                          <dd>{adresRegel}</dd>
+                        </div>
+                        <div className="kop-rekening-breakdown__row">
+                          <dt>Subtotaal</dt>
+                          <dd>EUR {fmtCurrency(inv.amounts.subtotal)}</dd>
+                        </div>
+                        <div className="kop-rekening-breakdown__row">
+                          <dt>Veilingkosten ({buyerPct}%)</dt>
+                          <dd>EUR {fmtCurrency(inv.amounts.buyerPremium)}</dd>
+                        </div>
+                        <div className="kop-rekening-breakdown__row">
+                          <dt>Verzendkosten</dt>
+                          <dd>EUR {fmtCurrency(inv.amounts.shippingCost ?? 0)}</dd>
+                        </div>
+                        <div className="kop-rekening-breakdown__row">
+                          <dt>BTW ({vatPct}%)</dt>
+                          <dd>EUR {fmtCurrency(inv.amounts.vat)}</dd>
+                        </div>
+                        <div className="kop-rekening-breakdown__row kop-rekening-breakdown__row--total">
+                          <dt>Totaal</dt>
+                          <dd>EUR {fmtCurrency(inv.amounts.total)}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Popup: Levering (Rekening demo) */}
+      {checkoutInvoiceId && (
+        <div
+          className="kop-modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCheckout();
+          }}
+          role="presentation"
+        >
+          <div
+            className="kop-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="kop-checkout-title"
+            aria-describedby="kop-checkout-desc"
+          >
+            <div className="kop-modal-header">
+              <div>
+                <h3 id="kop-checkout-title">Levering</h3>
+                <p id="kop-checkout-desc" className="kop-modal-sub">
+                  Vul je gegevens in om de factuur te bevestigen (demo).
+                </p>
+              </div>
+              <button
+                type="button"
+                className="kop-koop-btn kop-koop-btn--ghost"
+                onClick={closeCheckout}
+              >
+                Sluiten
+              </button>
+            </div>
+            <div className="kop-modal-body">
+              {!checkoutInvoice ? (
+                <p className="kop-extra-text">Factuur niet gevonden.</p>
+              ) : (
+                <>
+                  <div className="kop-modal-section">
+                    <div className="kop-modal-meta">
+                      <div>
+                        <span>Factuur</span>
+                        <strong>{checkoutInvoice.invoiceNumber}</strong>
+                      </div>
+                      <div>
+                        <span>Aanvoerder</span>
+                        <strong>{checkoutInvoice.aanvoerderNaam}</strong>
+                      </div>
+                      <div>
+                        <span>Artikel</span>
+                        <strong>{checkoutInvoice.categorie}</strong>
+                      </div>
+                      <div>
+                        <span>Bedrag (incl. BTW)</span>
+                        <strong>EUR {fmtCurrency(checkoutTotal)}</strong>
+                      </div>
+                    </div>
+                    <p className="kop-extra-text kop-extra-text--small">
+                      Let op: dit is een demo. Er wordt geen echte betaling
+                      uitgevoerd.
+                    </p>
+                  </div>
+
+                  <form className="kop-rek-form" onSubmit={handleCheckoutConfirm}>
+                    <fieldset className="kop-rek-fieldset">
+                      <legend className="kop-rek-legend">Leveringskeuze</legend>
+                      <label className="kop-rek-radio">
+                        <input
+                          type="radio"
+                          name="levering"
+                          value="bezorgen"
+                          checked={checkoutForm.levering === "bezorgen"}
+                          onChange={(e) =>
+                            setCheckoutForm((prev) => ({
+                              ...prev,
+                              levering: e.target.value,
+                            }))
+                          }
+                        />
+                        Bezorgen
+                      </label>
+                      <label className="kop-rek-radio">
+                        <input
+                          type="radio"
+                          name="levering"
+                          value="ophalen"
+                          checked={checkoutForm.levering === "ophalen"}
+                          onChange={(e) =>
+                            setCheckoutForm((prev) => ({
+                              ...prev,
+                              levering: e.target.value,
+                            }))
+                          }
+                        />
+                        Ophalen
+                      </label>
+                    </fieldset>
+
+                    {checkoutForm.levering === "bezorgen" ? (
+                      <>
+                        {checkoutPrefillMsg && (
+                          <p className="kop-rek-note" aria-live="polite">
+                            {checkoutPrefillMsg}
+                          </p>
+                        )}
+
+                        <div className="kop-rek-grid">
+                          <div className="kop-rek-field">
+                            <label htmlFor="rek-straat">
+                              Straat{" "}
+                              <span className="kop-field-required">*</span>
+                            </label>
+                            <input
+                              id="rek-straat"
+                              value={checkoutForm.straat}
+                              onChange={(e) =>
+                                setCheckoutForm((prev) => ({
+                                  ...prev,
+                                  straat: e.target.value,
+                                }))
+                              }
+                              aria-invalid={Boolean(checkoutFieldErrors.straat)}
+                            />
+                            {checkoutFieldErrors.straat && (
+                              <p className="kop-field-error" role="alert">
+                                {checkoutFieldErrors.straat}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="kop-rek-field">
+                            <label htmlFor="rek-huisnummer">
+                              Huisnummer{" "}
+                              <span className="kop-field-required">*</span>
+                            </label>
+                            <input
+                              id="rek-huisnummer"
+                              value={checkoutForm.huisnummer}
+                              onChange={(e) =>
+                                setCheckoutForm((prev) => ({
+                                  ...prev,
+                                  huisnummer: e.target.value,
+                                }))
+                              }
+                              aria-invalid={Boolean(
+                                checkoutFieldErrors.huisnummer
+                              )}
+                            />
+                            {checkoutFieldErrors.huisnummer && (
+                              <p className="kop-field-error" role="alert">
+                                {checkoutFieldErrors.huisnummer}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="kop-rek-field">
+                            <label htmlFor="rek-postcode">
+                              Postcode{" "}
+                              <span className="kop-field-required">*</span>
+                            </label>
+                            <input
+                              id="rek-postcode"
+                              value={checkoutForm.postcode}
+                              onChange={(e) =>
+                                setCheckoutForm((prev) => ({
+                                  ...prev,
+                                  postcode: e.target.value,
+                                }))
+                              }
+                              aria-invalid={Boolean(
+                                checkoutFieldErrors.postcode
+                              )}
+                            />
+                            {checkoutFieldErrors.postcode && (
+                              <p className="kop-field-error" role="alert">
+                                {checkoutFieldErrors.postcode}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="kop-rek-field">
+                            <label htmlFor="rek-plaats">
+                              Plaats{" "}
+                              <span className="kop-field-required">*</span>
+                            </label>
+                            <input
+                              id="rek-plaats"
+                              value={checkoutForm.plaats}
+                              onChange={(e) =>
+                                setCheckoutForm((prev) => ({
+                                  ...prev,
+                                  plaats: e.target.value,
+                                }))
+                              }
+                              aria-invalid={Boolean(checkoutFieldErrors.plaats)}
+                            />
+                            {checkoutFieldErrors.plaats && (
+                              <p className="kop-field-error" role="alert">
+                                {checkoutFieldErrors.plaats}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="kop-rek-field">
+                            <label htmlFor="rek-toevoeging">
+                              Toevoeging{" "}
+                              <span className="kop-field-optional">
+                                (optioneel)
+                              </span>
+                            </label>
+                            <input
+                              id="rek-toevoeging"
+                              value={checkoutForm.toevoeging}
+                              onChange={(e) =>
+                                setCheckoutForm((prev) => ({
+                                  ...prev,
+                                  toevoeging: e.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+
+                          <div className="kop-rek-field">
+                            <label htmlFor="rek-verzend">
+                              Verzendmethode{" "}
+                              <span className="kop-field-required">*</span>
+                            </label>
+                            <select
+                              id="rek-verzend"
+                              value={checkoutForm.verzendmethode}
+                              onChange={(e) =>
+                                setCheckoutForm((prev) => ({
+                                  ...prev,
+                                  verzendmethode: e.target.value,
+                                }))
+                              }
+                            >
+                              {REKENING_SHIPPING_OPTIONS.map((opt) => (
+                                <option key={opt.id} value={opt.id}>
+                                  {opt.label} (EUR {fmtCurrency(opt.cost)})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="kop-rek-field kop-rek-field--full">
+                            <label htmlFor="rek-opmerkingen">
+                              Opmerkingen{" "}
+                              <span className="kop-field-optional">
+                                (optioneel)
+                              </span>
+                            </label>
+                            <textarea
+                              id="rek-opmerkingen"
+                              value={checkoutForm.opmerkingen}
+                              onChange={(e) =>
+                                setCheckoutForm((prev) => ({
+                                  ...prev,
+                                  opmerkingen: e.target.value,
+                                }))
+                              }
+                              rows={3}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="kop-extra-text kop-extra-text--small">
+                        Je kiest voor ophalen. Er zijn geen adresvelden nodig.
+                      </p>
+                    )}
+
+                    {checkoutErr && (
+                      <p className="kop-error" role="alert">
+                        {checkoutErr}
+                      </p>
+                    )}
+
+                    <div className="kop-rek-actions">
+                      <button
+                        type="button"
+                        className="kop-koop-btn kop-koop-btn--ghost"
+                        onClick={closeCheckout}
+                      >
+                        Annuleer
+                      </button>
+                      <button type="submit" className="kop-koop-btn">
+                        Bevestig (demo)
+                      </button>
+                    </div>
+                  </form>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Popup: historische prijzen */}

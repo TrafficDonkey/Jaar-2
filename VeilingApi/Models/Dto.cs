@@ -343,6 +343,8 @@ public class ToewijzingDto
     public int ToewijzingId { get; set; }
     public int KoperId { get; set; }
     public string KoperNaam { get; set; } = string.Empty;
+    public int AanvoerderId { get; set; }
+    public string AanvoerderNaam { get; set; } = string.Empty;
     public int VeilingProductId { get; set; }
     public string Categorie { get; set; } = string.Empty;
     public string ProductBeschrijving { get; set; } = string.Empty;

@@ -22,6 +22,10 @@ public class ToewijzingService : IToewijzingService
         ToewijzingId    = t.ToewijzingId,
         KoperId         = t.KoperId,
         KoperNaam       = t.Koper != null ? t.Koper.Naam : string.Empty,
+        AanvoerderId    = t.VeilingProduct?.Aanmelding?.GebruikerId ?? 0,
+        AanvoerderNaam  = t.VeilingProduct?.Aanmelding?.Gebruiker != null
+                          ? t.VeilingProduct.Aanmelding.Gebruiker.Naam
+                          : string.Empty,
         VeilingProductId= t.VeilingProductId,
         Categorie       = t.VeilingProduct?.Categorie
                           ?? t.VeilingProduct?.Aanmelding?.Categorie
@@ -41,6 +45,7 @@ public class ToewijzingService : IToewijzingService
             .Include(t => t.Koper)
             .Include(t => t.VeilingProduct)
                 .ThenInclude(vp => vp!.Aanmelding)
+                    .ThenInclude(a => a!.Gebruiker)
             .OrderByDescending(t => t.Datum)
             .Select(t => MapToDto(t))
             .ToListAsync();
@@ -54,6 +59,7 @@ public class ToewijzingService : IToewijzingService
             .Include(t => t.Koper)
             .Include(t => t.VeilingProduct)
                 .ThenInclude(vp => vp!.Aanmelding)
+                    .ThenInclude(a => a!.Gebruiker)
             .Where(t => t.ToewijzingId == id)
             .Select(t => MapToDto(t))
             .FirstOrDefaultAsync();
@@ -70,6 +76,7 @@ public class ToewijzingService : IToewijzingService
             .Include(t => t.Koper)
             .Include(t => t.VeilingProduct)
                 .ThenInclude(vp => vp!.Aanmelding)
+                    .ThenInclude(a => a!.Gebruiker)
             .Where(t => t.VeilingProduct != null
                 && t.VeilingProduct.Aanmelding != null
                 && t.VeilingProduct.Aanmelding.GebruikerId == gebruikerId)
@@ -86,6 +93,7 @@ public class ToewijzingService : IToewijzingService
             .Include(t => t.Koper)
             .Include(t => t.VeilingProduct)
                 .ThenInclude(vp => vp!.Aanmelding)
+                    .ThenInclude(a => a!.Gebruiker)
             .Where(t => t.KoperId == gebruikerId)
             .OrderByDescending(t => t.Datum)
             .Select(t => MapToDto(t))
@@ -156,6 +164,7 @@ public class ToewijzingService : IToewijzingService
             .Include(x => x.Koper)
             .Include(x => x.VeilingProduct)
                 .ThenInclude(vp => vp!.Aanmelding)
+                    .ThenInclude(a => a!.Gebruiker)
             .FirstAsync(x => x.ToewijzingId == t.ToewijzingId);
 
         return MapToDto(created);
